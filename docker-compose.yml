@@ -1,6 +1,25 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: bugninja-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: bugninja
+      POSTGRES_USER: bugninja_user
+      POSTGRES_PASSWORD: bugninja_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bugninja_user -d bugninja"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   # Redis for queuing and real-time communication
   redis:
     image: redis:7-alpine
@@ -10,124 +29,13 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+      - ./infrastructure/docker/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
       timeout: 10s
       retries: 5
-
-  # Supabase - Database with real-time features
-  supabase-db:
-    image: supabase/postgres:15.1.0.117
-    container_name: bugninja-supabase-db
-    restart: unless-stopped
-    ports:
-      - "54322:5432"
-    environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: your-super-secret-jwt-token-with-at-least-32-characters-long
-      POSTGRES_HOST: supabase-db
-    volumes:
-      - supabase_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
-  supabase-auth:
-    image: supabase/gotrue:v2.99.0
-    container_name: bugninja-supabase-auth
-    depends_on:
-      supabase-db:
-        condition: service_healthy
-    restart: unless-stopped
-    ports:
-      - "9999:9999"
-    environment:
-      GOTRUE_API_HOST: 0.0.0.0
-      GOTRUE_API_PORT: 9999
-      API_EXTERNAL_URL: http://localhost:8000
-      GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgresql://postgres:your-super-secret-jwt-token-with-at-least-32-characters-long@supabase-db:5432/postgres?search_path=auth
-      GOTRUE_SITE_URL: http://localhost:3000
-      GOTRUE_URI_ALLOW_LIST: http://localhost:3000
-      GOTRUE_DISABLE_SIGNUP: false
-      GOTRUE_JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
-      GOTRUE_JWT_EXP: 3600
-      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
-      GOTRUE_JWT_ADMIN_ROLES: service_role
-      GOTRUE_LOG_LEVEL: info
-      GOTRUE_OPERATOR_TOKEN: your-super-secret-jwt-token-with-at-least-32-characters-long
-
-  supabase-rest:
-    image: postgrest/postgrest:v11.2.0
-    container_name: bugninja-supabase-rest
-    depends_on:
-      supabase-db:
-        condition: service_healthy
-    restart: unless-stopped
-    ports:
-      - "3001:3000"
-    environment:
-      PGRST_DB_URI: postgresql://authenticator:your-super-secret-jwt-token-with-at-least-32-characters-long@supabase-db:5432/postgres
-      PGRST_DB_SCHEMAS: public,storage,graphql_public
-      PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
-      PGRST_DB_USE_LEGACY_GUCS: false
-
-  supabase-realtime:
-    image: supabase/realtime:v2.25.35
-    container_name: bugninja-supabase-realtime
-    depends_on:
-      supabase-db:
-        condition: service_healthy
-    restart: unless-stopped
-    ports:
-      - "4000:4000"
-    environment:
-      PORT: 4000
-      DB_HOST: supabase-db
-      DB_PORT: 5432
-      DB_USER: supabase_realtime_admin
-      DB_PASSWORD: your-super-secret-jwt-token-with-at-least-32-characters-long
-      DB_NAME: postgres
-      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
-      DB_ENC_KEY: supabaserealtime
-      API_JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long
-      FLY_ALLOC_ID: fly123
-      FLY_APP_NAME: realtime
-      SECRET_KEY_BASE: UpNVntn3cDxHJpq99YMc1T1AQgQpc8kfYTuRgBiYa15BLrx8etQoXz3gZv1/u2oq
-
-  supabase-studio:
-    image: supabase/studio:latest
-    container_name: bugninja-supabase-studio
-    restart: unless-stopped
-    ports:
-      - "3002:3000"
-    environment:
-      # Internal container URLs for Studio backend
-      STUDIO_PG_META_URL: http://supabase-rest:3000
-      SUPABASE_URL: http://supabase-rest:3000
-      SUPABASE_REST_URL: http://supabase-rest:3000/rest/v1/
-      
-      # External URLs for browser
-      NEXT_PUBLIC_SUPABASE_URL: http://localhost:3001
-      NEXT_PUBLIC_SUPABASE_REST_URL: http://localhost:3001/rest/v1/
-      
-      # Database connection
-      POSTGRES_PASSWORD: your-super-secret-jwt-token-with-at-least-32-characters-long
-      
-      # JWT Keys
-      SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
-      SUPABASE_SERVICE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
-    depends_on:
-      supabase-db:
-        condition: service_healthy
-      supabase-rest:
-        condition: service_started
 
   # Frontend React Application
   frontend:
@@ -143,19 +51,17 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:3001
-      - VITE_SUPABASE_URL=http://localhost:3001
-      - VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+      - VITE_API_URL=http://localhost:8000
     depends_on:
       - redis
-      - supabase-rest
+      - postgres
     stdin_open: true
     tty: true
 
 volumes:
-  redis_data:
+  postgres_data:
     driver: local
-  supabase_db_data:
+  redis_data:
     driver: local
 
 networks:
