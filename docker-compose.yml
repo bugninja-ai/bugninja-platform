@@ -37,6 +37,28 @@ services:
       timeout: 10s
       retries: 5
 
+  # FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    container_name: bugninja-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://bugninja_user:bugninja_password@postgres:5432/bugninja
+      - REDIS_URL=redis://redis:6379
+      - API_DEBUG=true
+      - API_CORS_ORIGINS=["http://localhost:3000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   # Frontend React Application
   frontend:
     build:
@@ -53,8 +75,7 @@ services:
     environment:
       - VITE_API_URL=http://localhost:8000
     depends_on:
-      - redis
-      - postgres
+      - backend
     stdin_open: true
     tty: true
 
