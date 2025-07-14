@@ -1,0 +1,82 @@
+---
+description: Python best practices and patterns for modern software development with Flask and SQLite
+globs: **/*.py, src/**/*.py, tests/**/*.py
+---
+
+# Python Best Practices
+
+## Project Structure
+- Use src-layout with `src/your_package_name/`
+- Place tests in `tests/` directory parallel to `src/`
+- Keep configuration in `config/` or as environment variables
+- Store requirements in `requirements.txt` or `pyproject.toml`
+- Place static files in `static/` directory
+- Use `templates/` for Jinja2 templates
+
+## Code Style
+- Follow Black code formatting
+- Use isort for import sorting
+- Follow PEP 8 naming conventions:
+  - snake_case for functions and variables
+  - PascalCase for classes
+  - UPPER_CASE for constants
+- Maximum line length of 88 characters (Black default)
+- Use absolute imports over relative imports
+
+## Type Hints
+- Use type hints for all function parameters and returns
+- Use type hints for variables at their first declaration
+- Import types from `typing` module
+- Use `Optional[Type]` instead of `Type | None`
+- Use `TypeVar` for generic types
+- Use `Protocol` for duck typing
+- Use `-> None` type hinting for functions with no return value
+
+## Testing
+- Use pytest for testing framework
+- Use pytest-cov for coverage reporting
+- Use Polyfactory for generating test data and fixtures where necessary
+- Implement consistent fixtures with proper separation of concerns
+- Organize fixtures under `tests/fixtures/` directory with logical separation:
+  - `tests/fixtures/models/` for model-related fixtures
+  - `tests/fixtures/api/` for API-related fixtures
+  - `tests/fixtures/data/` for data generation fixtures
+  - `tests/fixtures/mocks/` for mock-related fixtures
+- Use proper mocking with pytest-mock for external dependencies
+- Test all error scenarios and edge cases
+- Write detailed test descriptions that explain:
+  - What aspect of the functionality is being tested
+  - Why this test case is important for reliability
+  - What specific behavior or edge case is being validated
+  - How the test contributes to overall code quality
+- Include comprehensive docstrings in test functions explaining the test's purpose and significance
+- Use descriptive test names that clearly indicate what is being tested
+- Ensure tests are isolated and don't depend on external state
+- Implement proper setup and teardown for test data
+- Use parameterized tests for testing multiple scenarios efficiently
+- Avoid creating meaningless, redundant or unnecessary testcases or testcases that are already proven correct by a previous testcase
+
+
+## Security
+- Use HTTPS in production
+- Implement proper CORS
+- Sanitize all user inputs
+- Use proper session configuration
+- Implement proper logging
+- Follow OWASP guidelines
+
+## Error Handling
+- Create custom exception classes
+- Use proper try-except blocks
+- Implement proper logging
+- Return proper error responses
+- Handle edge cases properly
+- Use proper error messages
+
+## Documentation
+- Use Google-style docstrings
+- Document all public APIs
+- Use proper inline comments that are reflective to the context and hold meaningful information about the 
+- If a variable name, a function name or a class name is mentioned in the documentation it should be wrapped in `...` quotations following Markdown standards
+- Instead of writing boring flowing text descriptions for function documentation, write it an easy to understand, straight to the point manner
+- You are also allowed to use Markdown compatible enumerations in the function or class documentations for easier understanding

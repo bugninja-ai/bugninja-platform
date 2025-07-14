@@ -1,4 +1,5 @@
 from typing import List
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -8,9 +9,7 @@ class Settings(BaseSettings):
     API_HOST: str = Field(default="0.0.0.0", alias="API_HOST")
     API_PORT: int = Field(default=8000, alias="API_PORT")
     DEBUG: bool = Field(default=True, alias="API_DEBUG")
-    CORS_ORIGINS: List[str] = Field(
-        default=["http://localhost:3000"], alias="API_CORS_ORIGINS"
-    )
+    CORS_ORIGINS: List[str] = Field(default=["http://localhost:3000"], alias="API_CORS_ORIGINS")
 
     # Database Configuration
     DATABASE_URL: str = Field(
