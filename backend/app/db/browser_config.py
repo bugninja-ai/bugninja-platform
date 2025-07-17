@@ -10,13 +10,12 @@ from typing import List
 from sqlalchemy import DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.base import DBTableBaseModel
 from app.db.test_case import TestCase
 from app.db.test_run import TestRun
-from app.db.test_traversal import TestTraversal
 
 
-class BrowserConfig(Base):
+class BrowserConfig(DBTableBaseModel):
     """
     BrowserConfig table.
 
@@ -38,9 +37,6 @@ class BrowserConfig(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     # Relationships
-    test_traversals: Mapped[List["TestTraversal"]] = relationship(
-        "TestTraversal", back_populates="browser_config"
-    )
     test_runs: Mapped[List["TestRun"]] = relationship("TestRun", back_populates="browser_config")
     test_cases: Mapped[List["TestCase"]] = relationship(
         "TestCase", secondary="test_case_browser_configs", back_populates="browser_configs"

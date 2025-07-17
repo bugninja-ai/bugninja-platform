@@ -8,10 +8,10 @@ between SecretValue and TestTraversal entities.
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base
+from app.db.base import DBTableBaseModel
 
 
-class SecretValueTestTraversal(Base):
+class SecretValueTestTraversal(DBTableBaseModel):
     """
     Association table for SecretValue and TestTraversal many-to-many relationship.
 

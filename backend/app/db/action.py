@@ -9,12 +9,12 @@ from typing import List
 from sqlalchemy import Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.base import DBTableBaseModel
 from app.db.brain_state import BrainState
 from app.db.history_element import HistoryElement
 
 
-class Action(Base):
+class Action(DBTableBaseModel):
     """
     Action table.
 

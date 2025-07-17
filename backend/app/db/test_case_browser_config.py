@@ -8,10 +8,10 @@ between TestCase and BrowserConfig entities.
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base
+from app.db.base import DBTableBaseModel
 
 
-class TestCaseBrowserConfig(Base):
+class TestCaseBrowserConfig(DBTableBaseModel):
     """
     Association table for TestCase and BrowserConfig many-to-many relationship.
 

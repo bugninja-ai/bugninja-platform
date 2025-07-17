@@ -10,12 +10,12 @@ from typing import List
 from sqlalchemy import DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.base import DBTableBaseModel
 from app.db.project import Project
-from app.db.test_traversal import TestTraversal
+from app.db.test_run import TestRun
 
 
-class SecretValue(Base):
+class SecretValue(DBTableBaseModel):
     """
     SecretValue table.
 
@@ -42,6 +42,6 @@ class SecretValue(Base):
 
     # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="secret_values")
-    test_traversals: Mapped[List["TestTraversal"]] = relationship(
-        "TestTraversal", secondary="secret_value_test_traversals", back_populates="secret_values"
+    test_runs: Mapped[List["TestRun"]] = relationship(
+        "TestRun", secondary="secret_value_test_runs", back_populates="secret_values"
     )

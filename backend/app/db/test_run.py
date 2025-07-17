@@ -10,14 +10,14 @@ from typing import List, Optional
 from sqlalchemy import Boolean, DateTime, Enum, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.base import DBTableBaseModel
 from app.db.browser_config import BrowserConfig
 from app.db.cost import Cost
 from app.db.history_element import HistoryElement
 from app.db.test_traversal import TestTraversal
 
 
-class TestRun(Base):
+class TestRun(DBTableBaseModel):
     """
     TestRun table.
 

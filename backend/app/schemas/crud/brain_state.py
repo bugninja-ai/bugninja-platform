@@ -19,12 +19,12 @@ class CreateBrainState(CreationModel):
 
     Brain states represent the AI agent's cognitive state during test execution.
     Each brain state contains the agent's current understanding, memory,
-    and next goals for the test traversal.
+    and next goals for the test run.
 
     Attributes:
         id: Unique identifier generated using CUID
-        test_traversal_id: Reference to the test traversal this brain state belongs to
-        idx_in_traversal: Index position within the traversal sequence
+        test_run_id: Reference to the test run this brain state belongs to
+        idx_in_run: Index position within the run sequence
         valid: Whether this brain state is valid and usable
         evaluation_previous_goal: Evaluation of the previous goal's success
         memory: Current memory/context of the AI agent
@@ -32,20 +32,20 @@ class CreateBrainState(CreationModel):
     """
 
     id: str = Field(default=CUID().generate())
-    test_traversal_id: str
-    idx_in_traversal: int
+    test_run_id: str
+    idx_in_run: int
     valid: bool
     evaluation_previous_goal: str
     memory: str
     next_goal: str
 
     @classmethod
-    def sample_factory_build(cls, test_traversal_id: str = CUID().generate()) -> "CreateBrainState":
+    def sample_factory_build(cls, test_run_id: str = CUID().generate()) -> "CreateBrainState":
         """
         Generate a sample CreateBrainState instance for testing.
 
         Args:
-            test_traversal_id: Test traversal ID that the brain state belongs to
+            test_run_id: Test run ID that the brain state belongs to
 
         Returns:
             CreateBrainState: A sample brain state with fake data
@@ -55,14 +55,14 @@ class CreateBrainState(CreationModel):
             __model__ = CreateBrainState
             __faker__ = faker
 
-            idx_in_traversal = faker.random_int(min=0, max=100)
+            idx_in_run = faker.random_int(min=0, max=100)
             valid = faker.boolean()
             evaluation_previous_goal = faker.sentence()
             memory = faker.paragraph()
             next_goal = faker.sentence()
 
         element = CreateBrainStateFactory.build()
-        element.test_traversal_id = test_traversal_id
+        element.test_run_id = test_run_id
 
         return element
 
@@ -71,17 +71,17 @@ class UpdateBrainState(UpdateModel):
     """
     Schema for updating an existing brain state.
 
-    Allows updating all brain state fields except ID and test traversal relationship.
+    Allows updating all brain state fields except ID and test run relationship.
 
     Attributes:
-        idx_in_traversal: Updated index position within the traversal sequence
+        idx_in_run: Updated index position within the run sequence
         valid: Updated validity status
         evaluation_previous_goal: Updated evaluation of the previous goal
         memory: Updated memory/context of the AI agent
         next_goal: Updated next goal or objective for the agent
     """
 
-    idx_in_traversal: int
+    idx_in_run: int
     valid: bool
     evaluation_previous_goal: str
     memory: str
@@ -100,7 +100,7 @@ class UpdateBrainState(UpdateModel):
             __model__ = UpdateBrainState
             __faker__ = faker
 
-            idx_in_traversal = faker.random_int(min=0, max=100)
+            idx_in_run = faker.random_int(min=0, max=100)
             valid = faker.boolean()
             evaluation_previous_goal = faker.sentence()
             memory = faker.paragraph()
@@ -120,8 +120,8 @@ class ResponseBrainState(BaseModel):
 
     Attributes:
         id: Unique brain state identifier
-        test_traversal_id: Reference to the test traversal this brain state belongs to
-        idx_in_traversal: Index position within the traversal sequence
+        test_run_id: Reference to the test run this brain state belongs to
+        idx_in_run: Index position within the run sequence
         valid: Whether this brain state is valid and usable
         evaluation_previous_goal: Evaluation of the previous goal's success
         memory: Current memory/context of the AI agent
@@ -129,8 +129,8 @@ class ResponseBrainState(BaseModel):
     """
 
     id: str
-    test_traversal_id: str
-    idx_in_traversal: int
+    test_run_id: str
+    idx_in_run: int
     valid: bool
     evaluation_previous_goal: str
     memory: str
@@ -138,14 +138,14 @@ class ResponseBrainState(BaseModel):
 
     @classmethod
     def sample_factory_build(
-        cls, id: str = CUID().generate(), test_traversal_id: str = CUID().generate()
+        cls, id: str = CUID().generate(), test_run_id: str = CUID().generate()
     ) -> "ResponseBrainState":
         """
         Generate a sample ResponseBrainState instance for testing.
 
         Args:
             id: Brain state ID to use in the sample
-            test_traversal_id: Test traversal ID that the brain state belongs to
+            test_run_id: Test run ID that the brain state belongs to
 
         Returns:
             ResponseBrainState: A sample response brain state with fake data
@@ -155,7 +155,7 @@ class ResponseBrainState(BaseModel):
             __model__ = ResponseBrainState
             __faker__ = faker
 
-            idx_in_traversal = faker.random_int(min=0, max=100)
+            idx_in_run = faker.random_int(min=0, max=100)
             valid = faker.boolean()
             evaluation_previous_goal = faker.sentence()
             memory = faker.paragraph()
@@ -163,7 +163,7 @@ class ResponseBrainState(BaseModel):
 
         element = ResponseBrainStateFactory.build()
         element.id = id
-        element.test_traversal_id = test_traversal_id
+        element.test_run_id = test_run_id
 
         return element
 

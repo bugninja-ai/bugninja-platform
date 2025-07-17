@@ -10,14 +10,14 @@ from typing import List
 from sqlalchemy import DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.base import DBTableBaseModel
 from app.db.browser_config import BrowserConfig
 from app.db.document import Document
 from app.db.project import Project
-from app.db.test_traversal import TestTraversal
+from app.db.test_run import TestRun
 
 
-class TestCase(Base):
+class TestCase(DBTableBaseModel):
     """
     TestCase table.
 
@@ -50,9 +50,7 @@ class TestCase(Base):
     # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="test_cases")
     document: Mapped["Document"] = relationship("Document", back_populates="test_case")
-    test_traversals: Mapped[List["TestTraversal"]] = relationship(
-        "TestTraversal", back_populates="test_case"
-    )
+    test_runs: Mapped[List["TestRun"]] = relationship("TestRun", back_populates="test_case")
     browser_configs: Mapped[List["BrowserConfig"]] = relationship(
         "BrowserConfig", secondary="test_case_browser_configs", back_populates="test_cases"
     )

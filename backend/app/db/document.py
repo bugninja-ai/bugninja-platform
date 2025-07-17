@@ -10,12 +10,12 @@ from typing import Optional
 from sqlalchemy import DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.base import DBTableBaseModel
 from app.db.project import Project
 from app.db.test_case import TestCase
 
 
-class Document(Base):
+class Document(DBTableBaseModel):
     """
     Document table.
 

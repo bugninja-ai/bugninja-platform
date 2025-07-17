@@ -2,7 +2,7 @@
 Project CRUD Schemas
 
 This module defines Pydantic models for Project entity CRUD operations.
-Projects represent specific testing initiatives within an organization.
+Projects represent specific testing initiatives.
 """
 
 from datetime import datetime, timezone
@@ -19,31 +19,25 @@ class CreateProject(CreationModel):
     """
     Schema for creating a new project.
 
-    Projects represent specific testing initiatives within an organization.
-    Each project belongs to an organization and can contain multiple test cases,
-    documents, and other testing resources.
+    Projects represent specific testing initiatives.
+    Each project can contain multiple test cases, documents, and other testing resources.
 
     Attributes:
         id: Unique identifier generated using CUID
-        organization_id: Reference to the organization this project belongs to
         created_at: Timestamp when the project was created (UTC)
         name: Human-readable name for the project
         default_start_url: Default URL where tests for this project start
     """
 
     id: str = Field(default=CUID().generate())
-    organization_id: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     name: str
     default_start_url: str
 
     @classmethod
-    def sample_factory_build(cls, organization_id: str = CUID().generate()) -> "CreateProject":
+    def sample_factory_build(cls) -> "CreateProject":
         """
         Generate a sample CreateProject instance for testing.
-
-        Args:
-            organization_id: Organization ID that the project belongs to
 
         Returns:
             CreateProject: A sample project with fake data
@@ -57,7 +51,6 @@ class CreateProject(CreationModel):
             default_start_url = faker.url()
 
         element = CreateProjectFactory.build()
-        element.organization_id = organization_id
 
         return element
 
@@ -107,28 +100,23 @@ class ResponseProject(BaseModel):
 
     Attributes:
         id: Unique project identifier
-        organization_id: Reference to the organization this project belongs to
         created_at: Timestamp when project was created
         name: Human-readable name for the project
         default_start_url: Default URL where tests for this project start
     """
 
     id: str
-    organization_id: str
     created_at: datetime
     name: str
     default_start_url: str
 
     @classmethod
-    def sample_factory_build(
-        cls, id: str = CUID().generate(), organization_id: str = CUID().generate()
-    ) -> "ResponseProject":
+    def sample_factory_build(cls, id: str = CUID().generate()) -> "ResponseProject":
         """
         Generate a sample ResponseProject instance for testing.
 
         Args:
             id: Project ID to use in the sample
-            organization_id: Organization ID that the project belongs to
 
         Returns:
             ResponseProject: A sample response project with fake data
@@ -143,7 +131,6 @@ class ResponseProject(BaseModel):
 
         element = ResponseProjectFactory.build()
         element.id = id
-        element.organization_id = organization_id
 
         return element
 

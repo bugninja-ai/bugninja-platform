@@ -10,11 +10,11 @@ from sqlalchemy import DateTime, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.action import Action
-from app.db.base import Base
+from app.db.base import DBTableBaseModel
 from app.db.test_run import TestRun
 
 
-class HistoryElement(Base):
+class HistoryElement(DBTableBaseModel):
     """
     HistoryElement table.
 

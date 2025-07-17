@@ -10,7 +10,7 @@ from typing import List
 from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.base import DBTableBaseModel
 from app.db.brain_state import BrainState
 from app.db.browser_config import BrowserConfig
 from app.db.project import Project
@@ -19,7 +19,7 @@ from app.db.test_case import TestCase
 from app.db.test_run import TestRun
 
 
-class TestTraversal(Base):
+class TestTraversal(DBTableBaseModel):
     """
     TestTraversal table.
 

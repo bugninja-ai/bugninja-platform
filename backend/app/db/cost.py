@@ -9,12 +9,12 @@ from datetime import datetime
 from sqlalchemy import DateTime, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.base import DBTableBaseModel
 from app.db.project import Project
 from app.db.test_run import TestRun
 
 
-class Cost(Base):
+class Cost(DBTableBaseModel):
     """
     Cost table.
 
