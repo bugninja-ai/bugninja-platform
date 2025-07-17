@@ -14,9 +14,36 @@ export interface TestStep {
   error?: string;
 }
 
+export interface BrowserConfig {
+  id: string;
+  name: string;
+  userAgent: string;
+  viewport: {
+    width: number;
+    height: number;
+  };
+  geolocation?: {
+    latitude: number;
+    longitude: number;
+  };
+}
+
+export interface TestSecret {
+  id: string;
+  secretName: string;
+  value: string;
+}
+
+export interface ExtraRule {
+  id: string;
+  ruleNumber: number;
+  description: string;
+}
+
 export interface TestCase {
   id: string;
   code: string; // e.g., "TC-001"
+  projectId: string;
   title: string;
   description: string;
   priority: TestPriority;
@@ -30,6 +57,12 @@ export interface TestCase {
   totalRuns: number;
   passedRuns: number;
   failedRuns: number;
+  // Additional configuration fields
+  startingUrl: string;
+  allowedDomains: string[];
+  extraRules: ExtraRule[];
+  browserConfigs: BrowserConfig[];
+  secrets: TestSecret[];
 }
 
 export interface TestRun {

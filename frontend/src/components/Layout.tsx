@@ -1,148 +1,275 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { 
-  TestTube, 
-  FileUp, 
+  Home, 
+  FileText, 
+  Upload, 
   History, 
-  BarChart3, 
-  Settings, 
-  Play,
-  Moon,
-  Sun,
-  User
+  Menu, 
+  X,
+  BarChart3,
+  Settings,
+  HelpCircle,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  FolderOpen
 } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children }) => {
+const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarMinimized, setSidebarMinimized] = useState(false);
+  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState('bugninja-banking');
   const location = useLocation();
-  const [darkMode, setDarkMode] = React.useState(false);
 
-  const isActivePath = (path: string) => {
-    return location.pathname === path || location.pathname.startsWith(path);
+  // Mock project data - will be replaced with backend data later
+  const projects = [
+    { id: 'bugninja-banking', name: 'Bugninja Banking' },
+    { id: 'ecommerce-platform', name: 'E-commerce Platform' },
+    { id: 'healthcare-app', name: 'Healthcare App' },
+    { id: 'fintech-wallet', name: 'Fintech Wallet' },
+  ];
+
+  const navigation = [
+    { name: 'Dashboard', href: '/dashboard', icon: Home },
+    { name: 'Test Cases', href: '/', icon: FileText },
+    { name: 'Create Test', href: '/create', icon: Upload },
+    { name: 'Test History', href: '/history', icon: History },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+    { name: 'Settings', href: '/settings', icon: Settings },
+  ];
+
+  const isActive = (path: string) => {
+    if (path === '/dashboard' && location.pathname === '/') return false;
+    if (path === '/' && location.pathname === '/') return true;
+    return location.pathname === path;
   };
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle('dark');
+  const sidebarWidth = sidebarMinimized ? 'w-20' : 'w-72';
+  const contentMargin = sidebarMinimized ? 'lg:ml-20' : 'lg:ml-72';
+
+  const currentProject = projects.find(p => p.id === selectedProject);
+
+  const ProjectDropdown = () => {
+    const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null);
+    
+    const getDropdownPosition = () => {
+      if (!buttonRef) return { top: 0, left: 0 };
+      
+      const rect = buttonRef.getBoundingClientRect();
+      return {
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX
+      };
+    };
+
+    return (
+      <div className="relative">
+        <button
+          ref={setButtonRef}
+          type="button"
+          onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
+          className="w-full bg-white border border-dashed border-gray-300 rounded-lg px-3 py-2 text-left flex items-center justify-between hover:border-gray-400 transition-colors focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <span className="font-medium text-gray-600 truncate">{currentProject?.name || 'Select Project'}</span>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${projectDropdownOpen ? 'rotate-180' : ''}`} />
+        </button>
+        
+        {projectDropdownOpen && createPortal(
+          <>
+            <div 
+              className="fixed inset-0 z-[9998]" 
+              onClick={() => setProjectDropdownOpen(false)}
+            />
+            <div 
+              className="fixed bg-white border border-dashed border-gray-300 rounded-lg overflow-hidden shadow-xl z-[9999]"
+              style={{
+                top: `${getDropdownPosition().top}px`,
+                left: `${getDropdownPosition().left}px`,
+                width: `${buttonRef?.offsetWidth || 200}px`,
+                maxHeight: '240px',
+                overflowY: 'auto'
+              }}
+            >
+              {projects.map((project) => (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedProject(project.id);
+                    setProjectDropdownOpen(false);
+                  }}
+                  className={`w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
+                    project.id === selectedProject ? 'bg-indigo-50' : ''
+                  }`}
+                >
+                  <span className="font-medium text-gray-600 truncate">{project.name}</span>
+                </button>
+              ))}
+            </div>
+          </>,
+          document.body
+        )}
+      </div>
+    );
   };
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'dark' : ''}`}>
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            {/* Logo */}
+    <div className="min-h-screen bg-gray-50 relative">
+      {/* Mobile menu button */}
+      <div className="lg:hidden fixed top-4 left-4 z-50">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="bg-white/90 backdrop-blur-sm p-2 rounded-lg border border-gray-200"
+        >
+          <Menu className="w-6 h-6 text-gray-700" />
+        </button>
+      </div>
+
+      {/* Sidebar overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`fixed left-0 top-0 h-full ${sidebarWidth} bg-white/80 backdrop-blur-xl border-r border-dashed border-gray-300 z-50 transform transition-all duration-300 ease-in-out ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      } lg:translate-x-0`}>
+        
+        {/* Logo and controls */}
+        {!sidebarMinimized && (
+          <div className="flex items-center justify-between px-6 py-3">
             <div className="flex items-center">
-              <Link to="/" className="flex items-center space-x-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
-                  <div className="h-5 w-5 rounded bg-white flex items-center justify-center">
-                    <div className="flex space-x-0.5">
-                      <div className="h-1.5 w-1.5 rounded-full bg-indigo-600"></div>
-                      <div className="h-1.5 w-1.5 rounded-full bg-indigo-600"></div>
-                    </div>
-                  </div>
-                </div>
-                <span className="text-xl font-bold text-gray-900 dark:text-white">bugninja</span>
-              </Link>
+              <img 
+                src="/bugninja.svg" 
+                alt="Bugninja" 
+                className="transition-all duration-300 w-24 h-10" 
+              />
             </div>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex items-center space-x-8">
-              <Link
-                to="/test-cases"
-                className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActivePath('/test-cases')
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800'
-                }`}
-              >
-                <TestTube className="h-4 w-4" />
-                <span>Test Cases</span>
-              </Link>
-              
-              <Link
-                to="/ai-navigation"
-                className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActivePath('/ai-navigation')
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800'
-                }`}
-              >
-                <Play className="h-4 w-4" />
-                <span>AI Navigation</span>
-              </Link>
-
-              <Link
-                to="/reports"
-                className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActivePath('/reports')
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800'
-                }`}
-              >
-                <History className="h-4 w-4" />
-                <span>Reports</span>
-              </Link>
-
-              <Link
-                to="/settings"
-                className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActivePath('/settings')
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800'
-                }`}
-              >
-                <Settings className="h-4 w-4" />
-                <span>Settings</span>
-              </Link>
-            </nav>
-
-            {/* Right side actions */}
-            <div className="flex items-center space-x-4">
-              {/* Analytics */}
-              <Link
-                to="/analytics"
-                className="flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800 transition-colors"
-              >
-                <BarChart3 className="h-4 w-4" />
-                <span className="hidden sm:inline">Analytics</span>
-              </Link>
-
-              {/* Generate Test Button */}
-              <Link
-                to="/create-test"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-              >
-                <FileUp className="h-4 w-4 mr-2" />
-                Generate Test
-              </Link>
-
-              {/* Dark mode toggle */}
+            <div className="flex items-center space-x-2">
+              {/* Minimize button (desktop only) */}
               <button
-                onClick={toggleDarkMode}
-                className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800 transition-colors"
+                onClick={() => setSidebarMinimized(!sidebarMinimized)}
+                className="hidden lg:flex w-12 h-12 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+                title="Minimize sidebar"
               >
-                {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                <ChevronLeft className="w-5 h-5 text-gray-500" />
               </button>
-
-              {/* User menu */}
-              <button className="flex items-center space-x-1 p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-800 transition-colors">
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline text-sm">Log in or register</span>
+              {/* Close button (mobile only) */}
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="lg:hidden w-12 h-12 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
           </div>
+        )}
+        
+        {/* Minimized expand button */}
+        {sidebarMinimized && (
+          <div className="px-2 py-1 pt-3">
+            <button
+              onClick={() => setSidebarMinimized(false)}
+              className="w-12 h-12 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors mx-auto"
+              title="Expand sidebar"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+        )}
+
+        {/* Dashed separator */}
+        <div className={`mb-4 ${sidebarMinimized ? 'mx-4' : 'mx-4'}`}>
+          <div className="border-t border-dashed border-gray-300"></div>
         </div>
-      </header>
+
+        {/* Project Selector */}
+        {!sidebarMinimized && (
+          <div className="px-4 py-2 mb-4">
+            <ProjectDropdown />
+          </div>
+        )}
+        
+        {/* Project selector for minimized state */}
+        {sidebarMinimized && (
+          <div className="flex justify-center p-2 mb-2">
+            <button
+              onClick={() => setSidebarMinimized(false)}
+              className="w-12 h-12 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+              title={currentProject?.name || 'Select Project'}
+            >
+              <FolderOpen className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <nav className="px-4 space-y-1">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center ${
+                  sidebarMinimized 
+                    ? 'justify-center w-12 h-12 mx-auto' 
+                    : 'space-x-3 px-4 py-3'
+                } rounded-lg transition-colors group ${
+                  active 
+                    ? 'bg-indigo-600 text-white' 
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+                title={sidebarMinimized ? item.name : undefined}
+              >
+                <Icon className={`w-5 h-5 flex-shrink-0 ${active ? 'text-white' : 'text-gray-500 group-hover:text-gray-700'}`} />
+                {!sidebarMinimized && (
+                  <span className="font-medium whitespace-nowrap">{item.name}</span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Bottom section */}
+        <div className="absolute bottom-0 left-0 right-0 p-3">
+          <div className="border-t border-dashed border-gray-300 pt-3">
+            <div className={`flex items-center ${
+              sidebarMinimized 
+                ? 'justify-center w-12 h-12 mx-auto' 
+                : 'space-x-3 px-4 py-3'
+            } rounded-lg hover:bg-gray-100 transition-all duration-300 cursor-pointer`}
+            title={sidebarMinimized ? "Help & Support" : undefined}>
+              <HelpCircle className="w-5 h-5 text-gray-500 flex-shrink-0" />
+              {!sidebarMinimized && (
+                <span className="font-medium text-gray-600 whitespace-nowrap opacity-100 transition-opacity duration-300">Help & Support</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Main content */}
-      <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        {children}
-      </main>
+      <div className={`${contentMargin} min-h-screen transition-all duration-300`}>
+        <main className="p-6 lg:p-8">
+          {children}
+        </main>
+      </div>
     </div>
   );
-}; 
+};
+
+export default Layout; 
