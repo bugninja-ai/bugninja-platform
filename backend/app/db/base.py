@@ -5,7 +5,7 @@ This module provides the base class for all SQLModel-based database models.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Generator, Optional
+from typing import Any, Generator
 
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import Field, Session, SQLModel, create_engine
@@ -49,12 +49,8 @@ class TimestampedModel(SQLModel):
     Provides common timestamp fields that most models need.
     """
 
-    created_at: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc), nullable=False
-    )
-    updated_at: Optional[datetime] = Field(
-        default_factory=lambda: datetime.now(timezone.utc), nullable=False
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
 
 
 # Import all models to ensure they are registered with SQLModel

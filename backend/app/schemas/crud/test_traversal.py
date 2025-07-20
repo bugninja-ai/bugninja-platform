@@ -33,7 +33,6 @@ class CreateTestTraversal(CreationModel):
     """
 
     id: str = Field(default=CUID().generate())
-    project_id: str
     test_case_id: str
     browser_config_id: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -65,7 +64,6 @@ class CreateTestTraversal(CreationModel):
             traversal_name = faker.catch_phrase()
 
         element = CreateTestTraversalFactory.build()
-        element.project_id = project_id
         element.test_case_id = test_case_id
         element.browser_config_id = browser_config_id
 
@@ -122,7 +120,6 @@ class ResponseTestTraversal(BaseModel):
     """
 
     id: str
-    project_id: str
     test_case_id: str
     browser_config_id: str
     created_at: datetime
@@ -157,7 +154,6 @@ class ResponseTestTraversal(BaseModel):
 
         element = ResponseTestTraversalFactory.build()
         element.id = id
-        element.project_id = project_id
         element.test_case_id = test_case_id
         element.browser_config_id = browser_config_id
 

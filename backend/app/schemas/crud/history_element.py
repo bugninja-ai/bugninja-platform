@@ -6,21 +6,14 @@ History elements track individual actions and their outcomes during test executi
 """
 
 from datetime import datetime, timezone
-from enum import Enum
 
 from cuid2 import Cuid as CUID
 from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel, Field
 from rich import print as rich_print
 
+from app.db.history_element import HistoryElementState
 from app.schemas.crud.base import CreationModel, UpdateModel, faker
-
-
-class HistoryElementState(str, Enum):
-    """Enumeration for history element states."""
-
-    PASSED = "PASSED"
-    FAILED = "FAILED"
 
 
 class CreateHistoryElement(CreationModel):

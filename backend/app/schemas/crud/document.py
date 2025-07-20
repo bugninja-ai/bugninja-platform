@@ -128,7 +128,6 @@ class ResponseDocument(BaseModel):
     """
 
     id: str
-    test_case_id: Optional[str]
     project_id: str
     created_at: datetime
     updated_at: datetime

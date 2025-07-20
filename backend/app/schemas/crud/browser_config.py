@@ -32,12 +32,13 @@ class CreateBrowserConfig(CreationModel):
     """
 
     id: str = Field(default=CUID().generate())
+    project_id: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     browser_config: Dict[str, Any]
 
     @classmethod
-    def sample_factory_build(cls) -> "CreateBrowserConfig":
+    def sample_factory_build(cls, project_id: str = CUID().generate()) -> "CreateBrowserConfig":
         """
         Generate a sample CreateBrowserConfig instance for testing.
 
@@ -59,6 +60,7 @@ class CreateBrowserConfig(CreationModel):
             }
 
         element = CreateBrowserConfigFactory.build()
+        element.project_id = project_id
 
         return element
 
@@ -120,12 +122,15 @@ class ResponseBrowserConfig(BaseModel):
     """
 
     id: str
+    project_id: str
     created_at: datetime
     updated_at: datetime
     browser_config: Dict[str, Any]
 
     @classmethod
-    def sample_factory_build(cls, id: str = CUID().generate()) -> "ResponseBrowserConfig":
+    def sample_factory_build(
+        cls, id: str = CUID().generate(), project_id: str = CUID().generate()
+    ) -> "ResponseBrowserConfig":
         """
         Generate a sample ResponseBrowserConfig instance for testing.
 
@@ -151,6 +156,7 @@ class ResponseBrowserConfig(BaseModel):
 
         element = ResponseBrowserConfigFactory.build()
         element.id = id
+        element.project_id = project_id
 
         return element
 

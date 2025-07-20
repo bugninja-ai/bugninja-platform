@@ -23,7 +23,7 @@ class CreateBrainState(CreationModel):
 
     Attributes:
         id: Unique identifier generated using CUID
-        test_run_id: Reference to the test run this brain state belongs to
+        test_traversal_id: Reference to the test run this brain state belongs to
         idx_in_run: Index position within the run sequence
         valid: Whether this brain state is valid and usable
         evaluation_previous_goal: Evaluation of the previous goal's success
@@ -32,7 +32,7 @@ class CreateBrainState(CreationModel):
     """
 
     id: str = Field(default=CUID().generate())
-    test_run_id: str
+    test_traversal_id: str
     idx_in_run: int
     valid: bool
     evaluation_previous_goal: str
@@ -40,12 +40,12 @@ class CreateBrainState(CreationModel):
     next_goal: str
 
     @classmethod
-    def sample_factory_build(cls, test_run_id: str = CUID().generate()) -> "CreateBrainState":
+    def sample_factory_build(cls, test_traversal_id: str = CUID().generate()) -> "CreateBrainState":
         """
         Generate a sample CreateBrainState instance for testing.
 
         Args:
-            test_run_id: Test run ID that the brain state belongs to
+            test_traversal_id: Test run ID that the brain state belongs to
 
         Returns:
             CreateBrainState: A sample brain state with fake data
@@ -62,7 +62,7 @@ class CreateBrainState(CreationModel):
             next_goal = faker.sentence()
 
         element = CreateBrainStateFactory.build()
-        element.test_run_id = test_run_id
+        element.test_traversal_id = test_traversal_id
 
         return element
 
@@ -120,7 +120,7 @@ class ResponseBrainState(BaseModel):
 
     Attributes:
         id: Unique brain state identifier
-        test_run_id: Reference to the test run this brain state belongs to
+        test_traversal_id: Reference to the test run this brain state belongs to
         idx_in_run: Index position within the run sequence
         valid: Whether this brain state is valid and usable
         evaluation_previous_goal: Evaluation of the previous goal's success
@@ -129,7 +129,7 @@ class ResponseBrainState(BaseModel):
     """
 
     id: str
-    test_run_id: str
+    test_traversal_id: str
     idx_in_run: int
     valid: bool
     evaluation_previous_goal: str
@@ -138,14 +138,14 @@ class ResponseBrainState(BaseModel):
 
     @classmethod
     def sample_factory_build(
-        cls, id: str = CUID().generate(), test_run_id: str = CUID().generate()
+        cls, id: str = CUID().generate(), test_traversal_id: str = CUID().generate()
     ) -> "ResponseBrainState":
         """
         Generate a sample ResponseBrainState instance for testing.
 
         Args:
             id: Brain state ID to use in the sample
-            test_run_id: Test run ID that the brain state belongs to
+            test_traversal_id: Test run ID that the brain state belongs to
 
         Returns:
             ResponseBrainState: A sample response brain state with fake data
@@ -163,7 +163,7 @@ class ResponseBrainState(BaseModel):
 
         element = ResponseBrainStateFactory.build()
         element.id = id
-        element.test_run_id = test_run_id
+        element.test_traversal_id = test_traversal_id
 
         return element
 

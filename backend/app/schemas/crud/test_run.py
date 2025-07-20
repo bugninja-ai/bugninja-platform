@@ -14,31 +14,9 @@ from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel, Field
 from rich import print as rich_print
 
+from app.db.test_run import RunOrigin, RunState, RunType
 from app.schemas.crud.base import CreationModel, UpdateModel, faker
 from app.schemas.crud.history_element import ResponseHistoryElement
-
-
-class RunType(str, Enum):
-    """Enumeration for test run types."""
-
-    AGENTIC = "AGENTIC"
-    REPLAY = "REPLAY"
-    REPLAY_WITH_HEALING = "REPLAY_WITH_HEALING"
-
-
-class RunOrigin(str, Enum):
-    """Enumeration for test run origins."""
-
-    USER = "USER"
-    CICD = "CICD"
-
-
-class RunState(str, Enum):
-    """Enumeration for test run states."""
-
-    STARTING = "STARTING"
-    RUNNING = "RUNNING"
-    FINISHED = "FINISHED"
 
 
 class CreateTestRun(CreationModel):
@@ -53,7 +31,6 @@ class CreateTestRun(CreationModel):
         id: Unique identifier generated using CUID
         test_traversal_id: Reference to the test traversal being executed
         browser_config_id: Reference to the browser configuration being used
-        cost_id: Optional reference to the cost record for this run
         run_type: Type of test run (AGENTIC, REPLAY, REPLAY_WITH_HEALING)
         origin: Origin of the test run (USER or CICD)
         repair_was_needed: Whether repair/healing was needed during execution
@@ -67,7 +44,6 @@ class CreateTestRun(CreationModel):
     id: str = Field(default=CUID().generate())
     test_traversal_id: str
     browser_config_id: str
-    cost_id: Optional[str] = None
     run_type: RunType
     origin: RunOrigin
     repair_was_needed: bool
@@ -134,7 +110,6 @@ class UpdateTestRun(UpdateModel):
         run_gif: Updated URL or path to the animated GIF
     """
 
-    cost_id: Optional[str] = None
     repair_was_needed: bool
     finished_at: datetime
     current_state: RunState
@@ -194,7 +169,6 @@ class ResponseTestRun(BaseModel):
     id: str
     test_traversal_id: str
     browser_config_id: str
-    cost_id: Optional[str]
     run_type: RunType
     origin: RunOrigin
     repair_was_needed: bool
