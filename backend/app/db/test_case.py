@@ -1,23 +1,31 @@
 """
-TestCase table definition.
+TestCase table definition using SQLModel.
 
-This module defines the SQLAlchemy model for the TestCase entity.
+This module defines the SQLModel for the TestCase entity.
 """
 
-from datetime import datetime
-from typing import List
+from __future__ import annotations
 
-from sqlalchemy import DateTime, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, List, Optional
 
-from app.db.base import DBTableBaseModel
-from app.db.browser_config import BrowserConfig
-from app.db.document import Document
-from app.db.project import Project
-from app.db.test_run import TestRun
+from cuid2 import Cuid as CUID
+from sqlalchemy import Column, String
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlmodel import Field, Relationship
+
+from app.db.base import TimestampedModel
+from app.db.test_case_browser_config import TestCaseBrowserConfig
+
+if TYPE_CHECKING:
+    from app.db.browser_config import BrowserConfig
+    from app.db.document import Document
+    from app.db.project import Project
+    from app.db.test_run import TestRun
+    from app.db.test_traversal import TestTraversal
 
 
-class TestCase(DBTableBaseModel):
+class TestCase(TimestampedModel, table=True):
     """
     TestCase table.
 
@@ -26,31 +34,29 @@ class TestCase(DBTableBaseModel):
     belongs to a project and is associated with a document.
     """
 
-    __tablename__ = "test_cases"
-
     # Primary key
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    id: str = Field(default=CUID().generate(), primary_key=True, max_length=255)
+    project_id: str = Field(
+        max_length=255, nullable=False, foreign_key="project.id", ondelete="CASCADE"
+    )
+    document_id: Optional[str] = Field(
+        default=None, max_length=255, foreign_key="document.id", ondelete="SET NULL"
+    )
 
-    # Foreign keys
-    project_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    document_id: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    # Test information
-    test_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    test_description: Mapped[str] = mapped_column(Text, nullable=False)
-    test_goal: Mapped[str] = mapped_column(Text, nullable=False)
-    extra_rules: Mapped[str] = mapped_column(Text, nullable=False)
-    url_route: Mapped[str] = mapped_column(String(500), nullable=False)
-    allowed_domains: Mapped[str] = mapped_column(Text, nullable=False)  # JSON string
-
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    test_name: str = Field(max_length=255, nullable=False)
+    test_description: str = Field(nullable=False)
+    test_goal: str = Field(nullable=False)
+    extra_rules: str = Field(nullable=False)
+    url_route: str = Field(max_length=500, nullable=False)
+    allowed_domains: List[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
 
     # Relationships
-    project: Mapped["Project"] = relationship("Project", back_populates="test_cases")
-    document: Mapped["Document"] = relationship("Document", back_populates="test_case")
-    test_runs: Mapped[List["TestRun"]] = relationship("TestRun", back_populates="test_case")
-    browser_configs: Mapped[List["BrowserConfig"]] = relationship(
-        "BrowserConfig", secondary="test_case_browser_configs", back_populates="test_cases"
+    project: "Project" = Relationship(back_populates="test_cases")
+    document: "Document" = Relationship(back_populates="test_case")
+    test_runs: List["TestRun"] = Relationship(back_populates="test_case")
+    test_traversals: List["TestTraversal"] = Relationship(
+        back_populates="test_case", cascade_delete=True
+    )
+    browser_configs: List["BrowserConfig"] = Relationship(
+        back_populates="test_cases", link_model=TestCaseBrowserConfig
     )

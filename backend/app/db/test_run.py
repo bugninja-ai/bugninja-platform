@@ -1,23 +1,54 @@
 """
-TestRun table definition.
+TestRun table definition using SQLModel.
 
-This module defines the SQLAlchemy model for the TestRun entity.
+This module defines the SQLModel for the TestRun entity.
 """
 
-from datetime import datetime
-from typing import List, Optional
+from __future__ import annotations
 
-from sqlalchemy import Boolean, DateTime, Enum, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+import enum
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, List, Optional
 
-from app.db.base import DBTableBaseModel
-from app.db.browser_config import BrowserConfig
-from app.db.cost import Cost
-from app.db.history_element import HistoryElement
-from app.db.test_traversal import TestTraversal
+from cuid2 import Cuid as CUID
+from sqlmodel import Column
+from sqlmodel import Enum as SQLModelEnum
+from sqlmodel import Field, Relationship, SQLModel
+
+from app.db.base import TimestampedModel
+
+if TYPE_CHECKING:
+    from app.db.brain_state import BrainState
+    from app.db.browser_config import BrowserConfig
+    from app.db.cost import Cost
+    from app.db.history_element import HistoryElement
+    from app.db.test_traversal import TestTraversal
 
 
-class TestRun(DBTableBaseModel):
+class RunType(str, enum.Enum):
+    """Enumeration for test run types."""
+
+    AGENTIC = "AGENTIC"
+    REPLAY = "REPLAY"
+    REPLAY_WITH_HEALING = "REPLAY_WITH_HEALING"
+
+
+class RunOrigin(str, enum.Enum):
+    """Enumeration for test run origins."""
+
+    USER = "USER"
+    CICD = "CICD"
+
+
+class RunState(str, enum.Enum):
+    """Enumeration for test run states."""
+
+    STARTING = "STARTING"
+    RUNNING = "RUNNING"
+    FINISHED = "FINISHED"
+
+
+class TestRun(SQLModel, table=True):
     """
     TestRun table.
 
@@ -26,39 +57,37 @@ class TestRun(DBTableBaseModel):
     types and origins, and tracks the complete execution history.
     """
 
-    __tablename__ = "test_runs"
-
     # Primary key
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
-
-    # Foreign keys
-    test_traversal_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    browser_config_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    cost_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-
-    # Run information
-    run_type: Mapped[str] = mapped_column(
-        Enum("AGENTIC", "REPLAY", "REPLAY_WITH_HEALING", name="run_type"), nullable=False
+    id: str = Field(default=CUID().generate(), primary_key=True, max_length=255)
+    test_traversal_id: str = Field(
+        max_length=255, nullable=False, foreign_key="testtraversal.id", ondelete="CASCADE"
     )
-    origin: Mapped[str] = mapped_column(Enum("USER", "CICD", name="run_origin"), nullable=False)
-    repair_was_needed: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    current_state: Mapped[str] = mapped_column(
-        Enum("STARTING", "RUNNING", "FINISHED", name="run_state"), nullable=False
+    browser_config_id: Optional[str] = Field(
+        default=None, max_length=255, foreign_key="browserconfig.id", ondelete="SET NULL"
     )
-    run_gif: Mapped[str] = mapped_column(String(500), nullable=False)
 
-    # Timestamps
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    run_type: RunType = Field(
+        default=RunType.AGENTIC,
+        sa_column=Column(SQLModelEnum(RunType, name="runtype")),
+    )
+    origin: RunOrigin = Field(
+        default=RunOrigin.USER,
+        sa_column=Column(SQLModelEnum(RunOrigin, name="runorigin")),
+    )
+    repair_was_needed: bool = Field(nullable=False)
+    current_state: RunState = Field(
+        default=RunState.STARTING,
+        sa_column=Column(SQLModelEnum(RunState, name="runstate")),
+    )
+    run_gif: str = Field(max_length=500, nullable=False)
+    started_at: datetime = Field(nullable=False)
+    finished_at: datetime = Field(nullable=False)
 
     # Relationships
-    test_traversal: Mapped["TestTraversal"] = relationship(
-        "TestTraversal", back_populates="test_runs"
+    test_traversal: "TestTraversal" = Relationship(back_populates="test_runs")
+    browser_config: "BrowserConfig" = Relationship(back_populates="test_runs")
+    history_elements: List["HistoryElement"] = Relationship(
+        back_populates="test_run", cascade_delete=True
     )
-    browser_config: Mapped["BrowserConfig"] = relationship(
-        "BrowserConfig", back_populates="test_runs"
-    )
-    cost: Mapped[Optional["Cost"]] = relationship("Cost", back_populates="test_run")
-    history_elements: Mapped[List["HistoryElement"]] = relationship(
-        "HistoryElement", back_populates="test_run"
-    )
+    brain_states: List["BrainState"] = Relationship(back_populates="test_run")
+    cost: "Cost" = Relationship(back_populates="test_run")

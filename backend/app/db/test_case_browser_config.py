@@ -1,17 +1,21 @@
 """
-TestCase-BrowserConfig association table.
+TestCase-BrowserConfig association table using SQLModel.
 
 This module defines the association table for the many-to-many relationship
 between TestCase and BrowserConfig entities.
 """
 
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
+from __future__ import annotations
 
-from app.db.base import DBTableBaseModel
+from typing import TYPE_CHECKING
+
+from sqlmodel import Field, SQLModel
+
+if TYPE_CHECKING:
+    pass
 
 
-class TestCaseBrowserConfig(DBTableBaseModel):
+class TestCaseBrowserConfig(SQLModel, table=True):
     """
     Association table for TestCase and BrowserConfig many-to-many relationship.
 
@@ -20,8 +24,6 @@ class TestCaseBrowserConfig(DBTableBaseModel):
     to use the same browser configurations.
     """
 
-    __tablename__ = "test_case_browser_configs"
-
-    # Foreign keys
-    test_case_id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    browser_config_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    # Foreign keys (composite primary key)
+    test_case_id: str = Field(primary_key=True, max_length=255, foreign_key="testcase.id")
+    browser_config_id: str = Field(primary_key=True, max_length=255, foreign_key="browserconfig.id")

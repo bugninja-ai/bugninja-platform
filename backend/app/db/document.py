@@ -1,21 +1,23 @@
 """
-Document table definition.
+Document table definition using SQLModel.
 
-This module defines the SQLAlchemy model for the Document entity.
+This module defines the SQLModel for the Document entity.
 """
 
-from datetime import datetime
-from typing import Optional
+from __future__ import annotations
 
-from sqlalchemy import DateTime, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING
 
-from app.db.base import DBTableBaseModel
-from app.db.project import Project
-from app.db.test_case import TestCase
+from cuid2 import Cuid as CUID
+from sqlmodel import Field, Relationship
+
+from app.db.base import TimestampedModel
+
+if TYPE_CHECKING:
+    from app.db.project import Project
 
 
-class Document(DBTableBaseModel):
+class Document(TimestampedModel, table=True):
     """
     Document table.
 
@@ -23,23 +25,14 @@ class Document(DBTableBaseModel):
     Each document belongs to a project and contains name and content fields.
     """
 
-    __tablename__ = "documents"
-
     # Primary key
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    id: str = Field(default=CUID().generate(), primary_key=True, max_length=255)
+    project_id: str = Field(
+        max_length=255, nullable=False, foreign_key="project.id", ondelete="CASCADE"
+    )
 
-    # Foreign keys
-    project_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    test_case_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-
-    # Basic information
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
-
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    name: str = Field(max_length=255, nullable=False)
+    content: str = Field(nullable=False)
 
     # Relationships
-    project: Mapped["Project"] = relationship("Project", back_populates="documents")
-    test_case: Mapped[Optional["TestCase"]] = relationship("TestCase", back_populates="document")
+    project: "Project" = Relationship(back_populates="documents")

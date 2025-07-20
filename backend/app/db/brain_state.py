@@ -1,20 +1,24 @@
 """
-BrainState table definition.
+BrainState table definition using SQLModel.
 
-This module defines the SQLAlchemy model for the BrainState entity.
+This module defines the SQLModel for the BrainState entity.
 """
 
-from typing import List
+from __future__ import annotations
 
-from sqlalchemy import Boolean, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING, List
 
-from app.db.action import Action
-from app.db.base import DBTableBaseModel
-from app.db.test_run import TestRun
+from cuid2 import Cuid as CUID
+from sqlmodel import Field, Relationship
+
+from app.db.base import TimestampedModel
+
+if TYPE_CHECKING:
+    from app.db.action import Action
+    from app.db.test_traversal import TestTraversal
 
 
-class BrainState(DBTableBaseModel):
+class BrainState(TimestampedModel, table=True):
     """
     BrainState table.
 
@@ -23,21 +27,18 @@ class BrainState(DBTableBaseModel):
     and next goals for the test run.
     """
 
-    __tablename__ = "brain_states"
-
     # Primary key
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    id: str = Field(default=CUID().generate(), primary_key=True, max_length=255)
+    test_traversal_id: str = Field(
+        max_length=255, nullable=False, foreign_key="testtraversal.id", ondelete="CASCADE"
+    )
 
-    # Foreign keys
-    test_run_id: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    # Brain state information
-    idx_in_run: Mapped[int] = mapped_column(Integer, nullable=False)
-    valid: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    evaluation_previous_goal: Mapped[str] = mapped_column(Text, nullable=False)
-    memory: Mapped[str] = mapped_column(Text, nullable=False)
-    next_goal: Mapped[str] = mapped_column(Text, nullable=False)
+    idx_in_run: int = Field(nullable=False)
+    valid: bool = Field(nullable=False)
+    evaluation_previous_goal: str = Field(nullable=False)
+    memory: str = Field(nullable=False)
+    next_goal: str = Field(nullable=False)
 
     # Relationships
-    test_run: Mapped["TestRun"] = relationship("TestRun", back_populates="brain_states")
-    actions: Mapped[List["Action"]] = relationship("Action", back_populates="brain_state")
+    test_traversal: "TestTraversal" = Relationship(back_populates="brain_states")
+    actions: List["Action"] = Relationship(back_populates="brain_state", cascade_delete=True)

@@ -1,17 +1,21 @@
 """
-SecretValue-TestTraversal association table.
+SecretValue-TestTraversal association table using SQLModel.
 
 This module defines the association table for the many-to-many relationship
 between SecretValue and TestTraversal entities.
 """
 
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
+from __future__ import annotations
 
-from app.db.base import DBTableBaseModel
+from typing import TYPE_CHECKING
+
+from sqlmodel import Field, SQLModel
+
+if TYPE_CHECKING:
+    pass
 
 
-class SecretValueTestTraversal(DBTableBaseModel):
+class SecretValueTestTraversal(SQLModel, table=True):
     """
     Association table for SecretValue and TestTraversal many-to-many relationship.
 
@@ -20,8 +24,6 @@ class SecretValueTestTraversal(DBTableBaseModel):
     traversals to use the same secret values.
     """
 
-    __tablename__ = "secret_value_test_traversals"
-
-    # Foreign keys
-    secret_value_id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    test_traversal_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    # Foreign keys (composite primary key)
+    secret_value_id: str = Field(primary_key=True, max_length=255, foreign_key="secretvalue.id")
+    test_traversal_id: str = Field(primary_key=True, max_length=255, foreign_key="testtraversal.id")

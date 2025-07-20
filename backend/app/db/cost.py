@@ -1,20 +1,24 @@
 """
-Cost table definition.
+Cost table definition using SQLModel.
 
-This module defines the SQLAlchemy model for the Cost entity.
+This module defines the SQLModel for the Cost entity.
 """
 
-from datetime import datetime
+from __future__ import annotations
 
-from sqlalchemy import DateTime, Float, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING, Optional
 
-from app.db.base import DBTableBaseModel
-from app.db.project import Project
-from app.db.test_run import TestRun
+from cuid2 import Cuid as CUID
+from sqlmodel import Field, Relationship
+
+from app.db.base import TimestampedModel
+
+if TYPE_CHECKING:
+    from app.db.project import Project
+    from app.db.test_run import TestRun
 
 
-class Cost(DBTableBaseModel):
+class Cost(TimestampedModel, table=True):
     """
     Cost table.
 
@@ -23,25 +27,19 @@ class Cost(DBTableBaseModel):
     tracking the financial impact of AI-powered testing.
     """
 
-    __tablename__ = "costs"
-
     # Primary key
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    id: str = Field(default=CUID().generate(), primary_key=True, max_length=255)
+    test_run_id: Optional[str] = Field(default=None, max_length=255, foreign_key="testrun.id")
+    project_id: str = Field(
+        max_length=255, nullable=False, foreign_key="project.id", ondelete="CASCADE"
+    )
 
-    # Foreign keys
-    test_run_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    project_id: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    # Cost information
-    model_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    cost_per_token: Mapped[float] = mapped_column(Float, nullable=False)
-    input_token_num: Mapped[int] = mapped_column(Integer, nullable=False)
-    completion_token_num: Mapped[int] = mapped_column(Integer, nullable=False)
-    cost_in_dollars: Mapped[float] = mapped_column(Float, nullable=False)
-
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    model_type: str = Field(max_length=255, nullable=False)
+    cost_per_token: float = Field(nullable=False)
+    input_token_num: int = Field(nullable=False)
+    completion_token_num: int = Field(nullable=False)
+    cost_in_dollars: float = Field(nullable=False)
 
     # Relationships
-    test_run: Mapped["TestRun"] = relationship("TestRun", back_populates="cost")
-    project: Mapped["Project"] = relationship("Project", back_populates="costs")
+    test_run: "TestRun" = Relationship(back_populates="cost")
+    project: "Project" = Relationship(back_populates="costs")

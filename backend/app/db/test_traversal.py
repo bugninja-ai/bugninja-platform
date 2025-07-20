@@ -1,25 +1,30 @@
 """
-TestTraversal table definition.
+TestTraversal table definition using SQLModel.
 
-This module defines the SQLAlchemy model for the TestTraversal entity.
+This module defines the SQLModel for the TestTraversal entity.
 """
 
-from datetime import datetime
-from typing import List
+from __future__ import annotations
 
-from sqlalchemy import DateTime, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, List, Optional
 
-from app.db.base import DBTableBaseModel
-from app.db.brain_state import BrainState
-from app.db.browser_config import BrowserConfig
-from app.db.project import Project
-from app.db.secret_value import SecretValue
-from app.db.test_case import TestCase
-from app.db.test_run import TestRun
+from cuid2 import Cuid as CUID
+from sqlmodel import Field, Relationship
+
+from app.db.base import TimestampedModel
+from app.db.secret_value_test_traversal import SecretValueTestTraversal
+
+if TYPE_CHECKING:
+    from app.db.brain_state import BrainState
+    from app.db.browser_config import BrowserConfig
+    from app.db.project import Project
+    from app.db.secret_value import SecretValue
+    from app.db.test_case import TestCase
+    from app.db.test_run import TestRun
 
 
-class TestTraversal(DBTableBaseModel):
+class TestTraversal(TimestampedModel, table=True):
     """
     TestTraversal table.
 
@@ -28,32 +33,26 @@ class TestTraversal(DBTableBaseModel):
     a project and defines how a test should be executed.
     """
 
-    __tablename__ = "test_traversals"
-
     # Primary key
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    id: str = Field(default=CUID().generate(), primary_key=True, max_length=255)
+    test_case_id: str = Field(
+        max_length=255, nullable=False, foreign_key="testcase.id", ondelete="CASCADE"
+    )
+    browser_config_id: str = Field(
+        max_length=255, nullable=False, foreign_key="browserconfig.id", ondelete="CASCADE"
+    )
 
-    # Foreign keys
-    project_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    test_case_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    browser_config_id: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    # Traversal information
-    traversal_name: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    traversal_name: str = Field(max_length=255, nullable=False)
 
     # Relationships
-    project: Mapped["Project"] = relationship("Project", back_populates="test_traversals")
-    test_case: Mapped["TestCase"] = relationship("TestCase", back_populates="test_traversals")
-    browser_config: Mapped["BrowserConfig"] = relationship(
-        "BrowserConfig", back_populates="test_traversals"
+    project: "Project" = Relationship(back_populates="test_traversals")
+    test_case: "TestCase" = Relationship(back_populates="test_traversals")
+    browser_config: "BrowserConfig" = Relationship(back_populates="test_traversals")
+
+    brain_states: List["BrainState"] = Relationship(
+        back_populates="test_traversal", cascade_delete=True
     )
-    brain_states: Mapped[List["BrainState"]] = relationship(
-        "BrainState", back_populates="test_traversal"
-    )
-    test_runs: Mapped[List["TestRun"]] = relationship("TestRun", back_populates="test_traversal")
-    secret_values: Mapped[List["SecretValue"]] = relationship(
-        "SecretValue", secondary="secret_value_test_traversals", back_populates="test_traversals"
+    test_runs: List["TestRun"] = Relationship(back_populates="test_traversal", cascade_delete=True)
+    secret_values: List["SecretValue"] = Relationship(
+        back_populates="test_traversals", link_model=SecretValueTestTraversal
     )

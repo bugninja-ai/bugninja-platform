@@ -1,20 +1,33 @@
 """
-HistoryElement table definition.
+HistoryElement table definition using SQLModel.
 
-This module defines the SQLAlchemy model for the HistoryElement entity.
+This module defines the SQLModel for the HistoryElement entity.
 """
 
+from __future__ import annotations
+
+import enum
 from datetime import datetime
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import DateTime, Enum, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from cuid2 import Cuid as CUID
+from sqlmodel import Column
+from sqlmodel import Enum as SQLModelEnum
+from sqlmodel import Field, Relationship, SQLModel
 
-from app.db.action import Action
-from app.db.base import DBTableBaseModel
-from app.db.test_run import TestRun
+if TYPE_CHECKING:
+    from app.db.action import Action
+    from app.db.test_run import TestRun
 
 
-class HistoryElement(DBTableBaseModel):
+class HistoryElementState(str, enum.Enum):
+    """Enumeration for history element states."""
+
+    PASSED = "PASSED"
+    FAILED = "FAILED"
+
+
+class HistoryElement(SQLModel, table=True):
     """
     HistoryElement table.
 
@@ -23,23 +36,25 @@ class HistoryElement(DBTableBaseModel):
     a test run, including timing, results, and visual evidence.
     """
 
-    __tablename__ = "history_elements"
-
     # Primary key
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    id: str = Field(default=CUID().generate(), primary_key=True, max_length=255)
 
-    # Foreign keys
-    test_run_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    action_id: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    # History information
-    action_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    action_finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    history_element_state: Mapped[str] = mapped_column(
-        Enum("PASSED", "FAILED", name="history_element_state"), nullable=False
+    test_run_id: str = Field(
+        max_length=255, nullable=False, foreign_key="testrun.id", ondelete="CASCADE"
     )
-    screenshot: Mapped[str] = mapped_column(String(500), nullable=False)
+    action_id: str = Field(
+        max_length=255, nullable=False, foreign_key="action.id", ondelete="CASCADE"
+    )
+
+    action_started_at: datetime = Field(nullable=False)
+    action_finished_at: datetime = Field(nullable=False)
+
+    history_element_state: HistoryElementState = Field(
+        default=HistoryElementState.PASSED,
+        sa_column=Column(SQLModelEnum(HistoryElementState, name="historyelementstate")),
+    )
+    screenshot: Optional[str] = Field(default=None)
 
     # Relationships
-    test_run: Mapped["TestRun"] = relationship("TestRun", back_populates="history_elements")
-    action: Mapped["Action"] = relationship("Action", back_populates="history_elements")
+    test_run: "TestRun" = Relationship(back_populates="history_elements")
+    action: "Action" = Relationship(back_populates="history_elements")

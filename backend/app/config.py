@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     # Database Configuration
     DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://bugninja_user:bugninja_password@localhost:5432/bugninja",
+        default="postgresql+psycopg2://bugninja_user:bugninja_password@localhost:5432/bugninja",
         alias="DATABASE_URL",
     )
 

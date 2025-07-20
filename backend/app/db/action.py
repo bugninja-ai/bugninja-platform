@@ -1,20 +1,24 @@
 """
-Action table definition.
+Action table definition using SQLModel.
 
-This module defines the SQLAlchemy model for the Action entity.
+This module defines the SQLModel for the Action entity.
 """
 
-from typing import List
+from __future__ import annotations
 
-from sqlalchemy import Boolean, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING, Any, Dict, List
 
-from app.db.base import DBTableBaseModel
-from app.db.brain_state import BrainState
-from app.db.history_element import HistoryElement
+from cuid2 import Cuid as CUID
+from sqlmodel import JSON, Column, Field, Relationship
+
+from app.db.base import TimestampedModel
+
+if TYPE_CHECKING:
+    from app.db.brain_state import BrainState
+    from app.db.history_element import HistoryElement
 
 
-class Action(DBTableBaseModel):
+class Action(TimestampedModel, table=True):
     """
     Action table.
 
@@ -23,22 +27,19 @@ class Action(DBTableBaseModel):
     including the action type and DOM element data.
     """
 
-    __tablename__ = "actions"
-
     # Primary key
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    id: str = Field(default=CUID().generate(), primary_key=True, max_length=255)
+    brain_state_id: str = Field(
+        max_length=255, nullable=False, foreign_key="brainstate.id", ondelete="CASCADE"
+    )
 
-    # Foreign keys
-    brain_state_id: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    # Action information
-    idx_in_brain_state: Mapped[int] = mapped_column(Integer, nullable=False)
-    action: Mapped[str] = mapped_column(Text, nullable=False)  # JSON string
-    dom_element_data: Mapped[str] = mapped_column(Text, nullable=False)  # JSON string
-    valid: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    idx_in_brain_state: int = Field(nullable=False)
+    action: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    dom_element_data: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    valid: bool = Field(nullable=False)
 
     # Relationships
-    brain_state: Mapped["BrainState"] = relationship("BrainState", back_populates="actions")
-    history_elements: Mapped[List["HistoryElement"]] = relationship(
-        "HistoryElement", back_populates="action"
+    brain_state: "BrainState" = Relationship(back_populates="actions")
+    history_elements: List["HistoryElement"] = Relationship(
+        back_populates="action", cascade_delete=True
     )

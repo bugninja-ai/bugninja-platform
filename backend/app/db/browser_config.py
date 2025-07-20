@@ -1,21 +1,27 @@
 """
-BrowserConfig table definition.
+BrowserConfig table definition using SQLModel.
 
-This module defines the SQLAlchemy model for the BrowserConfig entity.
+This module defines the SQLModel for the BrowserConfig entity.
 """
 
-from datetime import datetime
-from typing import List
+from __future__ import annotations
 
-from sqlalchemy import DateTime, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING, Any, Dict, List
 
-from app.db.base import DBTableBaseModel
-from app.db.test_case import TestCase
-from app.db.test_run import TestRun
+from cuid2 import Cuid as CUID
+from sqlmodel import JSON, Column, Field, Relationship
+
+from app.db.base import TimestampedModel
+from app.db.test_case_browser_config import TestCaseBrowserConfig
+
+if TYPE_CHECKING:
+    from app.db.project import Project
+    from app.db.test_case import TestCase
+    from app.db.test_run import TestRun
+    from app.db.test_traversal import TestTraversal
 
 
-class BrowserConfig(DBTableBaseModel):
+class BrowserConfig(TimestampedModel, table=True):
     """
     BrowserConfig table.
 
@@ -24,20 +30,20 @@ class BrowserConfig(DBTableBaseModel):
     reusable across different test cases.
     """
 
-    __tablename__ = "browser_configs"
-
     # Primary key
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    id: str = Field(default=CUID().generate(), primary_key=True, max_length=255)
+    project_id: str = Field(
+        max_length=255, nullable=False, foreign_key="project.id", ondelete="CASCADE"
+    )
 
-    # Configuration data (JSON string)
-    browser_config: Mapped[str] = mapped_column(Text, nullable=False)
-
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    browser_config: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
     # Relationships
-    test_runs: Mapped[List["TestRun"]] = relationship("TestRun", back_populates="browser_config")
-    test_cases: Mapped[List["TestCase"]] = relationship(
-        "TestCase", secondary="test_case_browser_configs", back_populates="browser_configs"
+    project: "Project" = Relationship(back_populates="browser_configs")
+    test_runs: List["TestRun"] = Relationship(back_populates="browser_config")
+    test_traversals: List["TestTraversal"] = Relationship(
+        back_populates="browser_config", cascade_delete=True
+    )
+    test_cases: List["TestCase"] = Relationship(
+        back_populates="browser_configs", link_model=TestCaseBrowserConfig
     )

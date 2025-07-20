@@ -1,24 +1,27 @@
 """
-Project table definition.
+Project table definition using SQLModel.
 
-This module defines the SQLAlchemy model for the Project entity.
+This module defines the SQLModel for the Project entity.
 """
 
-from datetime import datetime
-from typing import List
+from __future__ import annotations
 
-from sqlalchemy import DateTime, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING, List
 
-from app.db.base import DBTableBaseModel
-from app.db.cost import Cost
-from app.db.document import Document
-from app.db.secret_value import SecretValue
-from app.db.test_case import TestCase
-from app.db.test_run import TestRun
+from cuid2 import Cuid as CUID
+from sqlmodel import Field, Relationship
+
+from app.db.base import TimestampedModel
+
+if TYPE_CHECKING:
+    from app.db.browser_config import BrowserConfig
+    from app.db.cost import Cost
+    from app.db.document import Document
+    from app.db.secret_value import SecretValue
+    from app.db.test_case import TestCase
 
 
-class Project(DBTableBaseModel):
+class Project(TimestampedModel, table=True):
     """
     Project table.
 
@@ -26,23 +29,19 @@ class Project(DBTableBaseModel):
     Each project can contain multiple test cases, documents, and other testing resources.
     """
 
-    __tablename__ = "projects"
-
     # Primary key
-    id: Mapped[str] = mapped_column(String(255), primary_key=True)
-
-    # Basic information
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    default_start_url: Mapped[str] = mapped_column(String(500), nullable=False)
-
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    id: str = Field(default=CUID().generate(), primary_key=True, max_length=255)
+    name: str = Field(max_length=255, nullable=False)
+    default_start_url: str = Field(
+        max_length=500,
+        nullable=False,
+    )
 
     # Relationships
-    documents: Mapped[List["Document"]] = relationship("Document", back_populates="project")
-    test_cases: Mapped[List["TestCase"]] = relationship("TestCase", back_populates="project")
-    secret_values: Mapped[List["SecretValue"]] = relationship(
-        "SecretValue", back_populates="project"
+    browser_configs: List["BrowserConfig"] = Relationship(
+        back_populates="project", cascade_delete=True
     )
-    test_runs: Mapped[List["TestRun"]] = relationship("TestRun", back_populates="project")
-    costs: Mapped[List["Cost"]] = relationship("Cost", back_populates="project")
+    documents: List["Document"] = Relationship(back_populates="project", cascade_delete=True)
+    test_cases: List["TestCase"] = Relationship(back_populates="project", cascade_delete=True)
+    secret_values: List["SecretValue"] = Relationship(back_populates="project", cascade_delete=True)
+    costs: List["Cost"] = Relationship(back_populates="project", cascade_delete=True)
