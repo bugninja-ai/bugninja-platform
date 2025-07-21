@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
 import { 
   Upload, 
   FileText, 
@@ -9,8 +8,11 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
-  ChevronDown
+  Trash2,
+  Globe,
+  Monitor
 } from 'lucide-react';
+import { CustomDropdown } from '../components/CustomDropdown';
 
 const CreateTest: React.FC = () => {
   const navigate = useNavigate();
@@ -21,6 +23,36 @@ const CreateTest: React.FC = () => {
   // Dropdown states
   const [priorityDropdownOpen, setPriorityDropdownOpen] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [userAgentDropdowns, setUserAgentDropdowns] = useState<Record<string, boolean>>({});
+  const [viewportDropdowns, setViewportDropdowns] = useState<Record<string, boolean>>({});
+
+  // Common user agents for dropdown
+  const commonUserAgents = [
+    { value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', label: 'Chrome (Windows)' },
+    { value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', label: 'Chrome (macOS)' },
+    { value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0', label: 'Firefox (Windows)' },
+    { value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0', label: 'Firefox (macOS)' },
+    { value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15', label: 'Safari (macOS)' },
+    { value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0', label: 'Edge (Windows)' },
+    { value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1', label: 'Safari (iPhone)' },
+    { value: 'Mozilla/5.0 (iPad; CPU OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1', label: 'Safari (iPad)' },
+    { value: 'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36', label: 'Chrome (Android)' },
+    { value: 'custom', label: 'Custom User Agent' }
+  ];
+
+  // Common viewport resolutions for dropdown
+  const commonViewports = [
+    { value: '1920x1080', label: '1920 × 1080 (Full HD)' },
+    { value: '1366x768', label: '1366 × 768 (HD)' },
+    { value: '1440x900', label: '1440 × 900 (MacBook Air)' },
+    { value: '1280x720', label: '1280 × 720 (HD)' },
+    { value: '1024x768', label: '1024 × 768 (iPad)' },
+    { value: '768x1024', label: '768 × 1024 (iPad Portrait)' },
+    { value: '375x667', label: '375 × 667 (iPhone)' },
+    { value: '414x896', label: '414 × 896 (iPhone Plus)' },
+    { value: '360x640', label: '360 × 640 (Android)' },
+    { value: 'custom', label: 'Custom Resolution' }
+  ];
   
   // Form data
   const [formData, setFormData] = useState({
@@ -29,7 +61,17 @@ const CreateTest: React.FC = () => {
     priority: 'medium',
     category: 'authentication',
     goal: '',
-    steps: ['']
+    startingUrl: '',
+    allowedDomains: [''],
+    extraRules: [{ id: '1', ruleNumber: 1, description: '' }],
+    browserConfigs: [{
+      id: '1',
+      name: 'Desktop Chrome',
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      viewport: { width: 1920, height: 1080 },
+      geolocation: undefined as { latitude: number; longitude: number; } | undefined
+    }],
+    secrets: [] as { id: string; secretName: string; value: string; }[]
   });
 
   const [file, setFile] = useState<File | null>(null);
@@ -41,30 +83,144 @@ const CreateTest: React.FC = () => {
     }));
   };
 
-  const handleStepChange = (index: number, value: string) => {
-    const newSteps = [...formData.steps];
-    newSteps[index] = value;
+  // Extra Rules handlers
+  const handleRuleChange = (index: number, value: string) => {
+    const newRules = [...formData.extraRules];
+    newRules[index] = { ...newRules[index], description: value };
     setFormData(prev => ({
       ...prev,
-      steps: newSteps
+      extraRules: newRules
     }));
   };
 
-  const addStep = () => {
+  const addRule = () => {
+    const newRule = {
+      id: `rule-${Date.now()}`,
+      ruleNumber: formData.extraRules.length + 1,
+      description: ''
+    };
     setFormData(prev => ({
       ...prev,
-      steps: [...prev.steps, '']
+      extraRules: [...prev.extraRules, newRule]
     }));
   };
 
-  const removeStep = (index: number) => {
-    if (formData.steps.length > 1) {
-      const newSteps = formData.steps.filter((_, i) => i !== index);
+  const removeRule = (index: number) => {
+    if (formData.extraRules.length > 1) {
+      const newRules = formData.extraRules.filter((_, i) => i !== index);
+      // Renumber remaining rules
+      const renumberedRules = newRules.map((rule, i) => ({ ...rule, ruleNumber: i + 1 }));
       setFormData(prev => ({
         ...prev,
-        steps: newSteps
+        extraRules: renumberedRules
       }));
     }
+  };
+
+  // Allowed Domains handlers
+  const handleDomainChange = (index: number, value: string) => {
+    const newDomains = [...formData.allowedDomains];
+    newDomains[index] = value;
+    setFormData(prev => ({
+      ...prev,
+      allowedDomains: newDomains
+    }));
+  };
+
+  const addDomain = () => {
+    setFormData(prev => ({
+      ...prev,
+      allowedDomains: [...prev.allowedDomains, '']
+    }));
+  };
+
+  const removeDomain = (index: number) => {
+    if (formData.allowedDomains.length > 1) {
+      const newDomains = formData.allowedDomains.filter((_, i) => i !== index);
+      setFormData(prev => ({
+        ...prev,
+        allowedDomains: newDomains
+      }));
+    }
+  };
+
+  // Browser Config handlers
+  const handleBrowserConfigChange = (index: number, field: string, value: any) => {
+    const newConfigs = [...formData.browserConfigs];
+    if (field === 'viewport.width' || field === 'viewport.height') {
+      const [, dimension] = field.split('.');
+      newConfigs[index] = {
+        ...newConfigs[index],
+        viewport: { ...newConfigs[index].viewport, [dimension]: value }
+      };
+    } else if (field.startsWith('geolocation.')) {
+      const [, coord] = field.split('.');
+      const currentGeo = newConfigs[index].geolocation || { latitude: 0, longitude: 0 };
+      newConfigs[index] = {
+        ...newConfigs[index],
+        geolocation: { ...currentGeo, [coord]: value }
+      };
+    } else {
+      newConfigs[index] = { ...newConfigs[index], [field]: value };
+    }
+    setFormData(prev => ({
+      ...prev,
+      browserConfigs: newConfigs
+    }));
+  };
+
+  const addBrowserConfig = () => {
+    const newConfig = {
+      id: `config-${Date.now()}`,
+      name: 'New Configuration',
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      viewport: { width: 1920, height: 1080 },
+      geolocation: undefined
+    };
+    setFormData(prev => ({
+      ...prev,
+      browserConfigs: [...prev.browserConfigs, newConfig]
+    }));
+  };
+
+  const removeBrowserConfig = (index: number) => {
+    if (formData.browserConfigs.length > 1) {
+      const newConfigs = formData.browserConfigs.filter((_, i) => i !== index);
+      setFormData(prev => ({
+        ...prev,
+        browserConfigs: newConfigs
+      }));
+    }
+  };
+
+  // Secrets handlers
+  const handleSecretChange = (index: number, field: string, value: string) => {
+    const newSecrets = [...formData.secrets];
+    newSecrets[index] = { ...newSecrets[index], [field]: value };
+    setFormData(prev => ({
+      ...prev,
+      secrets: newSecrets
+    }));
+  };
+
+  const addSecret = () => {
+    const newSecret = {
+      id: `secret-${Date.now()}`,
+      secretName: '',
+      value: ''
+    };
+    setFormData(prev => ({
+      ...prev,
+      secrets: [...prev.secrets, newSecret]
+    }));
+  };
+
+  const removeSecret = (index: number) => {
+    const newSecrets = formData.secrets.filter((_, i) => i !== index);
+    setFormData(prev => ({
+      ...prev,
+      secrets: newSecrets
+    }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,62 +265,7 @@ const CreateTest: React.FC = () => {
     { value: 'api', label: 'API' },
   ];
 
-  const CustomDropdown = ({ 
-    options, 
-    value, 
-    onChange, 
-    isOpen, 
-    setIsOpen, 
-    placeholder 
-  }: {
-    options: { value: string; label: string }[];
-    value: string;
-    onChange: (value: string) => void;
-    isOpen: boolean;
-    setIsOpen: (open: boolean) => void;
-    placeholder: string;
-  }) => {
-    const selectedOption = options.find(option => option.value === value);
-    
-    return (
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-full bg-white border border-gray-300 rounded-lg px-4 py-2 text-left flex items-center justify-between hover:border-gray-400 transition-colors"
-        >
-          <span className="text-gray-800">{selectedOption?.label || placeholder}</span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </button>
-        
-        {isOpen && createPortal(
-          <div 
-            className="fixed inset-0 z-[9999]" 
-            onClick={() => setIsOpen(false)}
-          />,
-          document.body
-        )}
-        
-        {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg overflow-hidden shadow-xl" style={{ zIndex: 10000 }}>
-            {options.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  onChange(option.value);
-                  setIsOpen(false);
-                }}
-                className="w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors text-gray-800"
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
+
 
   if (success) {
     return (
@@ -291,6 +392,7 @@ const CreateTest: React.FC = () => {
                     isOpen={priorityDropdownOpen}
                     setIsOpen={setPriorityDropdownOpen}
                     placeholder="Select Priority"
+                    fullWidth={true}
                   />
                 </div>
 
@@ -305,6 +407,7 @@ const CreateTest: React.FC = () => {
                     isOpen={categoryDropdownOpen}
                     setIsOpen={setCategoryDropdownOpen}
                     placeholder="Select Category"
+                    fullWidth={true}
                   />
                 </div>
 
@@ -338,39 +441,328 @@ const CreateTest: React.FC = () => {
               </div>
             </div>
 
-            {/* Test Steps */}
+            {/* Test Configuration */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Test Configuration</h2>
+              
+              <div className="space-y-6">
+                {/* Starting URL */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Starting URL *</label>
+                  <div className="flex items-center space-x-2">
+                    <Globe className="w-4 h-4 text-gray-400 ml-3" />
+                    <input
+                      type="url"
+                      required
+                      value={formData.startingUrl}
+                      onChange={(e) => handleInputChange('startingUrl', e.target.value)}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                      placeholder="https://example.com"
+                    />
+                  </div>
+                </div>
+
+                {/* Allowed Domains */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">Allowed Domains *</label>
+                    <button
+                      type="button"
+                      onClick={addDomain}
+                      className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add Domain
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {formData.allowedDomains.map((domain, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <Globe className="w-4 h-4 text-gray-400 ml-3" />
+                        <input
+                          type="text"
+                          value={domain}
+                          onChange={(e) => handleDomainChange(index, e.target.value)}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                          placeholder="example.com"
+                        />
+                        {formData.allowedDomains.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeDomain(index)}
+                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Browser Configurations */}
             <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-800">Test Steps</h2>
+                <h2 className="text-lg font-semibold text-gray-800">Browser Configurations</h2>
                 <button
                   type="button"
-                  onClick={addStep}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                  onClick={addBrowserConfig}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
                 >
                   <Plus className="w-4 h-4 mr-1" />
-                  Add Step
+                  Add Config
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {formData.browserConfigs.map((config, index) => (
+                  <div key={config.id} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-2">
+                        <Monitor className="w-5 h-5 text-gray-600" />
+                        <input
+                          type="text"
+                          value={config.name}
+                          onChange={(e) => handleBrowserConfigChange(index, 'name', e.target.value)}
+                          className="font-medium text-gray-800 bg-transparent border-b border-gray-300 focus:border-indigo-500 focus:outline-none"
+                          placeholder="Configuration name"
+                        />
+                      </div>
+                      {formData.browserConfigs.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeBrowserConfig(index)}
+                          className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">User Agent</label>
+                        <div className="space-y-2">
+                          <CustomDropdown
+                            options={commonUserAgents}
+                            value={commonUserAgents.find(ua => ua.value === config.userAgent)?.value || 'custom'}
+                            onChange={(value) => {
+                              if (value !== 'custom') {
+                                handleBrowserConfigChange(index, 'userAgent', value);
+                              }
+                            }}
+                            isOpen={userAgentDropdowns[config.id] || false}
+                            setIsOpen={(open) => setUserAgentDropdowns(prev => ({ ...prev, [config.id]: open }))}
+                            placeholder="Select User Agent"
+                            fullWidth={true}
+                          />
+                          {(commonUserAgents.find(ua => ua.value === config.userAgent)?.value === 'custom' || 
+                            !commonUserAgents.find(ua => ua.value === config.userAgent)) && (
+                            <textarea
+                              value={config.userAgent}
+                              onChange={(e) => handleBrowserConfigChange(index, 'userAgent', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none text-xs bg-white"
+                              rows={2}
+                              placeholder="Enter custom user agent string"
+                            />
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Viewport Resolution</label>
+                        <div className="space-y-2">
+                          <CustomDropdown
+                            options={commonViewports}
+                            value={(() => {
+                              const currentResolution = `${config.viewport.width}x${config.viewport.height}`;
+                              return commonViewports.find(vp => vp.value === currentResolution)?.value || 'custom';
+                            })()}
+                            onChange={(value) => {
+                              if (value !== 'custom') {
+                                const [width, height] = value.split('x').map(Number);
+                                handleBrowserConfigChange(index, 'viewport.width', width);
+                                handleBrowserConfigChange(index, 'viewport.height', height);
+                              }
+                            }}
+                            isOpen={viewportDropdowns[config.id] || false}
+                            setIsOpen={(open) => setViewportDropdowns(prev => ({ ...prev, [config.id]: open }))}
+                            placeholder="Select Viewport Resolution"
+                            fullWidth={true}
+                          />
+                          {(() => {
+                            const currentResolution = `${config.viewport.width}x${config.viewport.height}`;
+                            return !commonViewports.find(vp => vp.value === currentResolution) || 
+                                   commonViewports.find(vp => vp.value === currentResolution)?.value === 'custom';
+                          })() && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Width</label>
+                                <input
+                                  type="number"
+                                  value={config.viewport.width}
+                                  onChange={(e) => handleBrowserConfigChange(index, 'viewport.width', parseInt(e.target.value) || 0)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                                  placeholder="Width"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Height</label>
+                                <input
+                                  type="number"
+                                  value={config.viewport.height}
+                                  onChange={(e) => handleBrowserConfigChange(index, 'viewport.height', parseInt(e.target.value) || 0)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                                  placeholder="Height"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Latitude (optional)</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={config.geolocation?.latitude || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value) {
+                              handleBrowserConfigChange(index, 'geolocation.latitude', parseFloat(value));
+                            } else {
+                              handleBrowserConfigChange(index, 'geolocation', undefined);
+                            }
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                          placeholder="e.g. 40.7128"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Longitude (optional)</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={config.geolocation?.longitude || ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value) {
+                              handleBrowserConfigChange(index, 'geolocation.longitude', parseFloat(value));
+                            } else if (!config.geolocation?.latitude) {
+                              handleBrowserConfigChange(index, 'geolocation', undefined);
+                            }
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                          placeholder="e.g. -74.0060"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Secrets */}
+            {formData.secrets.length > 0 && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">Secrets</h2>
+                  <button
+                    type="button"
+                    onClick={addSecret}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add Secret
+                  </button>
+                </div>
+                
+                <div className="space-y-3">
+                  {formData.secrets.map((secret, index) => (
+                    <div key={secret.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <input
+                          type="text"
+                          value={secret.secretName}
+                          onChange={(e) => handleSecretChange(index, 'secretName', e.target.value)}
+                          className="text-sm font-medium text-gray-700 bg-transparent border-b border-gray-300 focus:border-indigo-500 focus:outline-none flex-1 mr-4"
+                          placeholder="Secret name"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeSecret(index)}
+                          className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      <div>
+                        <input
+                          type="password"
+                          value={secret.value}
+                          onChange={(e) => handleSecretChange(index, 'value', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded text-gray-800 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                          placeholder="Secret value"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Add Secrets Button - Show when no secrets exist */}
+            {formData.secrets.length === 0 && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={addSecret}
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Secrets (Optional)
+                </button>
+              </div>
+            )}
+
+            {/* Extra Rules */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-800">Extra Rules</h2>
+                <button
+                  type="button"
+                  onClick={addRule}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Rule
                 </button>
               </div>
 
               <div className="space-y-3">
-                {formData.steps.map((step, index) => (
-                  <div key={index} className="flex items-start space-x-3">
+                {formData.extraRules.map((rule, index) => (
+                  <div key={rule.id} className="flex items-start space-x-3">
                     <div className="flex-shrink-0 w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-sm font-medium text-indigo-600 mt-1">
-                      {index + 1}
+                      {rule.ruleNumber}
                     </div>
                     <div className="flex-1">
                       <textarea
-                        value={step}
-                        onChange={(e) => handleStepChange(index, e.target.value)}
-                        placeholder={`Step ${index + 1}: Describe the action to be performed...`}
+                        value={rule.description}
+                        onChange={(e) => handleRuleChange(index, e.target.value)}
+                        placeholder={`Rule ${rule.ruleNumber}: Describe the rule or constraint...`}
                         rows={2}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
                       />
                     </div>
-                    {formData.steps.length > 1 && (
+                    {formData.extraRules.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeStep(index)}
+                        onClick={() => removeRule(index)}
                         className="flex-shrink-0 p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors mt-1"
                       >
                         <X className="w-4 h-4" />
@@ -395,7 +787,7 @@ const CreateTest: React.FC = () => {
           
           <button
             type="submit"
-            disabled={loading || (method === 'upload' && !file) || (method === 'manual' && (!formData.title || !formData.description))}
+            disabled={loading || (method === 'upload' && !file) || (method === 'manual' && (!formData.title || !formData.description || !formData.goal || !formData.startingUrl || formData.allowedDomains.some(domain => !domain.trim())))}
             className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? (

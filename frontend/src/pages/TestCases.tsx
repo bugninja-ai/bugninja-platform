@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { createPortal } from 'react-dom';
 import { 
   Plus, 
   Filter, 
@@ -11,11 +10,11 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  FileText,
-  ChevronDown
+  FileText
 } from 'lucide-react';
 import { TestCase } from '../types';
 import { mockTestCases, mockStatistics } from '../data/mockData';
+import { CustomDropdown } from '../components/CustomDropdown';
 
 const TestCases: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,83 +94,7 @@ const TestCases: React.FC = () => {
     { value: 'api', label: 'API' },
   ];
 
-  const CustomDropdown = ({ 
-    options, 
-    value, 
-    onChange, 
-    isOpen, 
-    setIsOpen, 
-    placeholder 
-  }: {
-    options: { value: string; label: string }[];
-    value: string;
-    onChange: (value: string) => void;
-    isOpen: boolean;
-    setIsOpen: (open: boolean) => void;
-    placeholder: string;
-  }) => {
-    const selectedOption = options.find(option => option.value === value);
-    const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null);
-    
-    const getDropdownPosition = () => {
-      if (!buttonRef) return { top: 0, left: 0 };
-      
-      const rect = buttonRef.getBoundingClientRect();
-      return {
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX
-      };
-    };
-    
-    return (
-      <div className="relative">
-        <button
-          ref={setButtonRef}
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-40 bg-white border border-gray-300 rounded-lg px-4 py-2 text-left flex items-center justify-between hover:border-gray-400 transition-colors focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-        >
-          <span className="text-gray-800">{selectedOption?.label || placeholder}</span>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </button>
-        
-        {isOpen && createPortal(
-          <>
-            <div 
-              className="fixed inset-0 z-[9998]" 
-              onClick={() => setIsOpen(false)}
-            />
-                         <div 
-               className="fixed bg-white border border-gray-300 rounded-lg overflow-hidden shadow-xl z-[9999] w-40"
-               style={{
-                 top: `${getDropdownPosition().top}px`,
-                 left: `${getDropdownPosition().left}px`,
-                 maxHeight: '240px',
-                 overflowY: 'auto'
-               }}
-             >
-              {options.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => {
-                    onChange(option.value);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors text-gray-800 ${
-                    option.value === value ? 'bg-indigo-50 text-indigo-700' : ''
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </>,
-          document.body
-        )}
-      </div>
-    );
-  };
+
 
   return (
     <div className="space-y-8">
@@ -192,7 +115,7 @@ const TestCases: React.FC = () => {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Cases</p>
@@ -208,7 +131,7 @@ const TestCases: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Passed</p>
@@ -224,7 +147,7 @@ const TestCases: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Failed</p>
@@ -240,7 +163,7 @@ const TestCases: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Pending</p>
@@ -257,7 +180,7 @@ const TestCases: React.FC = () => {
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+      <div className="bg-white rounded-lg p-6 border border-gray-200">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
           <div className="flex items-center space-x-2">
             <Filter className="w-5 h-5 text-gray-500" />
@@ -320,7 +243,7 @@ const TestCases: React.FC = () => {
 
         <div className="space-y-3">
           {filteredTestCases.map((testCase: TestCase) => (
-            <div key={testCase.id} className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200 hover:border-gray-300 transition-colors">
+            <div key={testCase.id} className="bg-white rounded-lg p-6 border border-gray-200 hover:border-gray-300 transition-colors">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
@@ -369,7 +292,7 @@ const TestCases: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     <Link
                       to={`/test-details/${testCase.id}`}
-                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
+                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
                     >
                       <FileText className="w-4 h-4 mr-1" />
                       View Details
@@ -377,7 +300,7 @@ const TestCases: React.FC = () => {
                     
                     <Link
                       to={`/history/${testCase.id}`}
-                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
+                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
                     >
                       <Play className="w-4 h-4 mr-1" />
                       Run Test

@@ -75,7 +75,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           ref={setButtonRef}
           type="button"
           onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-          className="w-full bg-white border border-dashed border-gray-300 rounded-lg px-3 py-2 text-left flex items-center justify-between hover:border-gray-400 transition-colors focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-full bg-white border border-dashed border-gray-300 rounded-lg px-4 py-3 text-left flex items-center justify-between hover:border-gray-400 transition-colors focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
         >
           <span className="font-medium text-gray-600 truncate">{currentProject?.name || 'Select Project'}</span>
           <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${projectDropdownOpen ? 'rotate-180' : ''}`} />
@@ -105,7 +105,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     setSelectedProject(project.id);
                     setProjectDropdownOpen(false);
                   }}
-                  className={`w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
+                  className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
                     project.id === selectedProject ? 'bg-indigo-50' : ''
                   }`}
                 >
@@ -195,14 +195,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         {/* Project Selector */}
         {!sidebarMinimized && (
-          <div className="px-4 py-2 mb-4">
+          <div className="px-4 mb-4">
             <ProjectDropdown />
           </div>
         )}
         
         {/* Project selector for minimized state */}
         {sidebarMinimized && (
-          <div className="flex justify-center p-2 mb-2">
+          <div className="flex justify-center">
             <button
               onClick={() => setSidebarMinimized(false)}
               className="w-12 h-12 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"

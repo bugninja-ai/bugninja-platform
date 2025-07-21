@@ -1,1 +1,10 @@
+/* Scale down the entire application including sidebar */
+body {
+  transform: scale(0.9);
+  transform-origin: top left;
+  width: 111.11vw;
+  height: 111.11vh;
+  overflow-x: hidden;
+}
+
 /* Additional custom styles can go here */ 
