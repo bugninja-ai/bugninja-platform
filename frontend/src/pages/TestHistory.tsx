@@ -9,7 +9,8 @@ import {
   Filter,
   Search,
   Play,
-  Eye
+  Eye,
+  Monitor
 } from 'lucide-react';
 import { TestRun } from '../types';
 import { mockTestRuns } from '../data/mockData';
@@ -85,28 +86,47 @@ const TestHistory: React.FC = () => {
     }
   };
 
+  const getBrowserInfo = (run: TestRun) => {
+    // Try to find the matching browser config from the test case
+    const browserConfig = run.testCase.browserConfigs.find(config => 
+      config.userAgent === run.userAgent || 
+      config.name.toLowerCase().includes(run.browser.toLowerCase().split(' ')[0])
+    );
+    
+    if (browserConfig) {
+      return {
+        name: browserConfig.name,
+        resolution: `${browserConfig.viewport.width}x${browserConfig.viewport.height}`
+      };
+    }
+    
+    // Fallback if no config found
+    return {
+      name: run.browser,
+      resolution: 'Unknown resolution'
+    };
+  };
+
   const statusOptions = [
-    { value: 'all', label: 'All Statuses' },
+    { value: 'all', label: 'All statuses' },
     { value: 'passed', label: 'Passed' },
     { value: 'failed', label: 'Failed' },
     { value: 'pending', label: 'Pending' },
   ];
 
   const dateOptions = [
-    { value: 'all', label: 'All Time' },
+    { value: 'all', label: 'All time' },
     { value: 'today', label: 'Today' },
-    { value: 'week', label: 'Last Week' },
-    { value: 'month', label: 'Last Month' },
+    { value: 'week', label: 'Last week' },
+    { value: 'month', label: 'Last month' },
   ];
-
-
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Test History</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Test runs</h1>
           <p className="mt-1 text-gray-600">View and analyze past test run results</p>
         </div>
         <div className="mt-4 sm:mt-0 text-sm text-gray-500">
@@ -119,7 +139,7 @@ const TestHistory: React.FC = () => {
         <div className="bg-white rounded-lg p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Runs</p>
+              <p className="text-sm font-medium text-gray-600">Total runs</p>
               <p className="text-3xl font-bold text-gray-800">{testRuns.length}</p>
             </div>
             <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
@@ -134,7 +154,7 @@ const TestHistory: React.FC = () => {
         <div className="bg-white rounded-lg p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Success Rate</p>
+              <p className="text-sm font-medium text-gray-600">Success rate</p>
               <p className="text-3xl font-bold text-emerald-600">
                 {Math.round((testRuns.filter(r => r.status === 'passed').length / testRuns.length) * 100)}%
               </p>
@@ -152,7 +172,7 @@ const TestHistory: React.FC = () => {
         <div className="bg-white rounded-lg p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Avg Duration</p>
+              <p className="text-sm font-medium text-gray-600">Avg duration</p>
               <p className="text-3xl font-bold text-blue-600">
                 {formatDuration(testRuns.reduce((acc, run) => acc + run.duration, 0) / testRuns.length)}
               </p>
@@ -172,7 +192,7 @@ const TestHistory: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
           <div className="flex items-center space-x-2">
             <Filter className="w-5 h-5 text-gray-500" />
-            <span className="font-medium text-gray-800">Filter Test Runs</span>
+            <span className="font-medium text-gray-800">Filter test runs</span>
           </div>
           
           <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
@@ -195,7 +215,7 @@ const TestHistory: React.FC = () => {
               onChange={setStatusFilter}
               isOpen={statusDropdownOpen}
               setIsOpen={setStatusDropdownOpen}
-              placeholder="All Statuses"
+              placeholder="All statuses"
             />
 
             {/* Date Filter */}
@@ -205,7 +225,7 @@ const TestHistory: React.FC = () => {
               onChange={setDateFilter}
               isOpen={dateDropdownOpen}
               setIsOpen={setDateDropdownOpen}
-              placeholder="All Time"
+              placeholder="All time"
             />
           </div>
         </div>
@@ -213,57 +233,73 @@ const TestHistory: React.FC = () => {
 
       {/* Test Runs List */}
       <div className="space-y-3">
-        {filteredRuns.map((run: TestRun) => (
-          <div key={run.id} className="bg-white rounded-lg p-6 border border-gray-200 hover:border-gray-300 transition-colors">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-2">
-                  <h3 className="text-lg font-semibold text-gray-800">{run.testCase.title}</h3>
-                  <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">{run.testCase.code}</span>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-lg border ${getStatusColor(run.status)}`}>
-                    {getStatusIcon(run.status)}
-                    <span className="ml-1">{run.status.charAt(0).toUpperCase() + run.status.slice(1)}</span>
-                  </span>
-                </div>
-                
-                <p className="text-gray-600 mb-4">{run.testCase.description}</p>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-500">
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="w-4 h-4" />
-                    <span>Started: {new Date(run.startedAt).toLocaleDateString()}</span>
+        {filteredRuns.map((run: TestRun) => {
+          const browserInfo = getBrowserInfo(run);
+          
+          return (
+            <div key={run.id} className="bg-white rounded-lg p-6 border border-gray-200 hover:border-gray-300 transition-colors">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-800">{run.testCase.title}</h3>
+                    <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">{run.testCase.code}</span>
+                    <span className={`inline-flex items-center text-xs font-medium px-2 py-1 rounded-lg border ${getStatusColor(run.status)}`}>
+                      {getStatusIcon(run.status)}
+                      <span className="ml-1">{run.status.charAt(0).toUpperCase() + run.status.slice(1)}</span>
+                    </span>
                   </div>
-                  <div className="flex items-center space-x-1">
-                    <Clock className="w-4 h-4" />
-                    <span>Duration: {formatDuration(run.duration)}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="text-gray-400">Steps:</span>
-                    <span className="text-emerald-600 font-medium">{run.passedSteps}</span>
-                    <span className="text-gray-400">/</span>
-                    <span className="text-red-600 font-medium">{run.failedSteps}</span>
-                    <span className="text-gray-400">/</span>
-                    <span className="font-medium">{run.totalSteps}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="text-gray-400">Environment:</span>
-                    <span className="text-gray-600 font-medium">{run.environment}</span>
-                  </div>
-                </div>
-              </div>
+                  
+                  <p className="text-gray-600 mb-3">{run.testCase.description}</p>
 
-              <div className="flex items-center space-x-3 ml-4">
-                <Link
-                  to={`/history/${run.id}`}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
-                >
-                  <Eye className="w-4 h-4 mr-1" />
-                  View Details
-                </Link>
+                  {/* Browser and Resolution Info */}
+                  <div className="flex items-center space-x-4 mb-4 text-sm text-gray-600">
+                    <div className="flex items-center space-x-1">
+                      <Monitor className="w-4 h-4 text-gray-400" />
+                      <span>{browserInfo.name}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-gray-400">•</span>
+                      <span>{browserInfo.resolution}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-500">
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="w-4 h-4" />
+                      <span>Started: {new Date(run.startedAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Clock className="w-4 h-4" />
+                      <span>Duration: {formatDuration(run.duration)}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-gray-400">Steps:</span>
+                      <span className="text-emerald-600 font-medium">{run.passedSteps}</span>
+                      <span className="text-gray-400">/</span>
+                      <span className="text-red-600 font-medium">{run.failedSteps}</span>
+                      <span className="text-gray-400">/</span>
+                      <span className="font-medium">{run.totalSteps}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-gray-400">Environment:</span>
+                      <span className="text-gray-600 font-medium">{run.environment}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3 ml-4">
+                  <Link
+                    to={`/history/${run.id}`}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                  >
+                    <Eye className="w-4 h-4 mr-1" />
+                    View details
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {filteredRuns.length === 0 && (
           <div className="bg-white rounded-lg p-12 border border-gray-200 text-center">
@@ -276,7 +312,7 @@ const TestHistory: React.FC = () => {
               to="/"
               className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
             >
-              View Test Cases
+              View test cases
             </Link>
           </div>
         )}

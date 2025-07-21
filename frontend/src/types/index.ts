@@ -2,16 +2,41 @@ export type TestStatus = 'passed' | 'failed' | 'pending' | 'skipped';
 export type TestPriority = 'critical' | 'high' | 'medium' | 'low';
 export type TestCategory = 'authentication' | 'banking' | 'payments' | 'security' | 'ui' | 'api';
 
+export interface BrainAction {
+  id: string;
+  actionType: string; // e.g., "Navigate to URL", "Fill text input", "Click login button"
+  icon?: string;
+  xpath?: string;
+  url?: string; // The URL where this action was performed
+  inputText?: string; // Text that was entered
+  secretUsed?: string; // Name of secret that was used
+  evaluatePreviousGoal: string;
+  nextGoal: string;
+  memory: string;
+  status: 'passed' | 'failed';
+  screenshot?: string;
+}
+
+export interface BrainState {
+  id: string;
+  stepNumber: number;
+  description: string;
+  actions: BrainAction[];
+  status: TestStatus;
+  duration: number;
+}
+
 export interface TestStep {
   id: string;
   stepNumber: number;
   description: string;
-  expected: string;
-  actual: string;
+  expected?: string; // Optional for brain state steps
+  actual?: string; // Optional for brain state steps
   status: TestStatus;
   duration: number; // in seconds
   screenshot?: string;
   error?: string;
+  brainState?: BrainState; // This step is a brain state with multiple actions
 }
 
 export interface BrowserConfig {

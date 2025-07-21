@@ -1,4 +1,4 @@
-import { TestCase, TestRun, TestStep, TestStatistics, TestStatus, TestPriority, TestCategory, BrowserConfig, TestSecret, ExtraRule } from '../types';
+import { TestCase, TestRun, TestStep, TestStatistics, TestStatus, TestPriority, TestCategory, BrowserConfig, TestSecret, ExtraRule, BrainAction, BrainState } from '../types';
 
 // Mock Test Cases
 export const mockTestCases: TestCase[] = [
@@ -194,59 +194,163 @@ export const mockTestSteps: TestStep[] = [
   {
     id: 'step-1',
     stepNumber: 1,
-    description: 'Navigate to account dashboard and verify user is logged in',
-    expected: 'User dashboard displays with account balances visible',
-    actual: 'Dashboard loaded successfully, showing checking ($2,500.00) and savings ($5,000.00) accounts',
+    description: 'AI Brain State: Navigate to login and authenticate user',
     status: 'passed',
-    duration: 0.8,
+    duration: 2.3,
+    brainState: {
+      id: 'brain-state-1',
+      stepNumber: 1,
+      description: 'Navigate to login and authenticate user',
+      status: 'passed',
+      duration: 2.3,
+      actions: [
+        {
+          id: 'action-1',
+          actionType: 'Navigate to URL',
+          icon: 'globe',
+          xpath: 'N/A',
+          url: 'https://app.bacprep.to',
+          evaluatePreviousGoal: 'Unknown - This is the initial state. The browser is open on a blank page. No actions have been taken yet.',
+          nextGoal: 'Navigate to https://app.bacprep.to to access the login page.',
+          memory: 'Initial state. Need to go to app.bacprep.to to begin the login process. 0 out of 4 main steps completed: 1) Login, 2) Edit username, 3) Logout, 4) Close browser.',
+          status: 'passed',
+          screenshot: 'screenshot-1-action-1.png'
+        },
+        {
+          id: 'action-2',
+          actionType: 'Fill text input',
+          icon: 'edit',
+          xpath: '/html/body/div[1]/div/div/form/div[1]/input',
+          url: 'https://app.bacprep.to/hu/login',
+          secretUsed: 'TEST_USERNAME',
+          inputText: 'test.user@example.com',
+          evaluatePreviousGoal: 'Success - Navigated to the login page of app.bacprep.to. The login form is visible with fields for email and password, and a login button.',
+          nextGoal: 'Fill in the email field with the provided credentials.',
+          memory: 'Navigated to https://app.bacprep.to/hu/login. Ready to log in. 0 out of 4 main steps completed: 1) Login, 2) Edit username, 3) Logout, 4) Close browser.',
+          status: 'passed',
+          screenshot: 'screenshot-1-action-2.png'
+        },
+        {
+          id: 'action-3',
+          actionType: 'Fill password input',
+          icon: 'lock',
+          xpath: '/html/body/div[1]/div/div/form/div[2]/input',
+          url: 'https://app.bacprep.to/hu/login',
+          secretUsed: 'TEST_PASSWORD',
+          inputText: '••••••••••••',
+          evaluatePreviousGoal: 'Success - Email field filled successfully with test credentials.',
+          nextGoal: 'Fill in the password field with the provided credentials.',
+          memory: 'Email entered. Now need to enter password to complete login form. 0 out of 4 main steps completed: 1) Login, 2) Edit username, 3) Logout, 4) Close browser.',
+          status: 'passed',
+          screenshot: 'screenshot-1-action-3.png'
+        },
+        {
+          id: 'action-4',
+          actionType: 'Click login button',
+          icon: 'mouse-pointer',
+          xpath: '/html/body/div[1]/div/div/form/button',
+          url: 'https://app.bacprep.to/hu/login',
+          evaluatePreviousGoal: 'Success - Both email and password fields are filled with valid credentials.',
+          nextGoal: 'Click the login button to submit credentials and authenticate.',
+          memory: 'Login form completed with credentials. Ready to submit form. 0 out of 4 main steps completed: 1) Login, 2) Edit username, 3) Logout, 4) Close browser.',
+          status: 'passed',
+          screenshot: 'screenshot-1-action-4.png'
+        }
+      ]
+    }
   },
   {
     id: 'step-2',
     stepNumber: 2,
-    description: "Click on 'Transfer Funds' button in the main navigation",
-    expected: 'Transfer funds page loads with form fields visible',
-    actual: 'Transfer page loaded with source/destination dropdowns and amount field',
+    description: 'AI Brain State: Handle post-login popup and navigate to profile',
     status: 'passed',
-    duration: 0.5,
+    duration: 1.2,
+    brainState: {
+      id: 'brain-state-2',
+      stepNumber: 2,
+      description: 'Handle post-login popup and navigate to profile',
+      status: 'passed',
+      duration: 1.2,
+      actions: [
+        {
+          id: 'action-5',
+          actionType: 'Wait for page load',
+          icon: 'clock',
+          xpath: 'N/A',
+          url: 'https://app.bacprep.to/dashboard',
+          evaluatePreviousGoal: 'Success - Login was successful. The dashboard loaded and a popup about Instagram appeared. The user is authenticated and on the main page.',
+          nextGoal: 'Wait for page to fully load and identify the popup element.',
+          memory: 'Logged in successfully (1/4 main steps done). Instagram popup is blocking the dashboard. Need to close it before proceeding.',
+          status: 'passed',
+          screenshot: 'screenshot-2-action-1.png'
+        },
+        {
+          id: 'action-6',
+          actionType: 'Close popup dialog',
+          icon: 'x',
+          xpath: '/html/body/div[2]/div/div/div[3]/button',
+          url: 'https://app.bacprep.to/dashboard',
+          evaluatePreviousGoal: 'Success - Page loaded and popup is visible and blocking dashboard access.',
+          nextGoal: 'Close the Instagram popup by clicking the "Bezárás" (close) button.',
+          memory: 'Instagram popup identified. Need to close it to access dashboard functionality for username editing.',
+          status: 'passed',
+          screenshot: 'screenshot-2-action-2.png'
+        }
+      ]
+    }
   },
   {
     id: 'step-3',
     stepNumber: 3,
-    description: 'Select source account (Checking) and destination account',
-    expected: 'Both accounts are selectable in dropdown menus',
-    actual: 'Successfully selected checking as source and savings as destination',
-    status: 'passed',
-    duration: 0.3,
-  },
-  {
-    id: 'step-4',
-    stepNumber: 4,
-    description: 'Enter transfer amount of $100.00',
-    expected: 'Amount field accepts numeric input with currency formatting',
-    actual: 'Amount field accepted $100.00 with proper formatting',
-    status: 'passed',
-    duration: 0.2,
-  },
-  {
-    id: 'step-5',
-    stepNumber: 5,
-    description: 'Click Submit button to initiate transfer',
-    expected: 'Confirmation dialog appears with transfer details',
-    actual: 'Error: Insufficient funds message displayed',
+    description: 'AI Brain State: Attempt to edit username',
     status: 'failed',
-    duration: 0.1,
-    error: 'Expected confirmation dialog but received error message',
-  },
-  {
-    id: 'step-6',
-    stepNumber: 6,
-    description: 'Verify transaction appears in transaction history',
-    expected: 'New transaction listed in account history',
-    actual: 'No transaction recorded due to previous failure',
-    status: 'failed',
-    duration: 0.0,
-    error: 'Step skipped due to previous failure',
-  },
+    duration: 1.8,
+    brainState: {
+      id: 'brain-state-3',
+      stepNumber: 3,
+      description: 'Attempt to edit username',
+      status: 'failed',
+      duration: 1.8,
+      actions: [
+        {
+          id: 'action-7',
+          actionType: 'Click user profile',
+          icon: 'user',
+          xpath: '/html/body/header/div/div[2]/div/button',
+          url: 'https://app.bacprep.to/dashboard',
+          evaluatePreviousGoal: 'Success - Successfully closed Instagram popup and can now see the dashboard clearly.',
+          nextGoal: 'Navigate to profile section to edit username as requested.',
+          memory: 'Dashboard is now accessible. Need to edit username next. 1 out of 4 main steps completed: 1) Login, 2) Edit username, 3) Logout, 4) Close browser.',
+          status: 'passed',
+          screenshot: 'screenshot-3-action-1.png'
+        },
+        {
+          id: 'action-8',
+          actionType: 'Wait for menu',
+          icon: 'clock',
+          xpath: 'N/A',
+          url: 'https://app.bacprep.to/dashboard',
+          evaluatePreviousGoal: 'Success - Clicked on user profile area, waiting for menu or profile page to load.',
+          nextGoal: 'Wait for profile menu or settings page to appear.',
+          memory: 'Clicked user profile button. Waiting for navigation or dropdown menu to appear with edit options.',
+          status: 'passed',
+          screenshot: 'screenshot-3-action-2.png'
+        },
+        {
+          id: 'action-9',
+          actionType: 'Search for settings',
+          icon: 'search',
+          xpath: 'N/A',
+          url: 'https://app.bacprep.to/dashboard',
+          evaluatePreviousGoal: 'Failed - Could not locate profile section or edit username functionality in the expected locations.',
+          nextGoal: 'Search for alternative methods to access user settings or profile editing.',
+          memory: 'Unable to find username edit option. May need to look in different menu or settings area. Profile dropdown may not have edit functionality.',
+          status: 'failed',
+          screenshot: 'screenshot-3-action-3.png'
+        }
+      ]
+    }
+  }
 ];
 
 // Mock Test Runs
@@ -259,13 +363,13 @@ export const mockTestRuns: TestRun[] = [
     startedAt: new Date('2024-01-15T10:30:00Z'),
     completedAt: new Date('2024-01-15T10:32:30Z'),
     duration: 2.3,
-    steps: mockTestSteps.slice(0, 4),
-    passedSteps: 4,
+    steps: mockTestSteps.slice(0, 2),
+    passedSteps: 2,
     failedSteps: 0,
-    totalSteps: 4,
+    totalSteps: 2,
     environment: 'staging',
     browser: 'Chrome 120.0',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
   },
   {
     id: 'run-2',
@@ -276,12 +380,12 @@ export const mockTestRuns: TestRun[] = [
     completedAt: new Date('2024-01-14T14:17:45Z'),
     duration: 2.75,
     steps: mockTestSteps,
-    passedSteps: 4,
-    failedSteps: 2,
-    totalSteps: 6,
+    passedSteps: 2,
+    failedSteps: 1,
+    totalSteps: 3,
     environment: 'staging',
     browser: 'Firefox 121.0',
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0)',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0)'
   },
   {
     id: 'run-3',
@@ -291,13 +395,13 @@ export const mockTestRuns: TestRun[] = [
     startedAt: new Date('2024-01-13T09:45:00Z'),
     completedAt: new Date('2024-01-13T09:47:15Z'),
     duration: 2.25,
-    steps: mockTestSteps.slice(0, 4),
-    passedSteps: 4,
+    steps: mockTestSteps.slice(0, 2),
+    passedSteps: 2,
     failedSteps: 0,
-    totalSteps: 4,
+    totalSteps: 2,
     environment: 'production',
     browser: 'Safari 17.1',
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15'
   },
   {
     id: 'run-4',
@@ -312,7 +416,7 @@ export const mockTestRuns: TestRun[] = [
     totalSteps: 0,
     environment: 'staging',
     browser: 'Chrome 120.0',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
   },
 ];
 
@@ -403,7 +507,7 @@ export const mockApi = {
       startedAt: new Date(),
       completedAt: new Date(),
       duration: Math.random() * 5 + 1,
-      steps: mockTestSteps.slice(0, Math.floor(Math.random() * 6) + 1),
+      steps: mockTestSteps.slice(0, Math.floor(Math.random() * 3) + 1),
       passedSteps: 0,
       failedSteps: 0,
       totalSteps: 0,

@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { 
-  Home, 
   FileText, 
   Upload, 
   History, 
   Menu, 
   X,
-  BarChart3,
   Settings,
   HelpCircle,
   ChevronLeft,
@@ -37,17 +35,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   ];
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Test Cases', href: '/', icon: FileText },
-    { name: 'Create Test', href: '/create', icon: Upload },
-    { name: 'Test History', href: '/history', icon: History },
-    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+    { name: 'Test cases', href: '/', icon: FileText },
+    { name: 'Create test', href: '/create', icon: Upload },
+    { name: 'Test runs', href: '/history', icon: History },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
   const isActive = (path: string) => {
-    if (path === '/dashboard' && location.pathname === '/') return false;
     if (path === '/' && location.pathname === '/') return true;
+    
+    // Handle test case detail pages - show Test cases as active
+    if (path === '/' && location.pathname.startsWith('/test-details/')) return true;
+    
+    // Handle test run detail pages - show Test runs as active  
+    if (path === '/history' && location.pathname.startsWith('/history/')) return true;
+    
     return location.pathname === path;
   };
 

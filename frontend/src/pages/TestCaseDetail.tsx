@@ -40,6 +40,7 @@ const TestCaseDetail: React.FC = () => {
   const [editingRules, setEditingRules] = useState(false);
   const [editingBrowsers, setEditingBrowsers] = useState(false);
   const [editingSecrets, setEditingSecrets] = useState(false);
+  const [editingGoal, setEditingGoal] = useState(false);
   
   // Dropdown states for browser configs
   const [userAgentDropdowns, setUserAgentDropdowns] = useState<Record<string, boolean>>({});
@@ -116,6 +117,28 @@ const TestCaseDetail: React.FC = () => {
   const handleCancelConfig = () => {
     setEditableTestCase({ ...testCase! });
     setEditingConfig(false);
+  };
+
+  const handleEditGoal = () => {
+    setEditingGoal(true);
+    setEditableTestCase({ ...testCase! });
+  };
+
+  const handleSaveGoal = async () => {
+    if (!editableTestCase) return;
+    try {
+      // Here you would normally call an API to save the changes
+      // await mockApi.updateTestCase(editableTestCase);
+      setTestCase(editableTestCase);
+      setEditingGoal(false);
+    } catch (error) {
+      console.error('Failed to save test case goal:', error);
+    }
+  };
+
+  const handleCancelGoal = () => {
+    setEditableTestCase({ ...testCase! });
+    setEditingGoal(false);
   };
 
   const handleEditRules = () => {
@@ -285,15 +308,6 @@ const TestCaseDetail: React.FC = () => {
             </div>
           </div>
           <p className="text-gray-600 mb-4">{testCase.description}</p>
-          
-          {/* Test Goal */}
-          <div className="bg-blue-50 rounded-lg p-4 mb-4 max-w-2xl">
-            <div className="flex items-center space-x-2 mb-2">
-              <Target className="h-5 w-5 text-blue-600" />
-              <span className="text-sm font-semibold text-blue-900">Test Goal</span>
-            </div>
-            <p className="text-sm text-blue-800">{testCase.goal}</p>
-          </div>
         </div>
 
         <Link
@@ -303,6 +317,55 @@ const TestCaseDetail: React.FC = () => {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Test Cases
         </Link>
+      </div>
+
+      {/* Test Goal */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200 mt-8 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <Target className="h-5 w-5 text-blue-600" />
+            <span className="text-lg font-semibold text-gray-800">Test goal</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            {editingGoal ? (
+              <>
+                <button
+                  onClick={handleSaveGoal}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  <Save className="w-4 h-4 mr-1" />
+                  Save
+                </button>
+                <button
+                  onClick={handleCancelGoal}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleEditGoal}
+                className="inline-flex items-center p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Edit goal"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+        {editingGoal ? (
+          <textarea
+            value={editableTestCase?.goal || ''}
+            onChange={(e) => setEditableTestCase(prev => prev ? { ...prev, goal: e.target.value } : null)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+            placeholder="Enter test goal"
+            rows={3}
+          />
+        ) : (
+          <p className="text-gray-600">{testCase.goal}</p>
+        )}
       </div>
 
       {/* Basic Information */}
