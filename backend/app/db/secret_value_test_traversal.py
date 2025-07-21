@@ -7,12 +7,8 @@ between SecretValue and TestTraversal entities.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 
 from sqlmodel import Field, SQLModel
-
-if TYPE_CHECKING:
-    pass
 
 
 class SecretValueTestTraversal(SQLModel, table=True):

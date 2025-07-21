@@ -51,12 +51,20 @@ class CreateBrowserConfig(CreationModel):
             __faker__ = faker
 
             browser_config = {
-                "browser": "chrome",
-                "headless": True,
+                "user_agent": faker.user_agent(),
                 "viewport": {"width": 1920, "height": 1080},
-                "userAgent": faker.user_agent(),
-                "timeout": 30000,
-                "args": ["--no-sandbox", "--disable-dev-shm-usage"],
+                "device_scale_factor": 1.0,
+                "color_scheme": faker.random_element(["light", "dark"]),
+                "accept_downloads": True,
+                "proxy": None,
+                "client_certificates": [],
+                "extra_http_headers": {},
+                "http_credentials": None,
+                "java_script_enabled": True,
+                "geolocation": None,
+                "timeout": 30000.0,
+                "headers": None,
+                "allowed_domains": [faker.domain_name() for _ in range(faker.random_int(1, 3))],
             }
 
         element = CreateBrowserConfigFactory.build()
@@ -94,12 +102,20 @@ class UpdateBrowserConfig(UpdateModel):
             __faker__ = faker
 
             browser_config = {
-                "browser": "firefox",
-                "headless": False,
+                "user_agent": faker.user_agent(),
                 "viewport": {"width": 1366, "height": 768},
-                "userAgent": faker.user_agent(),
-                "timeout": 60000,
-                "args": ["--disable-gpu", "--disable-web-security"],
+                "device_scale_factor": 1.25,
+                "color_scheme": faker.random_element(["light", "dark"]),
+                "accept_downloads": False,
+                "proxy": None,
+                "client_certificates": [],
+                "extra_http_headers": {"Accept-Language": "en-US,en;q=0.9"},
+                "http_credentials": None,
+                "java_script_enabled": False,
+                "geolocation": {"latitude": 40.7128, "longitude": -74.0060},
+                "timeout": 60000.0,
+                "headers": {"User-Agent": faker.user_agent()},
+                "allowed_domains": [faker.domain_name() for _ in range(faker.random_int(2, 5))],
             }
 
         element = UpdateBrowserConfigFactory.build()
@@ -146,12 +162,20 @@ class ResponseBrowserConfig(BaseModel):
             __faker__ = faker
 
             browser_config = {
-                "browser": "safari",
-                "headless": True,
+                "user_agent": faker.user_agent(),
                 "viewport": {"width": 1440, "height": 900},
-                "userAgent": faker.user_agent(),
-                "timeout": 45000,
-                "args": ["--disable-extensions", "--disable-plugins"],
+                "device_scale_factor": 1.0,
+                "color_scheme": "light",
+                "accept_downloads": True,
+                "proxy": None,
+                "client_certificates": [],
+                "extra_http_headers": {},
+                "http_credentials": None,
+                "java_script_enabled": True,
+                "geolocation": None,
+                "timeout": 45000.0,
+                "headers": None,
+                "allowed_domains": ["example.com", "test.org", "demo.net"],
             }
 
         element = ResponseBrowserConfigFactory.build()
