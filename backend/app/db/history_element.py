@@ -4,20 +4,16 @@ HistoryElement table definition using SQLModel.
 This module defines the SQLModel for the HistoryElement entity.
 """
 
-from __future__ import annotations
-
 import enum
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from cuid2 import Cuid as CUID
 from sqlmodel import Column
 from sqlmodel import Enum as SQLModelEnum
 from sqlmodel import Field, Relationship, SQLModel
 
-if TYPE_CHECKING:
-    from app.db.action import Action
-    from app.db.test_run import TestRun
+from app.db.action import Action
 
 
 class HistoryElementState(str, enum.Enum):
@@ -56,5 +52,4 @@ class HistoryElement(SQLModel, table=True):
     screenshot: Optional[str] = Field(default=None)
 
     # Relationships
-    test_run: "TestRun" = Relationship(back_populates="history_elements")
-    action: "Action" = Relationship(back_populates="history_elements")
+    action: "Action" = Relationship()

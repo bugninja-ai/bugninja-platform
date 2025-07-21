@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from rich import print as rich_print
 
 from app.schemas.crud.base import CreationModel, UpdateModel, faker
+from app.schemas.crud.utils import generate_browser_config_data
 
 
 class CreateBrowserConfig(CreationModel):
@@ -50,22 +51,7 @@ class CreateBrowserConfig(CreationModel):
             __model__ = CreateBrowserConfig
             __faker__ = faker
 
-            browser_config = {
-                "user_agent": faker.user_agent(),
-                "viewport": {"width": 1920, "height": 1080},
-                "device_scale_factor": 1.0,
-                "color_scheme": faker.random_element(["light", "dark"]),
-                "accept_downloads": True,
-                "proxy": None,
-                "client_certificates": [],
-                "extra_http_headers": {},
-                "http_credentials": None,
-                "java_script_enabled": True,
-                "geolocation": None,
-                "timeout": 30000.0,
-                "headers": None,
-                "allowed_domains": [faker.domain_name() for _ in range(faker.random_int(1, 3))],
-            }
+            browser_config = generate_browser_config_data(faker, "default")
 
         element = CreateBrowserConfigFactory.build()
         element.project_id = project_id
@@ -101,22 +87,7 @@ class UpdateBrowserConfig(UpdateModel):
             __model__ = UpdateBrowserConfig
             __faker__ = faker
 
-            browser_config = {
-                "user_agent": faker.user_agent(),
-                "viewport": {"width": 1366, "height": 768},
-                "device_scale_factor": 1.25,
-                "color_scheme": faker.random_element(["light", "dark"]),
-                "accept_downloads": False,
-                "proxy": None,
-                "client_certificates": [],
-                "extra_http_headers": {"Accept-Language": "en-US,en;q=0.9"},
-                "http_credentials": None,
-                "java_script_enabled": False,
-                "geolocation": {"latitude": 40.7128, "longitude": -74.0060},
-                "timeout": 60000.0,
-                "headers": {"User-Agent": faker.user_agent()},
-                "allowed_domains": [faker.domain_name() for _ in range(faker.random_int(2, 5))],
-            }
+            browser_config = generate_browser_config_data(faker, "alternative")
 
         element = UpdateBrowserConfigFactory.build()
 
@@ -161,22 +132,7 @@ class ResponseBrowserConfig(BaseModel):
             __model__ = ResponseBrowserConfig
             __faker__ = faker
 
-            browser_config = {
-                "user_agent": faker.user_agent(),
-                "viewport": {"width": 1440, "height": 900},
-                "device_scale_factor": 1.0,
-                "color_scheme": "light",
-                "accept_downloads": True,
-                "proxy": None,
-                "client_certificates": [],
-                "extra_http_headers": {},
-                "http_credentials": None,
-                "java_script_enabled": True,
-                "geolocation": None,
-                "timeout": 45000.0,
-                "headers": None,
-                "allowed_domains": ["example.com", "test.org", "demo.net"],
-            }
+            browser_config = generate_browser_config_data(faker, "response")
 
         element = ResponseBrowserConfigFactory.build()
         element.id = id

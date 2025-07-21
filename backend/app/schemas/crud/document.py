@@ -6,7 +6,6 @@ Documents represent content that can be associated with test cases and projects.
 """
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from cuid2 import Cuid as CUID
 from polyfactory.factories.pydantic_factory import ModelFactory
@@ -34,7 +33,6 @@ class CreateDocument(CreationModel):
     """
 
     id: str = Field(default=CUID().generate())
-    test_case_id: Optional[str] = Field(default=None)
     project_id: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -43,9 +41,7 @@ class CreateDocument(CreationModel):
     content: str
 
     @classmethod
-    def sample_factory_build(
-        cls, test_case_id: str = CUID().generate(), project_id: str = CUID().generate()
-    ) -> "CreateDocument":
+    def sample_factory_build(cls, project_id: str = CUID().generate()) -> "CreateDocument":
         """
         Generate a sample CreateDocument instance for testing.
 
@@ -61,11 +57,10 @@ class CreateDocument(CreationModel):
             __model__ = CreateDocument
             __faker__ = faker
 
-            name = faker.city_name()
+            name = faker.name_male()
             content = faker.paragraph(nb_sentences=30)
 
         element = CreateDocumentFactory.build()
-        element.test_case_id = test_case_id
         element.project_id = project_id
 
         return element
@@ -102,7 +97,7 @@ class UpdateDocument(UpdateModel):
             __model__ = UpdateDocument
             __faker__ = faker
 
-            name = faker.city_name()
+            name = faker.name_male()
             content = faker.paragraph(nb_sentences=30)
 
         element = UpdateDocumentFactory.build()
@@ -158,12 +153,11 @@ class ResponseDocument(BaseModel):
             __model__ = ResponseDocument
             __faker__ = faker
 
-            name = faker.city_name()
+            name = faker.name_male()
             content = faker.paragraph(nb_sentences=30)
 
         element = ResponseDocumentFactory.build()
         element.id = id
-        element.test_case_id = test_case_id
         element.project_id = project_id
 
         return element

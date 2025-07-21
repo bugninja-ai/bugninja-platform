@@ -4,18 +4,12 @@ Cost table definition using SQLModel.
 This module defines the SQLModel for the Cost entity.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from cuid2 import Cuid as CUID
-from sqlmodel import Field, Relationship
+from sqlmodel import Field
 
 from app.db.base import TimestampedModel
-
-if TYPE_CHECKING:
-    from app.db.project import Project
-    from app.db.test_run import TestRun
 
 
 class Cost(TimestampedModel, table=True):
@@ -39,7 +33,3 @@ class Cost(TimestampedModel, table=True):
     input_token_num: int = Field(nullable=False)
     completion_token_num: int = Field(nullable=False)
     cost_in_dollars: float = Field(nullable=False)
-
-    # Relationships
-    test_run: "TestRun" = Relationship(back_populates="cost")
-    project: "Project" = Relationship(back_populates="costs")

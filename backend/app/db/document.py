@@ -4,17 +4,10 @@ Document table definition using SQLModel.
 This module defines the SQLModel for the Document entity.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 from cuid2 import Cuid as CUID
-from sqlmodel import Field, Relationship
+from sqlmodel import Field
 
 from app.db.base import TimestampedModel
-
-if TYPE_CHECKING:
-    from app.db.project import Project
 
 
 class Document(TimestampedModel, table=True):
@@ -33,6 +26,3 @@ class Document(TimestampedModel, table=True):
 
     name: str = Field(max_length=255, nullable=False)
     content: str = Field(nullable=False)
-
-    # Relationships
-    project: "Project" = Relationship(back_populates="documents")

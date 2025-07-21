@@ -101,6 +101,16 @@ shell = "uv run alembic upgrade head"
 help   = "Downgrade the database to the previous version of Alembic migrations"
 shell = "uv run alembic downgrade -1"
 
+
+[tool.poe.tasks.create-mock-data]
+help   = "Fill database with mock data for manual testing purposes"
+shell = "uv run python dev/upload_mock_data.py"
+
+
+[tool.poe.tasks.empty-db]
+help   = "Delete all data from the database without confirmation"
+shell = "uv run python dev/delete_all_data.py --force"
+
 [tool.alembic]
 
 # path to migration scripts.

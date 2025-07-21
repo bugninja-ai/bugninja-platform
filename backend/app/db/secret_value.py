@@ -4,19 +4,10 @@ SecretValue table definition using SQLModel.
 This module defines the SQLModel for the SecretValue entity.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, List
-
 from cuid2 import Cuid as CUID
-from sqlmodel import Field, Relationship
+from sqlmodel import Field
 
 from app.db.base import TimestampedModel
-from app.db.secret_value_test_traversal import SecretValueTestTraversal
-
-if TYPE_CHECKING:
-    from app.db.project import Project
-    from app.db.test_traversal import TestTraversal
 
 
 class SecretValue(TimestampedModel, table=True):
@@ -36,9 +27,3 @@ class SecretValue(TimestampedModel, table=True):
 
     secret_name: str = Field(max_length=255, nullable=False)
     secret_value: str = Field(nullable=False)  # Should be encrypted
-
-    # Relationships
-    project: "Project" = Relationship(back_populates="secret_values")
-    test_traversals: List["TestTraversal"] = Relationship(
-        back_populates="secret_values", link_model=SecretValueTestTraversal
-    )

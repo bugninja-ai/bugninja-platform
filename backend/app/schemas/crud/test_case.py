@@ -7,7 +7,7 @@ and projects, containing test configuration and validation rules.
 """
 
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 
 from cuid2 import Cuid as CUID
 from faker import Faker
@@ -43,7 +43,7 @@ class CreateTestCase(CreationModel):
 
     id: str = Field(default=CUID().generate())
     project_id: str
-    document_id: str
+    document_id: Optional[str]
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     test_name: str
@@ -55,7 +55,7 @@ class CreateTestCase(CreationModel):
 
     @classmethod
     def sample_factory_build(
-        cls, project_id: str = CUID().generate(), document_id: str = CUID().generate()
+        cls, project_id: str = CUID().generate(), document_id: Optional[str] = None
     ) -> "CreateTestCase":
         """
         Generate a sample CreateTestCase instance for testing.

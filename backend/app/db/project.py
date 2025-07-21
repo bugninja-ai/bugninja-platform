@@ -4,21 +4,17 @@ Project table definition using SQLModel.
 This module defines the SQLModel for the Project entity.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, List
+from typing import List
 
 from cuid2 import Cuid as CUID
 from sqlmodel import Field, Relationship
 
 from app.db.base import TimestampedModel
-
-if TYPE_CHECKING:
-    from app.db.browser_config import BrowserConfig
-    from app.db.cost import Cost
-    from app.db.document import Document
-    from app.db.secret_value import SecretValue
-    from app.db.test_case import TestCase
+from app.db.browser_config import BrowserConfig
+from app.db.cost import Cost
+from app.db.document import Document
+from app.db.secret_value import SecretValue
+from app.db.test_case import TestCase
 
 
 class Project(TimestampedModel, table=True):
@@ -38,10 +34,8 @@ class Project(TimestampedModel, table=True):
     )
 
     # Relationships
-    browser_configs: List["BrowserConfig"] = Relationship(
-        back_populates="project", cascade_delete=True
-    )
-    documents: List["Document"] = Relationship(back_populates="project", cascade_delete=True)
-    test_cases: List["TestCase"] = Relationship(back_populates="project", cascade_delete=True)
-    secret_values: List["SecretValue"] = Relationship(back_populates="project", cascade_delete=True)
-    costs: List["Cost"] = Relationship(back_populates="project", cascade_delete=True)
+    browser_configs: List["BrowserConfig"] = Relationship(cascade_delete=True)
+    documents: List["Document"] = Relationship(cascade_delete=True)
+    test_cases: List["TestCase"] = Relationship(cascade_delete=True)
+    secret_values: List["SecretValue"] = Relationship(cascade_delete=True)
+    costs: List["Cost"] = Relationship(cascade_delete=True)

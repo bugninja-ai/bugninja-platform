@@ -40,7 +40,9 @@ class CreateBrainState(CreationModel):
     next_goal: str
 
     @classmethod
-    def sample_factory_build(cls, test_traversal_id: str = CUID().generate()) -> "CreateBrainState":
+    def sample_factory_build(
+        cls, test_traversal_id: str = CUID().generate(), brain_state_idx: int = 0
+    ) -> "CreateBrainState":
         """
         Generate a sample CreateBrainState instance for testing.
 
@@ -63,6 +65,7 @@ class CreateBrainState(CreationModel):
 
         element = CreateBrainStateFactory.build()
         element.test_traversal_id = test_traversal_id
+        element.idx_in_run = brain_state_idx
 
         return element
 

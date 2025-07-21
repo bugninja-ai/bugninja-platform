@@ -4,24 +4,17 @@ TestTraversal table definition using SQLModel.
 This module defines the SQLModel for the TestTraversal entity.
 """
 
-from __future__ import annotations
-
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import List
 
 from cuid2 import Cuid as CUID
 from sqlmodel import Field, Relationship
 
 from app.db.base import TimestampedModel
+from app.db.brain_state import BrainState
+from app.db.browser_config import BrowserConfig
+from app.db.secret_value import SecretValue
 from app.db.secret_value_test_traversal import SecretValueTestTraversal
-
-if TYPE_CHECKING:
-    from app.db.brain_state import BrainState
-    from app.db.browser_config import BrowserConfig
-    from app.db.project import Project
-    from app.db.secret_value import SecretValue
-    from app.db.test_case import TestCase
-    from app.db.test_run import TestRun
+from app.db.test_run import TestRun
 
 
 class TestTraversal(TimestampedModel, table=True):
@@ -45,14 +38,8 @@ class TestTraversal(TimestampedModel, table=True):
     traversal_name: str = Field(max_length=255, nullable=False)
 
     # Relationships
-    project: "Project" = Relationship(back_populates="test_traversals")
-    test_case: "TestCase" = Relationship(back_populates="test_traversals")
-    browser_config: "BrowserConfig" = Relationship(back_populates="test_traversals")
+    browser_config: "BrowserConfig" = Relationship()
 
-    brain_states: List["BrainState"] = Relationship(
-        back_populates="test_traversal", cascade_delete=True
-    )
-    test_runs: List["TestRun"] = Relationship(back_populates="test_traversal", cascade_delete=True)
-    secret_values: List["SecretValue"] = Relationship(
-        back_populates="test_traversals", link_model=SecretValueTestTraversal
-    )
+    brain_states: List["BrainState"] = Relationship(cascade_delete=True)
+    test_runs: List["TestRun"] = Relationship(cascade_delete=True)
+    secret_values: List["SecretValue"] = Relationship(link_model=SecretValueTestTraversal)

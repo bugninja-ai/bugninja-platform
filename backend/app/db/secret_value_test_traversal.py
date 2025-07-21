@@ -5,9 +5,6 @@ This module defines the association table for the many-to-many relationship
 between SecretValue and TestTraversal entities.
 """
 
-from __future__ import annotations
-
-
 from sqlmodel import Field, SQLModel
 
 

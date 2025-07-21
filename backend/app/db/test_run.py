@@ -4,25 +4,19 @@ TestRun table definition using SQLModel.
 This module defines the SQLModel for the TestRun entity.
 """
 
-from __future__ import annotations
-
 import enum
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from datetime import datetime
+from typing import List, Optional
 
 from cuid2 import Cuid as CUID
 from sqlmodel import Column
 from sqlmodel import Enum as SQLModelEnum
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.db.base import TimestampedModel
-
-if TYPE_CHECKING:
-    from app.db.brain_state import BrainState
-    from app.db.browser_config import BrowserConfig
-    from app.db.cost import Cost
-    from app.db.history_element import HistoryElement
-    from app.db.test_traversal import TestTraversal
+from app.db.brain_state import BrainState
+from app.db.browser_config import BrowserConfig
+from app.db.cost import Cost
+from app.db.history_element import HistoryElement
 
 
 class RunType(str, enum.Enum):
@@ -84,10 +78,6 @@ class TestRun(SQLModel, table=True):
     finished_at: datetime = Field(nullable=False)
 
     # Relationships
-    test_traversal: "TestTraversal" = Relationship(back_populates="test_runs")
-    browser_config: "BrowserConfig" = Relationship(back_populates="test_runs")
-    history_elements: List["HistoryElement"] = Relationship(
-        back_populates="test_run", cascade_delete=True
-    )
-    brain_states: List["BrainState"] = Relationship(back_populates="test_run")
-    cost: "Cost" = Relationship(back_populates="test_run")
+    browser_config: "BrowserConfig" = Relationship()
+    history_elements: List["HistoryElement"] = Relationship(cascade_delete=True)
+    cost: "Cost" = Relationship()

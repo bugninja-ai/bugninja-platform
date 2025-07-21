@@ -4,18 +4,13 @@ BrainState table definition using SQLModel.
 This module defines the SQLModel for the BrainState entity.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, List
+from typing import List
 
 from cuid2 import Cuid as CUID
 from sqlmodel import Field, Relationship
 
+from app.db.action import Action
 from app.db.base import TimestampedModel
-
-if TYPE_CHECKING:
-    from app.db.action import Action
-    from app.db.test_traversal import TestTraversal
 
 
 class BrainState(TimestampedModel, table=True):
@@ -40,5 +35,4 @@ class BrainState(TimestampedModel, table=True):
     next_goal: str = Field(nullable=False)
 
     # Relationships
-    test_traversal: "TestTraversal" = Relationship(back_populates="brain_states")
-    actions: List["Action"] = Relationship(back_populates="brain_state", cascade_delete=True)
+    actions: List[Action] = Relationship(cascade_delete=True)

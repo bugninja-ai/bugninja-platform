@@ -4,10 +4,7 @@ TestCase table definition using SQLModel.
 This module defines the SQLModel for the TestCase entity.
 """
 
-from __future__ import annotations
-
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 
 from cuid2 import Cuid as CUID
 from sqlalchemy import Column, String
@@ -15,14 +12,9 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlmodel import Field, Relationship
 
 from app.db.base import TimestampedModel
-from app.db.test_case_browser_config import TestCaseBrowserConfig
-
-if TYPE_CHECKING:
-    from app.db.browser_config import BrowserConfig
-    from app.db.document import Document
-    from app.db.project import Project
-    from app.db.test_run import TestRun
-    from app.db.test_traversal import TestTraversal
+from app.db.document import Document
+from app.db.test_run import TestRun
+from app.db.test_traversal import TestTraversal
 
 
 class TestCase(TimestampedModel, table=True):
@@ -51,12 +43,5 @@ class TestCase(TimestampedModel, table=True):
     allowed_domains: List[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
 
     # Relationships
-    project: "Project" = Relationship(back_populates="test_cases")
-    document: "Document" = Relationship(back_populates="test_case")
-    test_runs: List["TestRun"] = Relationship(back_populates="test_case")
-    test_traversals: List["TestTraversal"] = Relationship(
-        back_populates="test_case", cascade_delete=True
-    )
-    browser_configs: List["BrowserConfig"] = Relationship(
-        back_populates="test_cases", link_model=TestCaseBrowserConfig
-    )
+    document: "Document" = Relationship()
+    test_traversals: List["TestTraversal"] = Relationship(cascade_delete=True)

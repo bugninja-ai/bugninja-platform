@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from rich import print as rich_print
 
 from app.schemas.crud.base import CreationModel, UpdateModel, faker
+from app.schemas.crud.utils import generate_action_data, generate_dom_element_data
 
 
 class CreateAction(CreationModel):
@@ -40,7 +41,9 @@ class CreateAction(CreationModel):
     valid: bool
 
     @classmethod
-    def sample_factory_build(cls, brain_state_id: str = CUID().generate()) -> "CreateAction":
+    def sample_factory_build(
+        cls, brain_state_id: str = CUID().generate(), idx_in_brain_state: int = 0
+    ) -> "CreateAction":
         """
         Generate a sample CreateAction instance for testing.
 
@@ -56,84 +59,13 @@ class CreateAction(CreationModel):
             __faker__ = faker
 
             idx_in_brain_state = faker.random_int(min=0, max=50)
-
-            # Generate realistic action data based on traversal JSON structure
-            action_types = [
-                "done",
-                "search_google",
-                "go_to_url",
-                "go_back",
-                "wait",
-                "click_element_by_index",
-                "input_text",
-                "save_pdf",
-                "switch_tab",
-                "open_tab",
-                "close_tab",
-                "extract_content",
-                "get_ax_tree",
-                "scroll_down",
-                "scroll_up",
-                "send_keys",
-                "scroll_to_text",
-                "get_dropdown_options",
-                "select_dropdown_option",
-                "drag_drop",
-                "third_party_authentication_wait",
-            ]
-
-            action = {action_type: None for action_type in action_types}
-
-            # Set a random action type with realistic data
-            selected_action = faker.random_element(
-                [
-                    {"go_to_url": {"url": f"https://{faker.domain_name()}"}},
-                    {"click_element_by_index": {"index": faker.random_int(1, 20), "xpath": None}},
-                    {
-                        "input_text": {
-                            "index": faker.random_int(1, 20),
-                            "text": faker.word(),
-                            "xpath": None,
-                        }
-                    },
-                    {"done": {"text": faker.sentence(), "success": faker.boolean()}},
-                ]
-            )
-
-            action.update(selected_action)
-
-            # Generate realistic DOM element data
-            dom_element_data = {
-                "tag_name": faker.random_element(["input", "button", "a", "div", "span", "form"]),
-                "xpath": f"html/body/div[{faker.random_int(1, 5)}]/div/div[{faker.random_int(1, 3)}]/div/div[{faker.random_int(1, 3)}]/div[{faker.random_int(1, 3)}]/form/div[{faker.random_int(1, 3)}]/input",
-                "attributes": {
-                    "type": faker.random_element(["text", "email", "password", "submit", "button"]),
-                    "class": faker.text(max_nb_chars=100),
-                    "id": faker.word(),
-                    "placeholder": faker.sentence(nb_words=3),
-                    "required": "",
-                    "value": faker.word() if faker.boolean() else "",
-                },
-                "is_visible": True,
-                "is_interactive": True,
-                "is_top_element": True,
-                "is_in_viewport": True,
-                "shadow_root": False,
-                "highlight_index": faker.random_int(1, 20),
-                "viewport_coordinates": None,
-                "page_coordinates": None,
-                "children": [],
-                "alternative_relative_xpaths": [
-                    f"//{faker.random_element(['input', 'button', 'a'])}[@id='{faker.word()}']",
-                    f"//form/div[{faker.random_int(1, 3)}]/input",
-                    f"//div[contains(@class, '{faker.word()}')]/input",
-                ],
-            }
-
+            action = generate_action_data(faker)
+            dom_element_data = generate_dom_element_data(faker, "input")
             valid = faker.boolean()
 
         element = CreateActionFactory.build()
         element.brain_state_id = brain_state_id
+        element.idx_in_brain_state = idx_in_brain_state
 
         return element
 
@@ -170,76 +102,8 @@ class UpdateAction(UpdateModel):
             __faker__ = faker
 
             idx_in_brain_state = faker.random_int(min=0, max=50)
-
-            # Generate realistic action data
-            action_types = [
-                "done",
-                "search_google",
-                "go_to_url",
-                "go_back",
-                "wait",
-                "click_element_by_index",
-                "input_text",
-                "save_pdf",
-                "switch_tab",
-                "open_tab",
-                "close_tab",
-                "extract_content",
-                "get_ax_tree",
-                "scroll_down",
-                "scroll_up",
-                "send_keys",
-                "scroll_to_text",
-                "get_dropdown_options",
-                "select_dropdown_option",
-                "drag_drop",
-                "third_party_authentication_wait",
-            ]
-
-            action = {action_type: None for action_type in action_types}
-
-            # Set a different action type for variety
-            selected_action = faker.random_element(
-                [
-                    {"scroll_down": {}},
-                    {"wait": {"duration": faker.random_int(1000, 5000)}},
-                    {"extract_content": {"selector": faker.word()}},
-                    {"get_ax_tree": {}},
-                ]
-            )
-
-            action.update(selected_action)
-
-            # Generate realistic DOM element data
-            dom_element_data = {
-                "tag_name": faker.random_element(["div", "span", "p", "h1", "h2", "section"]),
-                "xpath": f"html/body/div[{faker.random_int(1, 5)}]/div/div[{faker.random_int(1, 3)}]/div/div[{faker.random_int(1, 3)}]/div[{faker.random_int(1, 3)}]/div[{faker.random_int(1, 3)}]",
-                "attributes": {
-                    "class": faker.text(max_nb_chars=80),
-                    "id": faker.word(),
-                    "data-testid": faker.word(),
-                    "role": faker.random_element(["button", "link", "textbox", "menuitem"]),
-                },
-                "is_visible": True,
-                "is_interactive": faker.boolean(),
-                "is_top_element": True,
-                "is_in_viewport": True,
-                "shadow_root": False,
-                "highlight_index": faker.random_int(1, 20),
-                "viewport_coordinates": None,
-                "page_coordinates": None,
-                "children": (
-                    [{"text": faker.sentence(nb_words=3), "type": "TEXT_NODE"}]
-                    if faker.boolean()
-                    else []
-                ),
-                "alternative_relative_xpaths": [
-                    f"//{faker.random_element(['div', 'span', 'p'])}[@class='{faker.word()}']",
-                    f"//div[contains(@class, '{faker.word()}')]",
-                    f"//*[@data-testid='{faker.word()}']",
-                ],
-            }
-
+            action = generate_action_data(faker)
+            dom_element_data = generate_dom_element_data(faker, "div")
             valid = faker.boolean()
 
         element = UpdateActionFactory.build()
@@ -290,84 +154,8 @@ class ResponseAction(BaseModel):
             __faker__ = faker
 
             idx_in_brain_state = faker.random_int(min=0, max=50)
-
-            # Generate realistic action data
-            action_types = [
-                "done",
-                "search_google",
-                "go_to_url",
-                "go_back",
-                "wait",
-                "click_element_by_index",
-                "input_text",
-                "save_pdf",
-                "switch_tab",
-                "open_tab",
-                "close_tab",
-                "extract_content",
-                "get_ax_tree",
-                "scroll_down",
-                "scroll_up",
-                "send_keys",
-                "scroll_to_text",
-                "get_dropdown_options",
-                "select_dropdown_option",
-                "drag_drop",
-                "third_party_authentication_wait",
-            ]
-
-            action = {action_type: None for action_type in action_types}
-
-            # Set a realistic action type
-            selected_action = faker.random_element(
-                [
-                    {"click_element_by_index": {"index": faker.random_int(1, 20), "xpath": None}},
-                    {
-                        "input_text": {
-                            "index": faker.random_int(1, 20),
-                            "text": faker.word(),
-                            "xpath": None,
-                        }
-                    },
-                    {"go_to_url": {"url": f"https://{faker.domain_name()}"}},
-                    {"done": {"text": faker.sentence(), "success": True}},
-                ]
-            )
-
-            action.update(selected_action)
-
-            # Generate realistic DOM element data
-            dom_element_data = {
-                "tag_name": faker.random_element(["button", "input", "a", "div", "form"]),
-                "xpath": f"html/body/div[{faker.random_int(1, 5)}]/div/div[{faker.random_int(1, 3)}]/div/div[{faker.random_int(1, 3)}]/div[{faker.random_int(1, 3)}]/form/button",
-                "attributes": {
-                    "type": faker.random_element(["submit", "button", "text", "email"]),
-                    "class": faker.text(max_nb_chars=120),
-                    "id": faker.word(),
-                    "data-umami-event": faker.word(),
-                    "href": faker.url() if faker.boolean() else None,
-                },
-                "is_visible": True,
-                "is_interactive": True,
-                "is_top_element": True,
-                "is_in_viewport": True,
-                "shadow_root": False,
-                "highlight_index": faker.random_int(1, 20),
-                "viewport_coordinates": None,
-                "page_coordinates": None,
-                "children": (
-                    [{"text": faker.sentence(nb_words=2), "type": "TEXT_NODE"}]
-                    if faker.boolean()
-                    else []
-                ),
-                "alternative_relative_xpaths": [
-                    f"//{faker.random_element(['button', 'input', 'a'])}[@id='{faker.word()}']",
-                    f"//form/button",
-                    f"//button[text()='{faker.word()}']",
-                    f"//div[contains(@class, '{faker.word()}')]/button",
-                ],
-            }
-
+            action = generate_action_data(faker)
+            dom_element_data = generate_dom_element_data(faker, "button")
             valid = faker.boolean()
 
         element = ResponseActionFactory.build()

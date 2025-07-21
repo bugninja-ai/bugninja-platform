@@ -5,14 +5,7 @@ This module defines the association table for the many-to-many relationship
 between TestCase and BrowserConfig entities.
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 from sqlmodel import Field, SQLModel
-
-if TYPE_CHECKING:
-    pass
 
 
 class TestCaseBrowserConfig(SQLModel, table=True):

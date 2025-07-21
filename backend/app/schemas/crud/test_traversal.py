@@ -41,7 +41,6 @@ class CreateTestTraversal(CreationModel):
     @classmethod
     def sample_factory_build(
         cls,
-        project_id: str = CUID().generate(),
         test_case_id: str = CUID().generate(),
         browser_config_id: str = CUID().generate(),
     ) -> "CreateTestTraversal":
@@ -129,7 +128,6 @@ class ResponseTestTraversal(BaseModel):
     def sample_factory_build(
         cls,
         id: str = CUID().generate(),
-        project_id: str = CUID().generate(),
         test_case_id: str = CUID().generate(),
         browser_config_id: str = CUID().generate(),
     ) -> "ResponseTestTraversal":
