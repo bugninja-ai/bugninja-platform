@@ -36,46 +36,48 @@ services:
       retries: 5
 
   # FastAPI Backend
-  # backend:
-  #   build:
-  #     context: .
-  #     dockerfile: infrastructure/docker/backend.Dockerfile
-  #   container_name: bugninja-backend
-  #   restart: unless-stopped
-  #   ports:
-  #     - "8000:8000"
-  #   volumes:
-  #     - ./backend:/app
-  #   environment:
-  #     - DATABASE_URL=postgresql+asyncpg://bugninja_user:bugninja_password@postgres:5432/bugninja
-  #     - REDIS_URL=redis://redis:6379
-  #     - API_DEBUG=true
-  #     - API_CORS_ORIGINS=["http://localhost:3000"]
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
+  backend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    container_name: bugninja-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Only mount specific directories for development, not the entire backend
+      - ./backend/app:/app/app
+      - ./backend/dev:/app/dev
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://bugninja_user:bugninja_password@postgres:5432/bugninja
+      - REDIS_URL=redis://redis:6379
+      - API_DEBUG=true
+      - API_CORS_ORIGINS=["http://localhost:3000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   # Frontend React Application
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: ../infrastructure/docker/frontend.Dockerfile
-  #   container_name: bugninja-frontend
-  #   restart: unless-stopped
-  #   ports:
-  #     - "3000:3000"
-  #   volumes:
-  #     # Mount node_modules from host to avoid linter issues
-  #     - ./frontend:/app
-  #     - /app/node_modules
-  #   environment:
-  #     - VITE_API_URL=http://localhost:8000
-  #   depends_on:
-  #     - backend
-  #   stdin_open: true
-  #   tty: true
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../infrastructure/docker/frontend.Dockerfile
+    container_name: bugninja-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount node_modules from host to avoid linter issues
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    stdin_open: true
+    tty: true
 
 volumes:
   postgres_data:
