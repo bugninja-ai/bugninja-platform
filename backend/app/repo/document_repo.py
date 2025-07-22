@@ -115,8 +115,9 @@ class DocumentRepo:
         if not document:
             return None
 
-        document.name = document_data.name
-        document.content = document_data.content
+        for k, v in document_data.model_dump(exclude_unset=True, exclude_none=True).items():
+            setattr(document, k, v)
+
         document.updated_at = datetime.now(timezone.utc)
 
         db.add(document)

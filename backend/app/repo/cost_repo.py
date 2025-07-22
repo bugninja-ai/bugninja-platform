@@ -151,11 +151,9 @@ class CostRepo:
         if not cost:
             return None
 
-        cost.model_type = cost_data.model_type
-        cost.cost_per_token = cost_data.cost_per_token
-        cost.input_token_num = cost_data.input_token_num
-        cost.completion_token_num = cost_data.completion_token_num
-        cost.cost_in_dollars = cost_data.cost_in_dollars
+        for k, v in cost_data.model_dump(exclude_unset=True, exclude_none=True).items():
+            setattr(cost, k, v)
+
         cost.updated_at = datetime.now(timezone.utc)
 
         db.add(cost)

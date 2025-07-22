@@ -219,10 +219,8 @@ class HistoryElementRepo:
         if not history_element:
             return None
 
-        history_element.action_started_at = history_element_data.action_started_at
-        history_element.action_finished_at = history_element_data.action_finished_at
-        history_element.history_element_state = history_element_data.history_element_state
-        history_element.screenshot = history_element_data.screenshot
+        for k, v in history_element_data.model_dump(exclude_unset=True, exclude_none=True).items():
+            setattr(history_element, k, v)
 
         db.add(history_element)
         db.commit()

@@ -122,7 +122,9 @@ class BrowserConfigRepo:
         if not browser_config:
             return None
 
-        browser_config.browser_config = browser_config_data.browser_config
+        for k, v in browser_config_data.model_dump(exclude_unset=True, exclude_none=True).items():
+            setattr(browser_config, k, v)
+
         browser_config.updated_at = datetime.now(timezone.utc)
 
         db.add(browser_config)

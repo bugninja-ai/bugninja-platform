@@ -160,11 +160,9 @@ class BrainStateRepo:
         if not brain_state:
             return None
 
-        brain_state.idx_in_run = brain_state_data.idx_in_run
-        brain_state.valid = brain_state_data.valid
-        brain_state.evaluation_previous_goal = brain_state_data.evaluation_previous_goal
-        brain_state.memory = brain_state_data.memory
-        brain_state.next_goal = brain_state_data.next_goal
+        for k, v in brain_state_data.model_dump(exclude_unset=True, exclude_none=True).items():
+            setattr(brain_state, k, v)
+
         brain_state.updated_at = datetime.now(timezone.utc)
 
         db.add(brain_state)

@@ -6,7 +6,7 @@ Browser configurations store browser-specific settings and parameters for test e
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from cuid2 import Cuid as CUID
 from polyfactory.factories.pydantic_factory import ModelFactory
@@ -26,16 +26,11 @@ class CreateBrowserConfig(CreationModel):
     reusable across different test cases.
 
     Attributes:
-        id: Unique identifier generated using CUID
-        created_at: Timestamp when the browser config was created (UTC)
-        updated_at: Timestamp when the browser config was last updated (UTC)
+        project_id: Reference to the project this browser config belongs to
         browser_config: Dictionary containing browser-specific configuration settings
     """
 
-    id: str = Field(default=CUID().generate())
     project_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     browser_config: Dict[str, Any]
 
     @classmethod
@@ -72,7 +67,7 @@ class UpdateBrowserConfig(UpdateModel):
     """
 
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    browser_config: Dict[str, Any]
+    browser_config: Optional[Dict[str, Any]] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateBrowserConfig":

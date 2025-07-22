@@ -6,6 +6,7 @@ Test traversals represent specific test execution paths with browser configurati
 """
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from cuid2 import Cuid as CUID
 from polyfactory.factories.pydantic_factory import ModelFactory
@@ -24,18 +25,13 @@ class CreateTestTraversal(CreationModel):
     a project and defines how a test should be executed.
 
     Attributes:
-        id: Unique identifier generated using CUID
-        project_id: Reference to the project this traversal belongs to
         test_case_id: Reference to the test case being executed
         browser_config_id: Reference to the browser configuration to use
-        created_at: Timestamp when the traversal was created (UTC)
         traversal_name: Human-readable name for the test traversal
     """
 
-    id: str = Field(default=CUID().generate())
     test_case_id: str
     browser_config_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     traversal_name: str
 
     @classmethod
@@ -80,7 +76,7 @@ class UpdateTestTraversal(UpdateModel):
         traversal_name: Updated name for the test traversal
     """
 
-    traversal_name: str
+    traversal_name: Optional[str] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateTestTraversal":

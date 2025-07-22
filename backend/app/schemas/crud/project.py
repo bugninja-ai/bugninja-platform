@@ -5,11 +5,12 @@ This module defines Pydantic models for Project entity CRUD operations.
 Projects represent specific testing initiatives.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
+from typing import Optional
 
 from cuid2 import Cuid as CUID
 from polyfactory.factories.pydantic_factory import ModelFactory
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from rich import print as rich_print
 
 from app.schemas.crud.base import CreationModel, UpdateModel, faker
@@ -23,14 +24,10 @@ class CreateProject(CreationModel):
     Each project can contain multiple test cases, documents, and other testing resources.
 
     Attributes:
-        id: Unique identifier generated using CUID
-        created_at: Timestamp when the project was created (UTC)
         name: Human-readable name for the project
         default_start_url: Default URL where tests for this project start
     """
 
-    id: str = Field(default=CUID().generate())
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     name: str
     default_start_url: str
 
@@ -67,8 +64,8 @@ class UpdateProject(UpdateModel):
         default_start_url: Updated default URL where tests start
     """
 
-    name: str
-    default_start_url: str
+    name: Optional[str] = None
+    default_start_url: Optional[str] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateProject":

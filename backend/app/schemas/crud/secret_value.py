@@ -6,6 +6,7 @@ Secret values store sensitive configuration data for projects like API keys and 
 """
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from cuid2 import Cuid as CUID
 from polyfactory.factories.pydantic_factory import ModelFactory
@@ -24,18 +25,12 @@ class CreateSecretValue(CreationModel):
     a specific project and should be encrypted at rest.
 
     Attributes:
-        id: Unique identifier generated using CUID
         project_id: Reference to the project this secret belongs to
-        created_at: Timestamp when the secret was created (UTC)
-        updated_at: Timestamp when the secret was last updated (UTC)
         secret_name: Human-readable name/identifier for the secret
         secret_value: The actual secret value (should be encrypted)
     """
 
-    id: str = Field(default=CUID().generate())
     project_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     secret_name: str
     secret_value: str
 
@@ -78,8 +73,8 @@ class UpdateSecretValue(UpdateModel):
     """
 
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    secret_name: str
-    secret_value: str
+    secret_name: Optional[str] = None
+    secret_value: Optional[str] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateSecretValue":

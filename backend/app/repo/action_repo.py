@@ -153,10 +153,9 @@ class ActionRepo:
         if not action:
             return None
 
-        action.idx_in_brain_state = action_data.idx_in_brain_state
-        action.action = action_data.action
-        action.dom_element_data = action_data.dom_element_data
-        action.valid = action_data.valid
+        for k, v in action_data.model_dump(exclude_unset=True, exclude_none=True).items():
+            setattr(action, k, v)
+
         action.updated_at = datetime.now(timezone.utc)
 
         db.add(action)

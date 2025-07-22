@@ -158,7 +158,9 @@ class TestTraversalRepo:
         if not test_traversal:
             return None
 
-        test_traversal.traversal_name = test_traversal_data.traversal_name
+        for k, v in test_traversal_data.model_dump(exclude_unset=True, exclude_none=True).items():
+            setattr(test_traversal, k, v)
+
         test_traversal.updated_at = datetime.now(timezone.utc)
 
         db.add(test_traversal)

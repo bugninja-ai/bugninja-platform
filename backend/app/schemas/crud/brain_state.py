@@ -5,9 +5,11 @@ This module defines Pydantic models for BrainState entity CRUD operations.
 Brain states represent the AI agent's cognitive state during test execution.
 """
 
+from typing import Optional
+
 from cuid2 import Cuid as CUID
 from polyfactory.factories.pydantic_factory import ModelFactory
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from rich import print as rich_print
 
 from app.schemas.crud.base import CreationModel, UpdateModel, faker
@@ -22,7 +24,6 @@ class CreateBrainState(CreationModel):
     and next goals for the test run.
 
     Attributes:
-        id: Unique identifier generated using CUID
         test_traversal_id: Reference to the test run this brain state belongs to
         idx_in_run: Index position within the run sequence
         valid: Whether this brain state is valid and usable
@@ -31,7 +32,6 @@ class CreateBrainState(CreationModel):
         next_goal: The next goal or objective for the agent
     """
 
-    id: str = Field(default=CUID().generate())
     test_traversal_id: str
     idx_in_run: int
     valid: bool
@@ -84,11 +84,11 @@ class UpdateBrainState(UpdateModel):
         next_goal: Updated next goal or objective for the agent
     """
 
-    idx_in_run: int
-    valid: bool
-    evaluation_previous_goal: str
-    memory: str
-    next_goal: str
+    idx_in_run: Optional[int] = None
+    valid: Optional[bool] = None
+    evaluation_previous_goal: Optional[str] = None
+    memory: Optional[str] = None
+    next_goal: Optional[str] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateBrainState":

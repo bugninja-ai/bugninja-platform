@@ -120,8 +120,9 @@ class SecretValueRepo:
         if not secret_value:
             return None
 
-        secret_value.secret_name = secret_value_data.secret_name
-        secret_value.secret_value = secret_value_data.secret_value
+        for k, v in secret_value_data.model_dump(exclude_unset=True, exclude_none=True).items():
+            setattr(secret_value, k, v)
+
         secret_value.updated_at = datetime.now(timezone.utc)
 
         db.add(secret_value)

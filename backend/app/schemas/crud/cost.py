@@ -5,11 +5,12 @@ This module defines Pydantic models for Cost entity CRUD operations.
 Cost entities track AI model usage costs and token consumption for test runs.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
+from typing import Optional
 
 from cuid2 import Cuid as CUID
 from polyfactory.factories.pydantic_factory import ModelFactory
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from rich import print as rich_print
 
 from app.schemas.crud.base import CreationModel, UpdateModel, faker
@@ -24,10 +25,8 @@ class CreateCost(CreationModel):
     tracking the financial impact of AI-powered testing.
 
     Attributes:
-        id: Unique identifier generated using CUID
         test_run_id: Reference to the test run this cost belongs to
         project_id: Reference to the project this cost belongs to
-        created_at: Timestamp when the cost record was created (UTC)
         model_type: Type of AI model used (e.g., "gpt-4", "claude-3")
         cost_per_token: Cost per token in dollars
         input_token_num: Number of input tokens consumed
@@ -35,10 +34,8 @@ class CreateCost(CreationModel):
         cost_in_dollars: Total cost in dollars for this usage
     """
 
-    id: str = Field(default=CUID().generate())
     test_run_id: str
     project_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     model_type: str
     cost_per_token: float
     input_token_num: int
@@ -92,11 +89,11 @@ class UpdateCost(UpdateModel):
         cost_in_dollars: Updated total cost in dollars
     """
 
-    model_type: str
-    cost_per_token: float
-    input_token_num: int
-    completion_token_num: int
-    cost_in_dollars: float
+    model_type: Optional[str] = None
+    cost_per_token: Optional[float] = None
+    input_token_num: Optional[int] = None
+    completion_token_num: Optional[int] = None
+    cost_in_dollars: Optional[float] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateCost":

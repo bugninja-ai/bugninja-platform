@@ -5,11 +5,11 @@ This module defines Pydantic models for Action entity CRUD operations.
 Actions represent specific UI interactions performed by the AI agent during test execution.
 """
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from cuid2 import Cuid as CUID
 from polyfactory.factories.pydantic_factory import ModelFactory
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from rich import print as rich_print
 
 from app.schemas.crud.base import CreationModel, UpdateModel, faker
@@ -25,7 +25,6 @@ class CreateAction(CreationModel):
     including the action type and DOM element data.
 
     Attributes:
-        id: Unique identifier generated using CUID
         brain_state_id: Reference to the brain state this action belongs to
         idx_in_brain_state: Index position within the brain state's action sequence
         action: Dictionary containing action details (type, parameters, etc.)
@@ -33,7 +32,6 @@ class CreateAction(CreationModel):
         valid: Whether this action is valid and executable
     """
 
-    id: str = Field(default=CUID().generate())
     brain_state_id: str
     idx_in_brain_state: int
     action: Dict[str, Any]
@@ -83,10 +81,10 @@ class UpdateAction(UpdateModel):
         valid: Updated validity status
     """
 
-    idx_in_brain_state: int
-    action: Dict[str, Any]
-    dom_element_data: Dict[str, Any]
-    valid: bool
+    idx_in_brain_state: Optional[int] = None
+    action: Optional[Dict[str, Any]] = None
+    dom_element_data: Optional[Dict[str, Any]] = None
+    valid: Optional[bool] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateAction":

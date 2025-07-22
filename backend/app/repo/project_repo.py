@@ -8,6 +8,7 @@ All methods work with the provided database session and use SQLModel table defin
 from datetime import datetime, timezone
 from typing import Optional, Sequence
 
+from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.document import Document
@@ -43,7 +44,7 @@ class ProjectRepo:
             Project: The created project instance
         """
         project = Project(
-            id=project_data.id,
+            id=CUID().generate(),
             name=project_data.name,
             default_start_url=project_data.default_start_url,
             created_at=datetime.now(timezone.utc),
@@ -102,8 +103,9 @@ class ProjectRepo:
         if not project:
             return None
 
-        project.name = project_data.name
-        project.default_start_url = project_data.default_start_url
+        for k, v in project_data.model_dump(exclude_unset=True, exclude_none=True).items():
+            setattr(project, k, v)
+
         project.updated_at = datetime.now(timezone.utc)
 
         db.add(project)

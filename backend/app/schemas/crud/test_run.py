@@ -28,27 +28,20 @@ class CreateTestRun(CreationModel):
     types and origins, and tracks the complete execution history.
 
     Attributes:
-        id: Unique identifier generated using CUID
         test_traversal_id: Reference to the test traversal being executed
         browser_config_id: Reference to the browser configuration being used
         run_type: Type of test run (AGENTIC, REPLAY, REPLAY_WITH_HEALING)
         origin: Origin of the test run (USER or CICD)
         repair_was_needed: Whether repair/healing was needed during execution
-        started_at: Timestamp when the test run started (UTC)
-        finished_at: Timestamp when the test run finished (UTC)
         current_state: Current state of the test run
-        history: List of history elements tracking the execution
         run_gif: URL or path to the animated GIF of the test run
     """
 
-    id: str = Field(default=CUID().generate())
     test_traversal_id: str
     browser_config_id: str
     run_type: RunType
     origin: RunOrigin
     repair_was_needed: bool
-    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    finished_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     current_state: RunState
     run_gif: str
 
@@ -110,10 +103,10 @@ class UpdateTestRun(UpdateModel):
         run_gif: Updated URL or path to the animated GIF
     """
 
-    repair_was_needed: bool
-    finished_at: datetime
-    current_state: RunState
-    run_gif: str
+    repair_was_needed: Optional[bool] = None
+    finished_at: Optional[datetime] = None
+    current_state: Optional[RunState] = None
+    run_gif: Optional[str] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateTestRun":

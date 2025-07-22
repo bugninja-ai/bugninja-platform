@@ -28,11 +28,8 @@ class CreateTestCase(CreationModel):
     belongs to a project and is associated with a document.
 
     Attributes:
-        id: Unique identifier generated using CUID
         project_id: Required reference to the project this test case belongs to
         document_id: Required reference to the document this test case is based on
-        created_at: Timestamp when the test case was created (UTC)
-        updated_at: Timestamp when the test case was last updated (UTC)
         test_name: Human-readable name for the test case
         test_description: Detailed description of what the test case does
         test_goal: Specific objective or goal of this test case
@@ -41,11 +38,8 @@ class CreateTestCase(CreationModel):
         allowed_domains: List of domains that are allowed for this test case
     """
 
-    id: str = Field(default=CUID().generate())
     project_id: str
     document_id: Optional[str]
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     test_name: str
     test_description: str
     test_goal: str
@@ -103,12 +97,12 @@ class UpdateTestCase(UpdateModel):
         allowed_domains: Updated list of allowed domains
     """
 
-    test_name: str
-    test_description: str
-    test_goal: str
-    extra_rules: str
-    url_route: str
-    allowed_domains: List[str]
+    test_name: Optional[str] = None
+    test_description: Optional[str] = None
+    test_goal: Optional[str] = None
+    extra_rules: Optional[str] = None
+    url_route: Optional[str] = None
+    allowed_domains: Optional[List[str]] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateTestCase":

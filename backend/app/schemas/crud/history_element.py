@@ -5,11 +5,12 @@ This module defines Pydantic models for HistoryElement entity CRUD operations.
 History elements track individual actions and their outcomes during test execution.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
+from typing import Optional
 
 from cuid2 import Cuid as CUID
 from polyfactory.factories.pydantic_factory import ModelFactory
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from rich import print as rich_print
 
 from app.db.history_element import HistoryElementState
@@ -25,20 +26,14 @@ class CreateHistoryElement(CreationModel):
     a test run, including timing, results, and visual evidence.
 
     Attributes:
-        id: Unique identifier generated using CUID
         test_run_id: Reference to the test run this history element belongs to
         action_id: Reference to the specific action that was executed
-        action_started_at: Timestamp when the action started (UTC)
-        action_finished_at: Timestamp when the action finished (UTC)
         history_element_state: State of the action (PASSED or FAILED)
         screenshot: URL or path to the screenshot taken during the action
     """
 
-    id: str = Field(default=CUID().generate())
     test_run_id: str
     action_id: str
-    action_started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    action_finished_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     history_element_state: HistoryElementState
     screenshot: str
 
@@ -87,10 +82,10 @@ class UpdateHistoryElement(UpdateModel):
         screenshot: Updated URL or path to the screenshot
     """
 
-    action_started_at: datetime
-    action_finished_at: datetime
-    history_element_state: HistoryElementState
-    screenshot: str
+    action_started_at: Optional[datetime] = None
+    action_finished_at: Optional[datetime] = None
+    history_element_state: Optional[HistoryElementState] = None
+    screenshot: Optional[str] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateHistoryElement":

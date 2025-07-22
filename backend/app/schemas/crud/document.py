@@ -6,6 +6,7 @@ Documents represent content that can be associated with test cases and projects.
 """
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from cuid2 import Cuid as CUID
 from polyfactory.factories.pydantic_factory import ModelFactory
@@ -23,20 +24,12 @@ class CreateDocument(CreationModel):
     Each document belongs to a project and contains name and content fields.
 
     Attributes:
-        id: Unique identifier generated using CUID
-        test_case_id: Optional reference to a test case (nullable relationship)
         project_id: Required reference to the project this document belongs to
-        created_at: Timestamp when the document was created (UTC)
-        updated_at: Timestamp when the document was last updated (UTC)
         name: Human-readable name/title for the document
         content: The actual document content/text
     """
 
-    id: str = Field(default=CUID().generate())
     project_id: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
     name: str
     content: str
 
@@ -81,8 +74,8 @@ class UpdateDocument(UpdateModel):
 
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    name: str
-    content: str
+    name: Optional[str] = None
+    content: Optional[str] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateDocument":

@@ -140,12 +140,9 @@ class TestCaseRepo:
         if not test_case:
             return None
 
-        test_case.test_name = test_case_data.test_name
-        test_case.test_description = test_case_data.test_description
-        test_case.test_goal = test_case_data.test_goal
-        test_case.extra_rules = test_case_data.extra_rules
-        test_case.url_route = test_case_data.url_route
-        test_case.allowed_domains = test_case_data.allowed_domains
+        for k, v in test_case_data.model_dump(exclude_unset=True, exclude_none=True).items():
+            setattr(test_case, k, v)
+
         test_case.updated_at = datetime.now(timezone.utc)
 
         db.add(test_case)

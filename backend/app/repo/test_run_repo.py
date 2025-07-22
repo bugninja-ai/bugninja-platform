@@ -245,10 +245,8 @@ class TestRunRepo:
         if not test_run:
             return None
 
-        test_run.repair_was_needed = test_run_data.repair_was_needed
-        test_run.finished_at = test_run_data.finished_at
-        test_run.current_state = test_run_data.current_state
-        test_run.run_gif = test_run_data.run_gif
+        for k, v in test_run_data.model_dump(exclude_unset=True, exclude_none=True).items():
+            setattr(test_run, k, v)
 
         db.add(test_run)
         db.commit()
