@@ -143,7 +143,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full ${sidebarWidth} bg-white/80 backdrop-blur-xl border-r border-dashed border-gray-300 z-50 transform transition-all duration-300 ease-in-out ${
+      <div className={`sidebar-container fixed left-0 top-0 h-full ${sidebarWidth} bg-white/80 backdrop-blur-xl border-r border-dashed border-gray-300 z-50 transform transition-all duration-300 ease-in-out ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } lg:translate-x-0`}>
         

@@ -1,5 +1,5 @@
-/* Scale down the entire application using zoom to preserve fixed positioning */
-body {
+/* Sidebar specific zoom to make it smaller */
+.sidebar-container {
   zoom: 0.9;
 }
 
