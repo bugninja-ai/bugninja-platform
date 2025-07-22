@@ -56,7 +56,6 @@ globs: **/*.py, src/**/*.py, tests/**/*.py
 - Use parameterized tests for testing multiple scenarios efficiently
 - Avoid creating meaningless, redundant or unnecessary testcases or testcases that are already proven correct by a previous testcase
 
-
 ## Security
 - Use HTTPS in production
 - Implement proper CORS
@@ -64,6 +63,7 @@ globs: **/*.py, src/**/*.py, tests/**/*.py
 - Use proper session configuration
 - Implement proper logging
 - Follow OWASP guidelines
+
 
 ## Error Handling
 - Create custom exception classes
@@ -80,3 +80,4 @@ globs: **/*.py, src/**/*.py, tests/**/*.py
 - If a variable name, a function name or a class name is mentioned in the documentation it should be wrapped in `...` quotations following Markdown standards
 - Instead of writing boring flowing text descriptions for function documentation, write it an easy to understand, straight to the point manner
 - You are also allowed to use Markdown compatible enumerations in the function or class documentations for easier understanding
+

@@ -1,1 +1,6 @@
+/* Sidebar specific zoom to make it smaller */
+.sidebar-container {
+  zoom: 0.9;
+}
+
 /* Additional custom styles can go here */ 
