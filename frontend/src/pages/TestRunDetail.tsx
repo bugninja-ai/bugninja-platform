@@ -19,10 +19,12 @@ import {
   Lock,
   User,
   Search,
-  ArrowLeft
+  ArrowLeft,
+  ZoomIn
 } from 'lucide-react';
 import { TestRun, BrainState } from '../types';
 import { mockApi } from '../data/mockData';
+import ScreenshotModal from '../components/ScreenshotModal';
 
 const STATUS_COLORS = {
   passed: 'text-green-600 bg-green-50 border-green-200',
@@ -35,6 +37,9 @@ export const TestRunDetail: React.FC = () => {
   const { runId } = useParams<{ runId: string }>();
   const [testRun, setTestRun] = useState<TestRun | null>(null);
   const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedScreenshot, setSelectedScreenshot] = useState<string>('');
+  const [selectedActionData, setSelectedActionData] = useState<any>(null);
 
   useEffect(() => {
     if (runId) {
@@ -122,6 +127,18 @@ export const TestRunDetail: React.FC = () => {
       userAgent: run.userAgent,
       viewport: { width: 1920, height: 1080 }
     };
+  };
+
+  const handleScreenshotClick = (screenshot: string, actionData: any) => {
+    setSelectedScreenshot(screenshot);
+    setSelectedActionData(actionData);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setSelectedScreenshot('');
+    setSelectedActionData(null);
   };
 
   if (loading) {
@@ -399,12 +416,28 @@ export const TestRunDetail: React.FC = () => {
                               </div>
                               
                               <div className="flex justify-center lg:justify-end">
-                                <div className="w-48 h-32 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
-                                  <div className="text-center">
-                                    <Image className="h-6 w-6 text-gray-400 mx-auto mb-1" />
-                                    <p className="text-xs text-gray-500">{action.screenshot || 'No screenshot'}</p>
+                                {action.screenshot && action.screenshot !== 'No screenshot' ? (
+                                  <div 
+                                    className="w-48 h-32 bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden cursor-pointer group hover:border-indigo-400 transition-all duration-200 relative"
+                                    onClick={() => handleScreenshotClick(action.screenshot!, action)}
+                                  >
+                                    <img
+                                      src="/sample_image.png"
+                                      alt="Action screenshot"
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                    />
+                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
+                                      <ZoomIn className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                                    </div>
                                   </div>
-                                </div>
+                                ) : (
+                                  <div className="w-48 h-32 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
+                                    <div className="text-center">
+                                      <Image className="h-6 w-6 text-gray-400 mx-auto mb-1" />
+                                      <p className="text-xs text-gray-500">No screenshot</p>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -452,9 +485,21 @@ export const TestRunDetail: React.FC = () => {
                     {step.screenshot && (
                       <div>
                         <p className="text-sm font-medium text-gray-700 mb-2">Screenshot:</p>
-                        <div className="bg-gray-100 border border-gray-200 rounded-md p-8 text-center">
-                          <p className="text-sm text-gray-600">Screenshot: {step.screenshot}</p>
-                          <p className="text-xs text-gray-500 mt-1">Screenshot viewing functionality would be implemented here</p>
+                        <div 
+                          className="bg-gray-100 border border-gray-200 rounded-lg overflow-hidden cursor-pointer group hover:border-indigo-400 transition-all duration-200 relative h-48 w-full max-w-md"
+                          onClick={() => handleScreenshotClick(step.screenshot!, { 
+                            actionType: step.description,
+                            status: step.status as 'passed' | 'failed'
+                          })}
+                        >
+                          <img
+                            src="/sample_image.png"
+                            alt="Step screenshot"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 flex items-center justify-center">
+                            <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                          </div>
                         </div>
                       </div>
                     )}
@@ -495,6 +540,16 @@ export const TestRunDetail: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Screenshot Modal */}
+      {selectedActionData && (
+        <ScreenshotModal
+          isOpen={modalOpen}
+          onClose={closeModal}
+          screenshot={selectedScreenshot}
+          actionData={selectedActionData}
+        />
       )}
     </div>
   );
