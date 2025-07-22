@@ -8,6 +8,7 @@ All methods work with the provided database session and use SQLModel table defin
 from datetime import datetime, timezone
 from typing import Optional, Sequence
 
+from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.action import Action
@@ -34,7 +35,7 @@ class ActionRepo:
             Action: The created action instance
         """
         action = Action(
-            id=action_data.id,
+            id=CUID().generate(),
             brain_state_id=action_data.brain_state_id,
             idx_in_brain_state=action_data.idx_in_brain_state,
             action=action_data.action,

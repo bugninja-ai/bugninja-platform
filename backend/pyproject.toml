@@ -89,7 +89,7 @@ shell = "uv run pytest tests"
 
 [tool.poe.tasks.lint]
 help   = "Lints the whole project searching for inefficiencies in the code"
-shell = "uv run ruff check --fix --exclude alembic/env.py . && uv run isort . && uv run black . && uv run mypy app"
+shell = "uv run ruff check --fix --exclude alembic/env.py . app && uv run isort . app && uv run black . && uv run mypy app"
 
 #? Migration related commands
 [tool.poe.tasks.revision-db]

@@ -16,6 +16,7 @@ from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel, ConfigDict, Field
 from rich import print as rich_print
 
+from app.db.test_case import TestCasePriority
 from app.schemas.crud.base import CreationModel, UpdateModel, faker
 
 
@@ -29,13 +30,15 @@ class CreateTestCase(CreationModel):
 
     Attributes:
         project_id: Required reference to the project this test case belongs to
-        document_id: Required reference to the document this test case is based on
+        document_id: Optional reference to the document this test case is based on
         test_name: Human-readable name for the test case
         test_description: Detailed description of what the test case does
         test_goal: Specific objective or goal of this test case
         extra_rules: Additional rules or constraints for the test
         url_route: The URL route/path that this test case targets
         allowed_domains: List of domains that are allowed for this test case
+        priority: Priority level of the test case (low, medium, high, critical)
+        category: Optional category for organizing test cases
     """
 
     project_id: str
@@ -46,6 +49,8 @@ class CreateTestCase(CreationModel):
     extra_rules: str
     url_route: str
     allowed_domains: List[str]
+    priority: TestCasePriority
+    category: Optional[str] = None
 
     @classmethod
     def sample_factory_build(
@@ -72,6 +77,17 @@ class CreateTestCase(CreationModel):
             extra_rules = faker.sentence()
             url_route = faker.url()
             allowed_domains = [faker.url() for _ in range(3)]
+            priority = faker.random_element(
+                [
+                    TestCasePriority.LOW,
+                    TestCasePriority.MEDIUM,
+                    TestCasePriority.HIGH,
+                    TestCasePriority.CRITICAL,
+                ]
+            )
+            category = faker.random_element(
+                ["login", "payment", "search", "navigation", "profile", "settings", "general"]
+            )
 
         element = CreateTestCaseFactory.build()
 
@@ -95,6 +111,8 @@ class UpdateTestCase(UpdateModel):
         extra_rules: Updated additional rules or constraints
         url_route: Updated URL route/path target
         allowed_domains: Updated list of allowed domains
+        priority: Updated priority level of the test case
+        category: Updated category for organizing test cases
     """
 
     test_name: Optional[str] = None
@@ -103,6 +121,8 @@ class UpdateTestCase(UpdateModel):
     extra_rules: Optional[str] = None
     url_route: Optional[str] = None
     allowed_domains: Optional[List[str]] = None
+    priority: Optional[TestCasePriority] = None
+    category: Optional[str] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateTestCase":
@@ -123,6 +143,17 @@ class UpdateTestCase(UpdateModel):
             extra_rules = faker.sentence()
             url_route = faker.url()
             allowed_domains = [faker.url() for _ in range(3)]
+            priority = faker.random_element(
+                [
+                    TestCasePriority.LOW,
+                    TestCasePriority.MEDIUM,
+                    TestCasePriority.HIGH,
+                    TestCasePriority.CRITICAL,
+                ]
+            )
+            category = faker.random_element(
+                ["login", "payment", "search", "navigation", "profile", "settings", "general"]
+            )
 
         element = UpdateTestCaseFactory.build()
 
@@ -148,11 +179,13 @@ class ResponseTestCase(BaseModel):
         extra_rules: Additional rules or constraints
         url_route: URL route/path target
         allowed_domains: List of allowed domains for this test case
+        priority: Priority level of the test case
+        category: Category for organizing test cases
     """
 
     id: str
     project_id: str
-    document_id: str
+    document_id: Optional[str]
     created_at: datetime
     updated_at: datetime
     test_name: str
@@ -161,6 +194,8 @@ class ResponseTestCase(BaseModel):
     extra_rules: str
     url_route: str
     allowed_domains: List[str]
+    priority: TestCasePriority
+    category: Optional[str]
 
     @classmethod
     def sample_factory_build(
@@ -191,6 +226,17 @@ class ResponseTestCase(BaseModel):
             extra_rules = faker.sentence()
             url_route = faker.url()
             allowed_domains = [faker.url() for _ in range(3)]
+            priority = faker.random_element(
+                [
+                    TestCasePriority.LOW,
+                    TestCasePriority.MEDIUM,
+                    TestCasePriority.HIGH,
+                    TestCasePriority.CRITICAL,
+                ]
+            )
+            category = faker.random_element(
+                ["login", "payment", "search", "navigation", "profile", "settings", "general"]
+            )
 
         element = ResponseTestCaseFactory.build()
         element.id = id

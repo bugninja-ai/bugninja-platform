@@ -4,6 +4,7 @@ TestCase table definition using SQLModel.
 This module defines the SQLModel for the TestCase entity.
 """
 
+from enum import StrEnum
 from typing import List, Optional
 
 from cuid2 import Cuid as CUID
@@ -17,13 +18,27 @@ from app.db.test_run import TestRun
 from app.db.test_traversal import TestTraversal
 
 
+class TestCasePriority(StrEnum):
+    """
+    Enumeration for test case priority levels.
+
+    Defines the four priority levels that can be assigned to test cases.
+    """
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
 class TestCase(TimestampedModel, table=True):
     """
     TestCase table.
 
     Test cases define specific testing scenarios with configuration details
     including test goals, rules, and domain restrictions. Each test case
-    belongs to a project and is associated with a document.
+    belongs to a project and is associated with a document. Test cases can
+    be prioritized and categorized for better organization and management.
     """
 
     # Primary key
@@ -41,6 +56,8 @@ class TestCase(TimestampedModel, table=True):
     extra_rules: str = Field(nullable=False)
     url_route: str = Field(max_length=500, nullable=False)
     allowed_domains: List[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
+    priority: TestCasePriority = Field(default=TestCasePriority.MEDIUM, nullable=False)
+    category: Optional[str] = Field(default=None, max_length=255, nullable=True)
 
     # Relationships
     document: "Document" = Relationship()

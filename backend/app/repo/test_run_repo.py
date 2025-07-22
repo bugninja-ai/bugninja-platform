@@ -8,6 +8,7 @@ All methods work with the provided database session and use SQLModel table defin
 from datetime import datetime, timezone
 from typing import List, Optional, Sequence
 
+from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.test_run import RunOrigin, RunState, RunType, TestRun
@@ -34,14 +35,12 @@ class TestRunRepo:
             TestRun: The created test run instance
         """
         test_run = TestRun(
-            id=test_run_data.id,
+            id=CUID().generate(),
             test_traversal_id=test_run_data.test_traversal_id,
             browser_config_id=test_run_data.browser_config_id,
             run_type=test_run_data.run_type,
             origin=test_run_data.origin,
             repair_was_needed=test_run_data.repair_was_needed,
-            started_at=test_run_data.started_at,
-            finished_at=test_run_data.finished_at,
             current_state=test_run_data.current_state,
             run_gif=test_run_data.run_gif,
         )

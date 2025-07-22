@@ -5,7 +5,7 @@ This module defines the SQLModel for the HistoryElement entity.
 """
 
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from cuid2 import Cuid as CUID
@@ -42,8 +42,10 @@ class HistoryElement(SQLModel, table=True):
         max_length=255, nullable=False, foreign_key="action.id", ondelete="CASCADE"
     )
 
-    action_started_at: datetime = Field(nullable=False)
-    action_finished_at: datetime = Field(nullable=False)
+    action_started_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    action_finished_at: Optional[datetime] = Field(default=None, nullable=True)
 
     history_element_state: HistoryElementState = Field(
         default=HistoryElementState.PASSED,

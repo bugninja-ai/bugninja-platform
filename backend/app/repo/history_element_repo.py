@@ -8,6 +8,7 @@ All methods work with the provided database session and use SQLModel table defin
 from datetime import datetime
 from typing import Optional, Sequence
 
+from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.history_element import HistoryElement, HistoryElementState
@@ -37,11 +38,9 @@ class HistoryElementRepo:
             HistoryElement: The created history element instance
         """
         history_element = HistoryElement(
-            id=history_element_data.id,
+            id=CUID().generate(),
             test_run_id=history_element_data.test_run_id,
             action_id=history_element_data.action_id,
-            action_started_at=history_element_data.action_started_at,
-            action_finished_at=history_element_data.action_finished_at,
             history_element_state=history_element_data.history_element_state,
             screenshot=history_element_data.screenshot,
         )

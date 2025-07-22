@@ -73,7 +73,7 @@ class LightResponseTestRun(BaseModel):
 
     id: str
     state: RunState
-    finished_at: datetime
+    finished_at: Optional[datetime]
 
     @classmethod
     def sample_factory_build(cls, id: str = CUID().generate()) -> "LightResponseTestRun":

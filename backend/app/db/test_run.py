@@ -5,7 +5,7 @@ This module defines the SQLModel for the TestRun entity.
 """
 
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from cuid2 import Cuid as CUID
@@ -74,8 +74,8 @@ class TestRun(SQLModel, table=True):
         sa_column=Column(SQLModelEnum(RunState, name="runstate")),
     )
     run_gif: str = Field(max_length=500, nullable=False)
-    started_at: datetime = Field(nullable=False)
-    finished_at: datetime = Field(nullable=False)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), nullable=False)
+    finished_at: Optional[datetime] = Field(default=None, nullable=True)
 
     # Relationships
     browser_config: "BrowserConfig" = Relationship()

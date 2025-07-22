@@ -8,6 +8,7 @@ All methods work with the provided database session and use SQLModel table defin
 from datetime import datetime, timezone
 from typing import Optional, Sequence
 
+from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.cost import Cost
@@ -34,7 +35,7 @@ class CostRepo:
             Cost: The created cost instance
         """
         cost = Cost(
-            id=cost_data.id,
+            id=CUID().generate(),
             test_run_id=cost_data.test_run_id,
             project_id=cost_data.project_id,
             model_type=cost_data.model_type,

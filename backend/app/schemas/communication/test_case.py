@@ -13,6 +13,7 @@ from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel
 from rich import print as rich_print
 
+from app.db.test_case import TestCasePriority
 from app.schemas.crud.base import faker
 from app.schemas.crud.document import ResponseDocument
 
@@ -36,6 +37,8 @@ class ExtendedResponseTestcase(BaseModel):
         extra_rules: Additional rules or constraints for the test
         url_routes: The URL route/path that this test case targets
         allowed_domains: List of domains that are allowed for this test case
+        priority: Priority level of the test case
+        category: Category for organizing test cases
     """
 
     id: str
@@ -49,6 +52,8 @@ class ExtendedResponseTestcase(BaseModel):
     extra_rules: str
     url_routes: str
     allowed_domains: List[str]
+    priority: TestCasePriority
+    category: Optional[str]
 
     @classmethod
     def sample_factory_build(
@@ -77,8 +82,19 @@ class ExtendedResponseTestcase(BaseModel):
             test_description = faker.paragraph(nb_sentences=3)
             test_goal = faker.sentence()
             extra_rules = faker.paragraph(nb_sentences=2)
-            url_routes = faker.url_path()
+            url_routes = faker.url()
             allowed_domains = [faker.domain_name() for _ in range(3)]
+            priority = faker.random_element(
+                [
+                    TestCasePriority.LOW,
+                    TestCasePriority.MEDIUM,
+                    TestCasePriority.HIGH,
+                    TestCasePriority.CRITICAL,
+                ]
+            )
+            category = faker.random_element(
+                ["login", "payment", "search", "navigation", "profile", "settings", "general"]
+            )
 
         element = ExtendedResponseTestcaseFactory.build()
         element.id = id

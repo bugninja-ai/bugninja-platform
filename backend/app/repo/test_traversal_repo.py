@@ -6,8 +6,9 @@ All methods work with the provided database session and use SQLModel table defin
 """
 
 from datetime import datetime, timezone
-from typing import List, Optional, Sequence
+from typing import Optional, Sequence
 
+from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.browser_config import BrowserConfig
@@ -23,7 +24,6 @@ from app.schemas.communication.test_traversal import (
 from app.schemas.crud.browser_config import ResponseBrowserConfig
 from app.schemas.crud.test_traversal import (
     CreateTestTraversal,
-    ResponseTestTraversal,
     UpdateTestTraversal,
 )
 
@@ -48,7 +48,7 @@ class TestTraversalRepo:
             TestTraversal: The created test traversal instance
         """
         test_traversal = TestTraversal(
-            id=test_traversal_data.id,
+            id=CUID().generate(),
             test_case_id=test_traversal_data.test_case_id,
             browser_config_id=test_traversal_data.browser_config_id,
             traversal_name=test_traversal_data.traversal_name,

@@ -1,52 +1,13 @@
-from typing import Any, Dict, Union
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
 
+from app.api.v1.endpoints.utils import COMMON_ERROR_RESPONSES, create_success_response
 from app.db.base import get_db
 from app.repo.project_repo import ProjectRepo
 from app.schemas.communication.project import ExtendedResponseProject
 from app.schemas.crud.project import CreateProject, ResponseProject, UpdateProject
 
 projects_router = APIRouter(prefix="/projects", tags=["Projects"])
-
-# Common response definitions to reduce boilerplate
-COMMON_ERROR_RESPONSES: Dict[Union[int, str], Dict[str, Any]] = {
-    404: {
-        "description": "Project not found",
-        "content": {
-            "application/json": {
-                "example": {"detail": "Project with id clx1234567890abcdef not found"}
-            }
-        },
-    },
-    500: {
-        "description": "Internal server error",
-        "content": {"application/json": {"example": {"detail": "Database connection error"}}},
-    },
-}
-
-
-def create_success_response(description: str, example_model: Any) -> Dict[str, Any]:
-    """Create a standardized success response with dynamic example."""
-    return {
-        "description": description,
-        "content": {
-            "application/json": {"example": example_model.sample_factory_build().model_dump()}
-        },
-    }
-
-
-def create_error_response(
-    status_code: int, description: str, detail: str
-) -> Dict[int, Dict[str, Any]]:
-    """Create a standardized error response."""
-    return {
-        status_code: {
-            "description": description,
-            "content": {"application/json": {"example": {"detail": detail}}},
-        }
-    }
 
 
 @projects_router.post(

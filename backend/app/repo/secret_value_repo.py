@@ -8,6 +8,7 @@ All methods work with the provided database session and use SQLModel table defin
 from datetime import datetime, timezone
 from typing import Optional, Sequence
 
+from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.secret_value import SecretValue
@@ -34,12 +35,12 @@ class SecretValueRepo:
             SecretValue: The created secret value instance
         """
         secret_value = SecretValue(
-            id=secret_value_data.id,
+            id=CUID().generate(),
             project_id=secret_value_data.project_id,
             secret_name=secret_value_data.secret_name,
             secret_value=secret_value_data.secret_value,
-            created_at=secret_value_data.created_at,
-            updated_at=secret_value_data.updated_at,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         db.add(secret_value)
         db.commit()

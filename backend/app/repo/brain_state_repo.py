@@ -8,6 +8,7 @@ All methods work with the provided database session and use SQLModel table defin
 from datetime import datetime, timezone
 from typing import Optional, Sequence
 
+from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.brain_state import BrainState
@@ -34,7 +35,7 @@ class BrainStateRepo:
             BrainState: The created brain state instance
         """
         brain_state = BrainState(
-            id=brain_state_data.id,
+            id=CUID().generate(),
             test_traversal_id=brain_state_data.test_traversal_id,
             idx_in_run=brain_state_data.idx_in_run,
             valid=brain_state_data.valid,

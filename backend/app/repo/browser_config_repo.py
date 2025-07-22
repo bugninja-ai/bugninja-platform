@@ -8,6 +8,7 @@ All methods work with the provided database session and use SQLModel table defin
 from datetime import datetime, timezone
 from typing import Any, Optional, Sequence
 
+from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.browser_config import BrowserConfig
@@ -37,11 +38,11 @@ class BrowserConfigRepo:
             BrowserConfig: The created browser configuration instance
         """
         browser_config = BrowserConfig(
-            id=browser_config_data.id,
+            id=CUID().generate(),
             project_id=browser_config_data.project_id,
             browser_config=browser_config_data.browser_config,
-            created_at=browser_config_data.created_at,
-            updated_at=browser_config_data.updated_at,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         db.add(browser_config)
         db.commit()

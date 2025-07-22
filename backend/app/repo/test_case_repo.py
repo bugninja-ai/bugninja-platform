@@ -8,10 +8,12 @@ All methods work with the provided database session and use SQLModel table defin
 from datetime import datetime, timezone
 from typing import List, Optional, Sequence
 
+from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.document import Document
 from app.db.test_case import TestCase
+from app.repo.project_repo import ProjectRepo
 from app.schemas.communication.test_case import ExtendedResponseTestcase
 from app.schemas.crud.document import ResponseDocument
 from app.schemas.crud.test_case import CreateTestCase, ResponseTestCase, UpdateTestCase
@@ -36,8 +38,22 @@ class TestCaseRepo:
         Returns:
             TestCase: The created test case instance
         """
+
+        # Get project name and count of existing test cases
+        project = ProjectRepo.get_by_id(db, test_case_data.project_id)
+        if not project:
+            raise ValueError(f"Project with id {test_case_data.project_id} not found")
+
+        # Count existing test cases for this project
+        existing_test_cases_count = TestCaseRepo.count_by_project(db, test_case_data.project_id)
+
+        # Generate ID following the template: {project_name}-TC-{number_of_Test_cases_in_project+1}-{generated_CUID}
+        test_case_number = existing_test_cases_count + 1
+        generated_cuid = CUID().generate()
+        test_case_id = f"{project.name}-TC-{test_case_number}-{generated_cuid}"
+
         test_case = TestCase(
-            id=test_case_data.id,
+            id=test_case_id,
             project_id=test_case_data.project_id,
             document_id=test_case_data.document_id,
             test_name=test_case_data.test_name,
@@ -46,8 +62,10 @@ class TestCaseRepo:
             extra_rules=test_case_data.extra_rules,
             url_route=test_case_data.url_route,
             allowed_domains=test_case_data.allowed_domains,
-            created_at=test_case_data.created_at,
-            updated_at=test_case_data.updated_at,
+            priority=test_case_data.priority,
+            category=test_case_data.category,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         db.add(test_case)
         db.commit()
@@ -260,7 +278,7 @@ class TestCaseRepo:
         Returns:
             int: Total number of test cases for the project
         """
-        statement = select(TestCase).where(TestCase.project_id == project_id)
+        statement = select(TestCase.id).where(TestCase.project_id == project_id)
         return len(db.exec(statement).all())
 
     @staticmethod
@@ -326,6 +344,8 @@ class TestCaseRepo:
             extra_rules=test_case.extra_rules,
             url_routes=test_case.url_route,  # Note: field name difference
             allowed_domains=test_case.allowed_domains,
+            priority=test_case.priority,
+            category=test_case.category,
         )
 
     @staticmethod

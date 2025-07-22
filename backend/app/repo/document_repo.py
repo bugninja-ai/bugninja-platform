@@ -8,6 +8,7 @@ All methods work with the provided database session and use SQLModel table defin
 from datetime import datetime, timezone
 from typing import Optional, Sequence
 
+from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.document import Document
@@ -34,7 +35,7 @@ class DocumentRepo:
             Document: The created document instance
         """
         document = Document(
-            id=document_data.id,
+            id=CUID().generate(),
             project_id=document_data.project_id,
             name=document_data.name,
             content=document_data.content,
