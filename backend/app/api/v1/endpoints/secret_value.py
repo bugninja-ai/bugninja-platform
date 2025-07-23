@@ -24,7 +24,7 @@ secret_values_router = APIRouter(prefix="/secret-values", tags=["Secret Values"]
     },
 )
 async def create_secret_value(
-    secret_value_data: CreateSecretValue = Depends(),
+    secret_value_data: CreateSecretValue,
     db_session: Session = Depends(get_db),
 ) -> ResponseSecretValue:
     """

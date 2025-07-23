@@ -26,7 +26,7 @@ browser_configs_router = APIRouter(prefix="/browser-configs", tags=["Browser Con
     },
 )
 async def create_browser_config(
-    browser_config_data: CreateBrowserConfig = Depends(),
+    browser_config_data: CreateBrowserConfig,
     db_session: Session = Depends(get_db),
 ) -> ResponseBrowserConfig:
     """

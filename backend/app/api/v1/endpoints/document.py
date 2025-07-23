@@ -24,7 +24,7 @@ documents_router = APIRouter(prefix="/documents", tags=["Documents"])
     },
 )
 async def create_document(
-    document_data: CreateDocument = Depends(),
+    document_data: CreateDocument,
     db_session: Session = Depends(get_db),
 ) -> ResponseDocument:
     """
