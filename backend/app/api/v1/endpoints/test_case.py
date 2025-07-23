@@ -11,6 +11,7 @@ from app.repo.test_case_repo import TestCaseRepo
 from app.schemas.communication.test_case import ExtendedResponseTestcase
 from app.schemas.crud.test_case import (
     CreateTestCase,
+    CreateTestCaseResponse,
     PaginatedResponseExtendedTestCase,
     PaginatedResponseTestCase,
     ResponseTestCase,
@@ -22,24 +23,71 @@ test_cases_router = APIRouter(prefix="/test-cases", tags=["Test Cases"])
 
 @test_cases_router.post(
     "/",
+    response_model=CreateTestCaseResponse,
+    summary="Create Test Case with Dependencies",
+    description="Create a new test case with browser configs, secret values, and test traversals",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        201: create_success_response("Test case created successfully", CreateTestCaseResponse),
+        **COMMON_ERROR_RESPONSES,
+    },
+)
+async def create_test_case_with_dependencies(
+    test_case_data: CreateTestCase,
+    db_session: Session = Depends(get_db),
+) -> CreateTestCaseResponse:
+    """
+    Create a new test case with all its dependencies.
+
+    This endpoint creates a new test case along with:
+    - New browser configurations (if provided)
+    - Association with existing browser configurations (if provided)
+    - New secret values (if provided)
+    - Association with existing secret values (if provided)
+    - Test traversals for each browser configuration
+    - All secret values associated with each test traversal
+
+    The endpoint validates all dependencies and ensures they belong to the same project.
+    """
+    try:
+        # Use the enhanced creation method that handles all dependencies
+        result = TestCaseRepo.create_with_dependencies(db=db_session, test_case_data=test_case_data)
+        return result
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Validation error: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create test case: {str(e)}",
+        )
+
+
+@test_cases_router.post(
+    "/simple",
     response_model=ResponseTestCase,
-    summary="Create Test Case",
-    description="Create a new test case with the provided data",
+    summary="Create Simple Test Case",
+    description="Create a new test case without dependencies (backward compatibility)",
     status_code=status.HTTP_201_CREATED,
     responses={
         201: create_success_response("Test case created successfully", ResponseTestCase),
         **COMMON_ERROR_RESPONSES,
     },
 )
-async def create_test_case(
+async def create_simple_test_case(
     test_case_data: CreateTestCase,
     db_session: Session = Depends(get_db),
 ) -> ResponseTestCase:
     """
-    Create a new test case with the specified settings.
+    Create a new test case without dependencies (simple creation).
 
     This endpoint creates a new test case in the system and returns the created test case instance.
     The test case will be associated with a specific project and optionally with a document.
+    This endpoint is provided for backward compatibility.
     """
     try:
         # Validate that the referenced project exists
