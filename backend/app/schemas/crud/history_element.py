@@ -133,9 +133,9 @@ class ResponseHistoryElement(BaseModel):
     test_run_id: str
     action_id: str
     action_started_at: datetime
-    action_finished_at: datetime
+    action_finished_at: Optional[datetime]
     history_element_state: HistoryElementState
-    screenshot: str
+    screenshot: Optional[str]
 
     @classmethod
     def sample_factory_build(

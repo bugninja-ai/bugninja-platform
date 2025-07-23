@@ -13,7 +13,8 @@ from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel, Field
 from rich import print as rich_print
 
-from app.schemas.crud.base import CreationModel, UpdateModel, faker
+from app.schemas.communication.test_traversal import ExtendedResponseTestTraversal
+from app.schemas.crud.base import CreationModel, PaginatedResponse, UpdateModel, faker
 
 
 class CreateTestTraversal(CreationModel):
@@ -152,6 +153,120 @@ class ResponseTestTraversal(BaseModel):
         element.browser_config_id = browser_config_id
 
         return element
+
+
+class PaginatedResponseTestTraversal(PaginatedResponse[ResponseTestTraversal]):
+    """
+    Paginated response schema for test traversals.
+
+    This schema provides a standardized structure for paginated test traversal responses
+    with metadata about the pagination state and the actual test traversal items.
+    """
+
+    @classmethod
+    def sample_factory_build(
+        cls,
+        total_count: int = 25,
+        page: int = 1,
+        page_size: int = 10,
+        test_case_id: Optional[str] = None,
+    ) -> "PaginatedResponseTestTraversal":
+        """
+        Generate a sample PaginatedResponseTestTraversal instance for testing and documentation.
+
+        Args:
+            total_count: Total number of test traversals in the database (default: 25)
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            test_case_id: Optional test case ID for filtering (default: None)
+
+        Returns:
+            PaginatedResponseTestTraversal: A sample paginated response with fake test traversal data
+        """
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+        skip = (page - 1) * page_size
+        items_in_page = min(page_size, max(0, total_count - skip))
+
+        # Generate sample test traversal items
+        test_traversal_items = [
+            ResponseTestTraversal.sample_factory_build(
+                test_case_id=test_case_id or CUID().generate()
+            )
+            for _ in range(items_in_page)
+        ]
+
+        # Calculate pagination state
+        has_next = page < total_pages
+        has_previous = page > 1
+
+        return cls(
+            items=test_traversal_items,
+            total_count=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+            has_next=has_next,
+            has_previous=has_previous,
+        )
+
+
+class PaginatedResponseExtendedTestTraversal(PaginatedResponse[ExtendedResponseTestTraversal]):
+    """
+    Paginated response schema for extended test traversals.
+
+    This schema provides a standardized structure for paginated extended test traversal responses
+    with metadata about the pagination state and the actual extended test traversal items.
+    """
+
+    @classmethod
+    def sample_factory_build(
+        cls,
+        total_count: int = 25,
+        page: int = 1,
+        page_size: int = 10,
+        test_case_id: Optional[str] = None,
+    ) -> "PaginatedResponseExtendedTestTraversal":
+        """
+        Generate a sample PaginatedResponseExtendedTestTraversal instance for testing and documentation.
+
+        Args:
+            total_count: Total number of test traversals in the database (default: 25)
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            test_case_id: Optional test case ID for filtering (default: None)
+
+        Returns:
+            PaginatedResponseExtendedTestTraversal: A sample paginated response with fake extended test traversal data
+        """
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+        skip = (page - 1) * page_size
+        items_in_page = min(page_size, max(0, total_count - skip))
+
+        # Generate sample extended test traversal items
+        extended_test_traversal_items = [
+            ExtendedResponseTestTraversal.sample_factory_build(
+                project_id=CUID().generate(),
+                include_latest_run=True,
+                secret_count=2,
+            )
+            for _ in range(items_in_page)
+        ]
+
+        # Calculate pagination state
+        has_next = page < total_pages
+        has_previous = page > 1
+
+        return cls(
+            items=extended_test_traversal_items,
+            total_count=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+            has_next=has_next,
+            has_previous=has_previous,
+        )
 
 
 if __name__ == "__main__":

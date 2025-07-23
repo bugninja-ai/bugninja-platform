@@ -1,4 +1,4 @@
-from typing import List
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
@@ -9,7 +9,13 @@ from app.repo.document_repo import DocumentRepo
 from app.repo.project_repo import ProjectRepo
 from app.repo.test_case_repo import TestCaseRepo
 from app.schemas.communication.test_case import ExtendedResponseTestcase
-from app.schemas.crud.test_case import CreateTestCase, ResponseTestCase, UpdateTestCase
+from app.schemas.crud.test_case import (
+    CreateTestCase,
+    PaginatedResponseExtendedTestCase,
+    PaginatedResponseTestCase,
+    ResponseTestCase,
+    UpdateTestCase,
+)
 
 test_cases_router = APIRouter(prefix="/test-cases", tags=["Test Cases"])
 
@@ -26,7 +32,7 @@ test_cases_router = APIRouter(prefix="/test-cases", tags=["Test Cases"])
     },
 )
 async def create_test_case(
-    test_case_data: CreateTestCase = Depends(),
+    test_case_data: CreateTestCase,
     db_session: Session = Depends(get_db),
 ) -> ResponseTestCase:
     """
@@ -75,6 +81,110 @@ async def create_test_case(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create test case: {str(e)}",
+        )
+
+
+@test_cases_router.get(
+    "/",
+    response_model=PaginatedResponseExtendedTestCase,
+    summary="Get All Test Cases",
+    description="Retrieve all test cases with pagination, sorting, and optional project filtering",
+    responses={
+        200: create_success_response(
+            "Test cases retrieved successfully", PaginatedResponseExtendedTestCase
+        ),
+        **COMMON_ERROR_RESPONSES,
+    },
+)
+async def get_all_test_cases(
+    page: int = 1,
+    page_size: int = 10,
+    sort_order: str = "desc",
+    project_id: Optional[str] = None,
+    db_session: Session = Depends(get_db),
+) -> PaginatedResponseExtendedTestCase:
+    """
+    Retrieve all test cases with pagination, sorting, and optional project filtering.
+
+    This endpoint returns a paginated list of extended test cases in the system,
+    sorted by creation date. The most recent test cases are returned first by default.
+    Each test case includes associated documents and browser configurations.
+    Optionally filter by project ID to get only test cases for a specific project.
+
+    Args:
+        page: Page number (1-based, default: 1)
+        page_size: Number of records per page (default: 10, max: 100)
+        sort_order: Sort order - "asc" for oldest first, "desc" for newest first (default: "desc")
+        project_id: Optional project ID to filter by (default: None - returns all test cases)
+        db_session: Database session
+
+    Returns:
+        PaginatedResponseExtendedTestCase: Paginated list of extended test cases with metadata
+    """
+    try:
+        # Validate sort order
+        if sort_order.lower() not in ["asc", "desc"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="sort_order must be either 'asc' or 'desc'",
+            )
+
+        # Validate page_size
+        if page_size <= 0 or page_size > 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="page_size must be between 1 and 100",
+            )
+
+        # Validate page
+        if page <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="page must be 1 or greater",
+            )
+
+        # Validate project_id if provided
+        if project_id:
+            project = ProjectRepo.get_by_id(db=db_session, project_id=project_id)
+            if not project:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Project with id {project_id} not found",
+                )
+
+        # Get extended test cases with sorting, pagination, and filtering
+        extended_test_cases = TestCaseRepo.get_all_extended_with_sorting_and_filter(
+            db=db_session,
+            page=page,
+            page_size=page_size,
+            sort_order=sort_order,
+            project_id=project_id,
+        )
+
+        # Get total count for pagination metadata
+        total_count = TestCaseRepo.count_with_filter(db=db_session, project_id=project_id)
+
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+        has_next = page < total_pages
+        has_previous = page > 1
+
+        return PaginatedResponseExtendedTestCase(
+            items=extended_test_cases,
+            total_count=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+            has_next=has_next,
+            has_previous=has_previous,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve test cases: {str(e)}",
         )
 
 
@@ -133,7 +243,7 @@ async def get_test_case_by_id(
 )
 async def update_test_case(
     test_case_id: str,
-    test_case_data: UpdateTestCase = Depends(),
+    test_case_data: UpdateTestCase,
     db_session: Session = Depends(get_db),
 ) -> ResponseTestCase:
     """

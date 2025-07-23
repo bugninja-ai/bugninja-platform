@@ -6,7 +6,7 @@ All methods work with the provided database session and use SQLModel table defin
 """
 
 from datetime import datetime, timezone
-from typing import Optional, Sequence
+from typing import List, Optional, Sequence
 
 from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
@@ -89,6 +89,54 @@ class TestTraversalRepo:
             Sequence[TestTraversal]: List of test traversals
         """
         statement = select(TestTraversal).offset(skip).limit(limit)
+        return db.exec(statement).all()
+
+    @staticmethod
+    def get_all_with_sorting_and_filter(
+        db: Session,
+        page: int = 1,
+        page_size: int = 10,
+        sort_order: str = "desc",
+        test_case_id: Optional[str] = None,
+    ) -> Sequence[TestTraversal]:
+        """
+        Retrieve all test traversals with pagination, sorting, and optional test case filtering.
+
+        Args:
+            db: Database session
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
+            test_case_id: Optional test case ID to filter by (default: None - returns all test traversals)
+
+        Returns:
+            Sequence[TestTraversal]: List of test traversals sorted by creation date
+        """
+        # Calculate skip based on page and page_size
+        skip = (page - 1) * page_size
+
+        # Build the base query
+        if test_case_id:
+            # Filter by test case ID
+            base_statement = select(TestTraversal).where(TestTraversal.test_case_id == test_case_id)
+        else:
+            # No filtering - get all test traversals
+            base_statement = select(TestTraversal)
+
+        # Add sorting and pagination
+        if sort_order.lower() == "asc":
+            statement = (
+                base_statement.order_by(col(TestTraversal.created_at).asc())
+                .offset(skip)
+                .limit(page_size)
+            )
+        else:
+            statement = (
+                base_statement.order_by(col(TestTraversal.created_at).desc())
+                .offset(skip)
+                .limit(page_size)
+            )
+
         return db.exec(statement).all()
 
     @staticmethod
@@ -278,6 +326,25 @@ class TestTraversalRepo:
         return len(db.exec(statement).all())
 
     @staticmethod
+    def count_with_filter(db: Session, test_case_id: Optional[str] = None) -> int:
+        """
+        Get the total number of test traversals with optional test case filtering.
+
+        Args:
+            db: Database session
+            test_case_id: Optional test case ID to filter by (default: None - counts all test traversals)
+
+        Returns:
+            int: Total number of test traversals matching the filter
+        """
+        if test_case_id:
+            statement = select(TestTraversal.id).where(TestTraversal.test_case_id == test_case_id)
+        else:
+            statement = select(TestTraversal.id)
+
+        return len(db.exec(statement).all())
+
+    @staticmethod
     def delete_by_test_case(db: Session, test_case_id: str) -> int:
         """
         Delete all test traversals for a specific test case.
@@ -404,6 +471,45 @@ class TestTraversalRepo:
         test_traversals = TestTraversalRepo.get_by_test_case_id(db, test_case_id, skip, limit)
         extended_test_traversals = []
 
+        for test_traversal in test_traversals:
+            extended_test_traversal = TestTraversalRepo.get_extended_by_id(db, test_traversal.id)
+            if extended_test_traversal:
+                extended_test_traversals.append(extended_test_traversal)
+
+        return extended_test_traversals
+
+    @staticmethod
+    def get_all_extended_with_sorting_and_filter(
+        db: Session,
+        page: int = 1,
+        page_size: int = 10,
+        sort_order: str = "desc",
+        test_case_id: Optional[str] = None,
+    ) -> List[ExtendedResponseTestTraversal]:
+        """
+        Retrieve all test traversals with extended responses, pagination, sorting, and optional test case filtering.
+
+        Args:
+            db: Database session
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
+            test_case_id: Optional test case ID to filter by (default: None - returns all test traversals)
+
+        Returns:
+            List[ExtendedResponseTestTraversal]: List of extended test traversals sorted by creation date
+        """
+        # Get basic test traversals with pagination and filtering
+        test_traversals = TestTraversalRepo.get_all_with_sorting_and_filter(
+            db=db,
+            page=page,
+            page_size=page_size,
+            sort_order=sort_order,
+            test_case_id=test_case_id,
+        )
+
+        # Convert to extended responses
+        extended_test_traversals = []
         for test_traversal in test_traversals:
             extended_test_traversal = TestTraversalRepo.get_extended_by_id(db, test_traversal.id)
             if extended_test_traversal:

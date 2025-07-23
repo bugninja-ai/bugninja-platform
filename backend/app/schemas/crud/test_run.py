@@ -15,7 +15,9 @@ from pydantic import BaseModel, Field
 from rich import print as rich_print
 
 from app.db.test_run import RunOrigin, RunState, RunType
-from app.schemas.crud.base import CreationModel, UpdateModel, faker
+from app.schemas.communication.test_run import ExtendedResponseTestRun
+from app.schemas.crud.base import CreationModel, PaginatedResponse, UpdateModel, faker
+from app.schemas.crud.browser_config import ResponseBrowserConfig
 from app.schemas.crud.history_element import ResponseHistoryElement
 
 
@@ -161,12 +163,12 @@ class ResponseTestRun(BaseModel):
 
     id: str
     test_traversal_id: str
-    browser_config_id: str
+    browser_config_id: Optional[str]
     run_type: RunType
     origin: RunOrigin
     repair_was_needed: bool
     started_at: datetime
-    finished_at: datetime
+    finished_at: Optional[datetime]
     current_state: RunState
     history: List[ResponseHistoryElement]
     run_gif: str
@@ -204,10 +206,7 @@ class ResponseTestRun(BaseModel):
             current_state = faker.random_element(
                 [RunState.STARTING, RunState.RUNNING, RunState.FINISHED]
             )
-            history = [
-                {"action": "scroll", "element": "page", "timestamp": faker.date_time().isoformat()}
-                for _ in range(4)
-            ]
+            history = [ResponseHistoryElement.sample_factory_build() for _ in range(4)]
             run_gif = faker.image_url()
 
         element = ResponseTestRunFactory.build()
@@ -216,6 +215,120 @@ class ResponseTestRun(BaseModel):
         element.browser_config_id = browser_config_id
 
         return element
+
+
+class PaginatedResponseTestRun(PaginatedResponse[ResponseTestRun]):
+    """
+    Paginated response schema for test runs.
+
+    This schema provides a standardized structure for paginated test run responses
+    with metadata about the pagination state and the actual test run items.
+    """
+
+    @classmethod
+    def sample_factory_build(
+        cls,
+        total_count: int = 25,
+        page: int = 1,
+        page_size: int = 10,
+        test_traversal_id: Optional[str] = None,
+    ) -> "PaginatedResponseTestRun":
+        """
+        Generate a sample PaginatedResponseTestRun instance for testing and documentation.
+
+        Args:
+            total_count: Total number of test runs in the database (default: 25)
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            test_traversal_id: Optional test traversal ID for filtering (default: None)
+
+        Returns:
+            PaginatedResponseTestRun: A sample paginated response with fake test run data
+        """
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+        skip = (page - 1) * page_size
+        items_in_page = min(page_size, max(0, total_count - skip))
+
+        # Generate sample test run items
+        test_run_items = [
+            ResponseTestRun.sample_factory_build(
+                test_traversal_id=test_traversal_id or CUID().generate()
+            )
+            for _ in range(items_in_page)
+        ]
+
+        # Calculate pagination state
+        has_next = page < total_pages
+        has_previous = page > 1
+
+        return cls(
+            items=test_run_items,
+            total_count=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+            has_next=has_next,
+            has_previous=has_previous,
+        )
+
+
+class PaginatedResponseExtendedTestRun(PaginatedResponse[ExtendedResponseTestRun]):
+    """
+    Paginated response schema for extended test runs.
+
+    This schema provides a standardized structure for paginated extended test run responses
+    with metadata about the pagination state and the actual extended test run items.
+    """
+
+    @classmethod
+    def sample_factory_build(
+        cls,
+        total_count: int = 25,
+        page: int = 1,
+        page_size: int = 10,
+        test_traversal_id: Optional[str] = None,
+    ) -> "PaginatedResponseExtendedTestRun":
+        """
+        Generate a sample PaginatedResponseExtendedTestRun instance for testing and documentation.
+
+        Args:
+            total_count: Total number of test runs in the database (default: 25)
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            test_traversal_id: Optional test traversal ID for filtering (default: None)
+
+        Returns:
+            PaginatedResponseExtendedTestRun: A sample paginated response with fake extended test run data
+        """
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+        skip = (page - 1) * page_size
+        items_in_page = min(page_size, max(0, total_count - skip))
+
+        # Generate sample extended test run items
+        extended_test_run_items = [
+            ExtendedResponseTestRun.sample_factory_build(
+                test_traversal_id=test_traversal_id or CUID().generate(),
+                include_history=True,
+                history_count=3,
+            )
+            for _ in range(items_in_page)
+        ]
+
+        # Calculate pagination state
+        has_next = page < total_pages
+        has_previous = page > 1
+
+        return cls(
+            items=extended_test_run_items,
+            total_count=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+            has_next=has_next,
+            has_previous=has_previous,
+        )
 
 
 if __name__ == "__main__":

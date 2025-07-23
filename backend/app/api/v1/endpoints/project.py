@@ -5,7 +5,12 @@ from app.api.v1.endpoints.utils import COMMON_ERROR_RESPONSES, create_success_re
 from app.db.base import get_db
 from app.repo.project_repo import ProjectRepo
 from app.schemas.communication.project import ExtendedResponseProject
-from app.schemas.crud.project import CreateProject, ResponseProject, UpdateProject
+from app.schemas.crud.project import (
+    CreateProject,
+    PaginatedResponseProject,
+    ResponseProject,
+    UpdateProject,
+)
 
 projects_router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -22,7 +27,7 @@ projects_router = APIRouter(prefix="/projects", tags=["Projects"])
     },
 )
 async def create_project(
-    project_data: CreateProject = Depends(),
+    project_data: CreateProject,
     db_session: Session = Depends(get_db),
 ) -> ResponseProject:
     """
@@ -43,6 +48,102 @@ async def create_project(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create project: {str(e)}",
+        )
+
+
+@projects_router.get(
+    "/",
+    response_model=PaginatedResponseProject,
+    summary="Get All Projects",
+    description="Retrieve all projects with pagination and sorting by creation date",
+    responses={
+        200: create_success_response("Projects retrieved successfully", PaginatedResponseProject),
+        **COMMON_ERROR_RESPONSES,
+    },
+)
+async def get_all_projects(
+    page: int = 1,
+    page_size: int = 10,
+    sort_order: str = "desc",
+    db_session: Session = Depends(get_db),
+) -> PaginatedResponseProject:
+    """
+    Retrieve all projects with pagination and sorting options.
+
+    This endpoint returns a paginated list of all projects in the system,
+    sorted by creation date. The most recent projects are returned first by default.
+
+    Args:
+        page: Page number (1-based, default: 1)
+        page_size: Number of records per page (default: 10, max: 100)
+        sort_order: Sort order - "asc" for oldest first, "desc" for newest first (default: "desc")
+        db_session: Database session
+
+    Returns:
+        PaginatedResponseProject: Paginated list of projects with metadata
+    """
+    try:
+        # Validate sort order
+        if sort_order.lower() not in ["asc", "desc"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="sort_order must be either 'asc' or 'desc'",
+            )
+
+        # Validate page_size
+        if page_size <= 0 or page_size > 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="page_size must be between 1 and 100",
+            )
+
+        # Validate page
+        if page <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="page must be 1 or greater",
+            )
+
+        # Get projects with sorting and pagination
+        projects = ProjectRepo.get_all_with_sorting(
+            db=db_session, page=page, page_size=page_size, sort_order=sort_order
+        )
+
+        # Get total count for pagination metadata
+        total_count = ProjectRepo.count(db=db_session)
+
+        # Convert projects to response models
+        project_responses = [
+            ResponseProject(
+                id=project.id,
+                created_at=project.created_at,
+                name=project.name,
+                default_start_url=project.default_start_url,
+            )
+            for project in projects
+        ]
+
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+        has_next = page < total_pages
+        has_previous = page > 1
+
+        return PaginatedResponseProject(
+            items=project_responses,
+            total_count=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+            has_next=has_next,
+            has_previous=has_previous,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve projects: {str(e)}",
         )
 
 
@@ -97,7 +198,7 @@ async def get_project_by_id(
 )
 async def update_project(
     project_id: str,
-    project_data: UpdateProject = Depends(),
+    project_data: UpdateProject,
     db_session: Session = Depends(get_db),
 ) -> ResponseProject:
     """

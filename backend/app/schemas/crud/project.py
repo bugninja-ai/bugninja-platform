@@ -13,7 +13,7 @@ from polyfactory.factories.pydantic_factory import ModelFactory
 from pydantic import BaseModel
 from rich import print as rich_print
 
-from app.schemas.crud.base import CreationModel, UpdateModel, faker
+from app.schemas.crud.base import CreationModel, PaginatedResponse, UpdateModel, faker
 
 
 class CreateProject(CreationModel):
@@ -130,6 +130,52 @@ class ResponseProject(BaseModel):
         element.id = id
 
         return element
+
+
+class PaginatedResponseProject(PaginatedResponse[ResponseProject]):
+    """
+    Paginated response schema for projects.
+
+    This schema provides a standardized structure for paginated project responses
+    with metadata about the pagination state and the actual project items.
+    """
+
+    @classmethod
+    def sample_factory_build(
+        cls, total_count: int = 25, page: int = 1, page_size: int = 10
+    ) -> "PaginatedResponseProject":
+        """
+        Generate a sample PaginatedResponseProject instance for testing and documentation.
+
+        Args:
+            total_count: Total number of projects in the database (default: 25)
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+
+        Returns:
+            PaginatedResponseProject: A sample paginated response with fake project data
+        """
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+        skip = (page - 1) * page_size
+        items_in_page = min(page_size, max(0, total_count - skip))
+
+        # Generate sample project items
+        project_items = [ResponseProject.sample_factory_build() for _ in range(items_in_page)]
+
+        # Calculate pagination state
+        has_next = page < total_pages
+        has_previous = page > 1
+
+        return cls(
+            items=project_items,
+            total_count=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+            has_next=has_next,
+            has_previous=has_previous,
+        )
 
 
 if __name__ == "__main__":

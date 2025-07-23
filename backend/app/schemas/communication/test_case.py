@@ -15,6 +15,7 @@ from rich import print as rich_print
 
 from app.db.test_case import TestCasePriority
 from app.schemas.crud.base import faker
+from app.schemas.crud.browser_config import ResponseBrowserConfig
 from app.schemas.crud.document import ResponseDocument
 
 
@@ -22,13 +23,15 @@ class ExtendedResponseTestcase(BaseModel):
     """
     Extended test case response with comprehensive details.
 
-    Contains full test case information including associated document
-    and detailed configuration. Used for comprehensive test case data retrieval.
+    Contains full test case information including associated document,
+    browser configurations, and detailed configuration. Used for comprehensive
+    test case data retrieval.
 
     Attributes:
         id: Unique test case identifier
         project_id: Reference to the project this test case belongs to
         document: Optional associated document with full details
+        browser_configs: List of associated browser configurations
         created_at: Timestamp when test case was created
         updated_at: Timestamp when test case was last updated
         test_name: Human-readable name for the test case
@@ -44,6 +47,7 @@ class ExtendedResponseTestcase(BaseModel):
     id: str
     project_id: str
     document: Optional[ResponseDocument]
+    browser_configs: List[ResponseBrowserConfig]
     created_at: datetime
     updated_at: datetime
     test_name: str
@@ -61,6 +65,7 @@ class ExtendedResponseTestcase(BaseModel):
         id: str = CUID().generate(),
         project_id: str = CUID().generate(),
         include_document: bool = True,
+        include_browser_configs: bool = True,
     ) -> "ExtendedResponseTestcase":
         """
         Generate a sample ExtendedResponseTestcase instance for testing.
@@ -69,6 +74,7 @@ class ExtendedResponseTestcase(BaseModel):
             id: Test case ID to use in the sample
             project_id: Project ID to use in the sample
             include_document: Whether to include a sample document
+            include_browser_configs: Whether to include sample browser configs
 
         Returns:
             ExtendedResponseTestcase: A sample extended test case response with fake data
@@ -106,13 +112,25 @@ class ExtendedResponseTestcase(BaseModel):
         else:
             element.document = None
 
+        # Generate optional browser configs
+        if include_browser_configs:
+            element.browser_configs = [
+                ResponseBrowserConfig.sample_factory_build(project_id=project_id)
+                for _ in range(faker.random_int(min=1, max=3))
+            ]
+        else:
+            element.browser_configs = []
+
         return element
 
 
 if __name__ == "__main__":
     # Demo: Generate and display sample communication schemas
-    rich_print("=== ExtendedResponseTestcase Sample (with document) ===")
+    rich_print("=== ExtendedResponseTestcase Sample (with document and browser configs) ===")
     rich_print(ExtendedResponseTestcase.sample_factory_build())
 
     rich_print("\n=== ExtendedResponseTestcase Sample (without document) ===")
     rich_print(ExtendedResponseTestcase.sample_factory_build(include_document=False))
+
+    rich_print("\n=== ExtendedResponseTestcase Sample (without browser configs) ===")
+    rich_print(ExtendedResponseTestcase.sample_factory_build(include_browser_configs=False))

@@ -87,6 +87,36 @@ class ProjectRepo:
         return db.exec(statement).all()
 
     @staticmethod
+    def get_all_with_sorting(
+        db: Session, page: int = 1, page_size: int = 10, sort_order: str = "desc"
+    ) -> Sequence[Project]:
+        """
+        Retrieve all projects with pagination and sorting by creation date.
+
+        Args:
+            db: Database session
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
+
+        Returns:
+            Sequence[Project]: List of projects sorted by creation date
+        """
+        # Calculate skip based on page and page_size
+        skip = (page - 1) * page_size
+
+        if sort_order.lower() == "asc":
+            statement = (
+                select(Project).order_by(Project.created_at.asc()).offset(skip).limit(page_size)
+            )
+        else:
+            statement = (
+                select(Project).order_by(Project.created_at.desc()).offset(skip).limit(page_size)
+            )
+
+        return db.exec(statement).all()
+
+    @staticmethod
     def update(db: Session, project_id: str, project_data: UpdateProject) -> Optional[Project]:
         """
         Update an existing project.

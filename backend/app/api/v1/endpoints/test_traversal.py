@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
@@ -11,6 +11,8 @@ from app.repo.test_traversal_repo import TestTraversalRepo
 from app.schemas.communication.test_traversal import ExtendedResponseTestTraversal
 from app.schemas.crud.test_traversal import (
     CreateTestTraversal,
+    PaginatedResponseExtendedTestTraversal,
+    PaginatedResponseTestTraversal,
     ResponseTestTraversal,
     UpdateTestTraversal,
 )
@@ -30,7 +32,7 @@ test_traversals_router = APIRouter(prefix="/test-traversals", tags=["Test Traver
     },
 )
 async def create_test_traversal(
-    test_traversal_data: CreateTestTraversal = Depends(),
+    test_traversal_data: CreateTestTraversal,
     db_session: Session = Depends(get_db),
 ) -> ResponseTestTraversal:
     """
@@ -76,6 +78,110 @@ async def create_test_traversal(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create test traversal: {str(e)}",
+        )
+
+
+@test_traversals_router.get(
+    "/",
+    response_model=PaginatedResponseExtendedTestTraversal,
+    summary="Get All Test Traversals",
+    description="Retrieve all test traversals with pagination, sorting, and optional test case filtering",
+    responses={
+        200: create_success_response(
+            "Test traversals retrieved successfully", PaginatedResponseExtendedTestTraversal
+        ),
+        **COMMON_ERROR_RESPONSES,
+    },
+)
+async def get_all_test_traversals(
+    page: int = 1,
+    page_size: int = 10,
+    sort_order: str = "desc",
+    test_case_id: Optional[str] = None,
+    db_session: Session = Depends(get_db),
+) -> PaginatedResponseExtendedTestTraversal:
+    """
+    Retrieve all test traversals with pagination, sorting, and optional test case filtering.
+
+    This endpoint returns a paginated list of extended test traversals in the system,
+    sorted by creation date. The most recent test traversals are returned first by default.
+    Each test traversal includes associated browser configurations, latest run details, and secret values.
+    Optionally filter by test case ID to get only test traversals for a specific test case.
+
+    Args:
+        page: Page number (1-based, default: 1)
+        page_size: Number of records per page (default: 10, max: 100)
+        sort_order: Sort order - "asc" for oldest first, "desc" for newest first (default: "desc")
+        test_case_id: Optional test case ID to filter by (default: None - returns all test traversals)
+        db_session: Database session
+
+    Returns:
+        PaginatedResponseExtendedTestTraversal: Paginated list of extended test traversals with metadata
+    """
+    try:
+        # Validate sort order
+        if sort_order.lower() not in ["asc", "desc"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="sort_order must be either 'asc' or 'desc'",
+            )
+
+        # Validate page_size
+        if page_size <= 0 or page_size > 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="page_size must be between 1 and 100",
+            )
+
+        # Validate page
+        if page <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="page must be 1 or greater",
+            )
+
+        # Validate test_case_id if provided
+        if test_case_id:
+            test_case = TestCaseRepo.get_by_id(db=db_session, test_case_id=test_case_id)
+            if not test_case:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Test case with id {test_case_id} not found",
+                )
+
+        # Get extended test traversals with sorting, pagination, and filtering
+        extended_test_traversals = TestTraversalRepo.get_all_extended_with_sorting_and_filter(
+            db=db_session,
+            page=page,
+            page_size=page_size,
+            sort_order=sort_order,
+            test_case_id=test_case_id,
+        )
+
+        # Get total count for pagination metadata
+        total_count = TestTraversalRepo.count_with_filter(db=db_session, test_case_id=test_case_id)
+
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+        has_next = page < total_pages
+        has_previous = page > 1
+
+        return PaginatedResponseExtendedTestTraversal(
+            items=extended_test_traversals,
+            total_count=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+            has_next=has_next,
+            has_previous=has_previous,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve test traversals: {str(e)}",
         )
 
 
@@ -174,7 +280,7 @@ async def get_test_traversals_by_test_case(
 )
 async def update_test_traversal(
     test_traversal_id: str,
-    test_traversal_data: UpdateTestTraversal = Depends(),
+    test_traversal_data: UpdateTestTraversal,
     db_session: Session = Depends(get_db),
 ) -> ResponseTestTraversal:
     """

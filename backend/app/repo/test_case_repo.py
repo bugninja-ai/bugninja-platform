@@ -11,10 +11,13 @@ from typing import List, Optional, Sequence
 from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
+from app.db.browser_config import BrowserConfig
 from app.db.document import Document
 from app.db.test_case import TestCase
+from app.db.test_case_browser_config import TestCaseBrowserConfig
 from app.repo.project_repo import ProjectRepo
 from app.schemas.communication.test_case import ExtendedResponseTestcase
+from app.schemas.crud.browser_config import ResponseBrowserConfig
 from app.schemas.crud.document import ResponseDocument
 from app.schemas.crud.test_case import CreateTestCase, ResponseTestCase, UpdateTestCase
 
@@ -101,6 +104,54 @@ class TestCaseRepo:
             Sequence[TestCase]: List of test cases
         """
         statement = select(TestCase).offset(skip).limit(limit)
+        return db.exec(statement).all()
+
+    @staticmethod
+    def get_all_with_sorting_and_filter(
+        db: Session,
+        page: int = 1,
+        page_size: int = 10,
+        sort_order: str = "desc",
+        project_id: Optional[str] = None,
+    ) -> Sequence[TestCase]:
+        """
+        Retrieve all test cases with pagination, sorting, and optional project filtering.
+
+        Args:
+            db: Database session
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
+            project_id: Optional project ID to filter by (default: None - returns all test cases)
+
+        Returns:
+            Sequence[TestCase]: List of test cases sorted by creation date
+        """
+        # Calculate skip based on page and page_size
+        skip = (page - 1) * page_size
+
+        # Build the base query
+        if project_id:
+            # Filter by project ID
+            base_statement = select(TestCase).where(TestCase.project_id == project_id)
+        else:
+            # No filtering - get all test cases
+            base_statement = select(TestCase)
+
+        # Add sorting and pagination
+        if sort_order.lower() == "asc":
+            statement = (
+                base_statement.order_by(col(TestCase.created_at).asc())
+                .offset(skip)
+                .limit(page_size)
+            )
+        else:
+            statement = (
+                base_statement.order_by(col(TestCase.created_at).desc())
+                .offset(skip)
+                .limit(page_size)
+            )
+
         return db.exec(statement).all()
 
     @staticmethod
@@ -295,6 +346,69 @@ class TestCaseRepo:
         statement = select(TestCase)
         return len(db.exec(statement).all())
 
+    @staticmethod
+    def count_with_filter(db: Session, project_id: Optional[str] = None) -> int:
+        """
+        Get the total number of test cases with optional project filtering.
+
+        Args:
+            db: Database session
+            project_id: Optional project ID to filter by (default: None - counts all test cases)
+
+        Returns:
+            int: Total number of test cases matching the filter
+        """
+        if project_id:
+            statement = select(TestCase.id).where(TestCase.project_id == project_id)
+        else:
+            statement = select(TestCase.id)
+
+        return len(db.exec(statement).all())
+
+    @staticmethod
+    def get_browser_configs_by_test_case_id(
+        db: Session, test_case_id: str
+    ) -> List[ResponseBrowserConfig]:
+        """
+        Get all browser configs associated with a test case.
+
+        Args:
+            db: Database session
+            test_case_id: Test case identifier
+
+        Returns:
+            List[ResponseBrowserConfig]: List of browser configs associated with the test case
+        """
+        # Get browser config IDs for test case from association table
+        association_statement = select(TestCaseBrowserConfig.browser_config_id).where(
+            TestCaseBrowserConfig.test_case_id == test_case_id
+        )
+        browser_config_ids = db.exec(association_statement).all()
+
+        # If no browser configs found, return empty list
+        if not browser_config_ids:
+            return []
+
+        # Get browser config objects
+        browser_config_statement = select(BrowserConfig).where(
+            col(BrowserConfig.id).in_([bc_id for bc_id in browser_config_ids])
+        )
+        browser_configs = db.exec(browser_config_statement).all()
+
+        # Convert to response models
+        response_browser_configs = []
+        for browser_config in browser_configs:
+            response_browser_config = ResponseBrowserConfig(
+                id=browser_config.id,
+                project_id=browser_config.project_id,
+                browser_config=browser_config.browser_config,
+                created_at=browser_config.created_at,
+                updated_at=browser_config.updated_at,
+            )
+            response_browser_configs.append(response_browser_config)
+
+        return response_browser_configs
+
     # Extended Response Methods
 
     @staticmethod
@@ -332,10 +446,14 @@ class TestCaseRepo:
                 content=document.content,
             )
 
+        # Get associated browser configs
+        browser_configs = TestCaseRepo.get_browser_configs_by_test_case_id(db, test_case_id)
+
         return ExtendedResponseTestcase(
             id=test_case.id,
             project_id=test_case.project_id,
             document=response_document,
+            browser_configs=browser_configs,
             created_at=test_case.created_at,
             updated_at=test_case.updated_at,
             test_name=test_case.test_name,
@@ -392,6 +510,45 @@ class TestCaseRepo:
         test_cases = TestCaseRepo.get_all(db, skip, limit)
         extended_test_cases = []
 
+        for test_case in test_cases:
+            extended_test_case = TestCaseRepo.get_extended_by_id(db, test_case.id)
+            if extended_test_case:
+                extended_test_cases.append(extended_test_case)
+
+        return extended_test_cases
+
+    @staticmethod
+    def get_all_extended_with_sorting_and_filter(
+        db: Session,
+        page: int = 1,
+        page_size: int = 10,
+        sort_order: str = "desc",
+        project_id: Optional[str] = None,
+    ) -> List[ExtendedResponseTestcase]:
+        """
+        Retrieve all test cases with extended responses, pagination, sorting, and optional project filtering.
+
+        Args:
+            db: Database session
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
+            project_id: Optional project ID to filter by (default: None - returns all test cases)
+
+        Returns:
+            Sequence[ExtendedResponseTestcase]: List of extended test cases sorted by creation date
+        """
+        # Get basic test cases with pagination and filtering
+        test_cases = TestCaseRepo.get_all_with_sorting_and_filter(
+            db=db,
+            page=page,
+            page_size=page_size,
+            sort_order=sort_order,
+            project_id=project_id,
+        )
+
+        # Convert to extended responses
+        extended_test_cases = []
         for test_case in test_cases:
             extended_test_case = TestCaseRepo.get_extended_by_id(db, test_case.id)
             if extended_test_case:
