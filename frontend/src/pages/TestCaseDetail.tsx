@@ -22,16 +22,19 @@ import {
   Plus,
   Trash2,
   History,
-  Play
+  Play,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
-import { TestCase } from '../types';
-import { mockApi } from '../data/mockData';
+import { FrontendTestCase } from '../types';
+import { TestCaseService } from '../services/testCaseService';
 import { CustomDropdown } from '../components/CustomDropdown';
 
 const TestCaseDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [testCase, setTestCase] = useState<TestCase | null>(null);
+  const [testCase, setTestCase] = useState<FrontendTestCase | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [visibleSecrets, setVisibleSecrets] = useState<Set<string>>(new Set());
   const [copiedSecret, setCopiedSecret] = useState<string | null>(null);
   
@@ -47,7 +50,7 @@ const TestCaseDetail: React.FC = () => {
   const [viewportDropdowns, setViewportDropdowns] = useState<Record<string, boolean>>({});
   
   // Editable values
-  const [editableTestCase, setEditableTestCase] = useState<TestCase | null>(null);
+  const [editableTestCase, setEditableTestCase] = useState<FrontendTestCase | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -86,11 +89,13 @@ const TestCaseDetail: React.FC = () => {
   const loadTestCase = async (testCaseId: string) => {
     try {
       setLoading(true);
-      const tc = await mockApi.getTestCase(testCaseId);
+      setError(null);
+      const tc = await TestCaseService.getTestCase(testCaseId);
       setTestCase(tc);
       setEditableTestCase(tc);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load test case:', error);
+      setError(error.message || 'Failed to load test case');
     } finally {
       setLoading(false);
     }
@@ -259,8 +264,35 @@ const TestCaseDetail: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading test case details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-800 mb-2">Failed to load test case</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <div className="space-x-3">
+            <button
+              onClick={() => id && loadTestCase(id)}
+              className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </button>
+            <Link
+              to="/"
+              className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Back to Test Cases
+            </Link>
+          </div>
         </div>
       </div>
     );

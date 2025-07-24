@@ -134,4 +134,126 @@ export interface CreateTestCaseRequest {
   goal: string;
   steps?: string[];
   file?: File;
+}
+
+// Project interfaces matching backend schema
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string; // ISO date string from backend
+  updated_at: string; // ISO date string from backend
+}
+
+// API Response interfaces for pagination
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export type ProjectsResponse = PaginatedResponse<Project>;
+
+// API state interfaces
+export interface ApiState<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+}
+
+export interface ApiError {
+  message: string;
+  status?: number;
+  code?: string;
+}
+
+// Backend Test Case Types (matching API schema)
+export interface BackendDocument {
+  id: string;
+  project_id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  content: string;
+}
+
+export interface BackendBrowserConfig {
+  id: string;
+  project_id: string;
+  created_at: string;
+  updated_at: string;
+  browser_config: {
+    user_agent: string;
+    viewport: {
+      width: number;
+      height: number;
+    };
+    device_scale_factor: number;
+    color_scheme: 'light' | 'dark';
+    accept_downloads: boolean;
+    client_certificates: any[];
+    extra_http_headers: Record<string, string>;
+    java_script_enabled: boolean;
+    timeout: number;
+    allowed_domains: string[];
+    geolocation: {
+      latitude: number;
+      longitude: number;
+    } | null;
+  };
+}
+
+export interface BackendTestCase {
+  id: string;
+  project_id: string;
+  document: BackendDocument | null;
+  browser_configs: BackendBrowserConfig[];
+  created_at: string;
+  updated_at: string;
+  test_name: string;
+  test_description: string;
+  test_goal: string;
+  extra_rules: string;
+  url_routes: string;
+  allowed_domains: string[];
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  category: string | null;
+}
+
+export interface PaginatedTestCasesResponse {
+  items: BackendTestCase[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+}
+
+// Transformed types for frontend usage
+export interface FrontendTestCase {
+  id: string;
+  code: string;
+  projectId: string;
+  title: string;
+  description: string;
+  priority: TestPriority;
+  category: TestCategory | 'general';
+  status: TestStatus;
+  goal: string;
+  createdAt: Date;
+  updatedAt: Date;
+  lastRunAt?: Date;
+  passRate: number;
+  totalRuns: number;
+  passedRuns: number;
+  failedRuns: number;
+  startingUrl: string;
+  allowedDomains: string[];
+  extraRules: ExtraRule[];
+  browserConfigs: BrowserConfig[];
+  secrets: TestSecret[];
+  document: BackendDocument | null;
 } 

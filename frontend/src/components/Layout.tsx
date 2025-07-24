@@ -12,8 +12,12 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  FolderOpen
+  FolderOpen,
+  Loader2,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
+import { useProjects } from '../hooks/useProjects';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -23,16 +27,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState('bugninja-banking');
   const location = useLocation();
 
-  // Mock project data - will be replaced with backend data later
-  const projects = [
-    { id: 'bugninja-banking', name: 'Bugninja Banking' },
-    { id: 'ecommerce-platform', name: 'E-commerce Platform' },
-    { id: 'healthcare-app', name: 'Healthcare App' },
-    { id: 'fintech-wallet', name: 'Fintech Wallet' },
-  ];
+  // Use real backend data for projects
+  const { 
+    data: projects, 
+    loading: projectsLoading, 
+    error: projectsError,
+    selectedProject,
+    setSelectedProject,
+    refetch: refetchProjects
+  } = useProjects();
 
   const navigation = [
     { name: 'Test cases', href: '/', icon: FileText },
@@ -56,67 +61,83 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const sidebarWidth = sidebarMinimized ? 'w-20' : 'w-72';
   const contentMargin = sidebarMinimized ? 'lg:ml-20' : 'lg:ml-72';
 
-  const currentProject = projects.find(p => p.id === selectedProject);
+  const currentProject = selectedProject;
 
   const ProjectDropdown = () => {
-    const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null);
-    
-    const getDropdownPosition = () => {
-      if (!buttonRef) return { top: 0, left: 0 };
-      
-      const rect = buttonRef.getBoundingClientRect();
-      return {
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX
-      };
-    };
-
     return (
       <div className="relative">
         <button
-          ref={setButtonRef}
           type="button"
           onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-          className="w-full bg-white border border-dashed border-gray-300 rounded-lg px-4 py-3 text-left flex items-center justify-between hover:border-gray-400 transition-colors focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          disabled={projectsLoading}
+          className="w-full bg-white border border-dashed border-gray-300 rounded-lg px-4 py-3 text-left flex items-center justify-between hover:border-gray-400 transition-colors focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <span className="font-medium text-gray-600 truncate">{currentProject?.name || 'Select Project'}</span>
+          <span className="font-medium text-gray-600 truncate flex items-center">
+            {projectsLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Loading projects...
+              </>
+            ) : currentProject?.name || 'Select Project'}
+          </span>
           <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${projectDropdownOpen ? 'rotate-180' : ''}`} />
         </button>
         
-        {projectDropdownOpen && createPortal(
+        {projectDropdownOpen && (
           <>
+            {/* Backdrop to close dropdown when clicking outside */}
             <div 
               className="fixed inset-0 z-[9998]" 
               onClick={() => setProjectDropdownOpen(false)}
             />
+            {/* Dropdown menu positioned absolutely within the sidebar */}
             <div 
-              className="fixed bg-white border border-dashed border-gray-300 rounded-lg overflow-hidden shadow-xl z-[9999]"
-              style={{
-                top: `${getDropdownPosition().top}px`,
-                left: `${getDropdownPosition().left}px`,
-                width: `${buttonRef?.offsetWidth || 200}px`,
-                maxHeight: '240px',
-                overflowY: 'auto'
-              }}
+              className="absolute top-full left-0 right-0 mt-1 bg-white border border-dashed border-gray-300 rounded-lg overflow-hidden shadow-xl z-[9999] max-h-60 overflow-y-auto"
             >
-              {projects.map((project) => (
-                <button
-                  key={project.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedProject(project.id);
-                    setProjectDropdownOpen(false);
-                  }}
-                  className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
-                    project.id === selectedProject ? 'bg-indigo-50' : ''
-                  }`}
-                >
-                  <span className="font-medium text-gray-600 truncate">{project.name}</span>
-                </button>
-              ))}
+              {projectsLoading ? (
+                <div className="px-4 py-3 flex items-center justify-center text-gray-500">
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Loading projects...
+                </div>
+              ) : projectsError ? (
+                <div className="px-4 py-3">
+                  <div className="flex items-center text-red-600 mb-2">
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    Failed to load projects
+                  </div>
+                  <button
+                    onClick={() => {
+                      refetchProjects();
+                    }}
+                    className="flex items-center text-sm text-indigo-600 hover:text-indigo-700"
+                  >
+                    <RefreshCw className="w-3 h-3 mr-1" />
+                    Retry
+                  </button>
+                </div>
+              ) : projects && projects.length > 0 ? (
+                projects.map((project) => (
+                  <button
+                    key={project.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedProject(project);
+                      setProjectDropdownOpen(false);
+                    }}
+                    className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
+                      project.id === selectedProject?.id ? 'bg-indigo-50' : ''
+                    }`}
+                  >
+                    <span className="font-medium text-gray-600 truncate">{project.name}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="px-4 py-3 text-gray-500 text-center">
+                  No projects found
+                </div>
+              )}
             </div>
-          </>,
-          document.body
+          </>
         )}
       </div>
     );

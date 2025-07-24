@@ -10,35 +10,56 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  FileText
+  FileText,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
-import { TestCase } from '../types';
-import { mockTestCases, mockStatistics } from '../data/mockData';
+import { FrontendTestCase, TestPriority, TestCategory } from '../types';
 import { CustomDropdown } from '../components/CustomDropdown';
+import { useTestCases } from '../hooks/useTestCases';
+import { useProjects } from '../hooks/useProjects';
 
 const TestCases: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  // Get selected project
+  const { selectedProject } = useProjects();
   
+  // Get test cases for the selected project
+  const {
+    data: testCases,
+    loading: testCasesLoading,
+    error: testCasesError,
+    totalCount,
+    page,
+    pageSize,
+    totalPages,
+    hasNext,
+    hasPrevious,
+    refetch,
+    setPage,
+    setSearch,
+    setPriority,
+    setCategory,
+    filters
+  } = useTestCases({
+    projectId: selectedProject?.id,
+    pageSize: 10
+  });
+
   // Dropdown states
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [priorityDropdownOpen, setPriorityDropdownOpen] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
 
-  const testCases = mockTestCases;
-  const stats = mockStatistics;
-
-  const filteredTestCases = testCases.filter((testCase: TestCase) => {
-    const matchesSearch = testCase.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         testCase.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || testCase.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || testCase.priority === priorityFilter;
-    const matchesCategory = categoryFilter === 'all' || testCase.category === categoryFilter;
-    
-    return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
-  });
+  // Calculate statistics from test cases
+  // Note: Test case status comes from test runs, not test cases themselves
+  // For now, showing basic counts until we integrate test run data
+  const stats = {
+    totalTests: totalCount,
+    passedTests: 0, // TODO: Calculate from latest test runs
+    failedTests: 0, // TODO: Calculate from latest test runs  
+    pendingTests: totalCount, // All test cases are "ready to run" until we have run data
+    skippedTests: 0,
+    passRate: 0 // TODO: Calculate from test run success rate
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -67,14 +88,6 @@ const TestCases: React.FC = () => {
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
-
-  const statusOptions = [
-    { value: 'all', label: 'All Statuses' },
-    { value: 'passed', label: 'Passed' },
-    { value: 'failed', label: 'Failed' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'skipped', label: 'Skipped' },
-  ];
 
   const priorityOptions = [
     { value: 'all', label: 'All Priorities' },
@@ -194,27 +207,17 @@ const TestCases: React.FC = () => {
               <input
                 type="text"
                 placeholder="Search test cases..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={filters.search}
+                onChange={(e) => setSearch(e.target.value)}
                 className="pl-10 pr-4 py-2 w-full sm:w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
               />
             </div>
 
-            {/* Status Filter */}
-            <CustomDropdown
-              options={statusOptions}
-              value={statusFilter}
-              onChange={setStatusFilter}
-              isOpen={statusDropdownOpen}
-              setIsOpen={setStatusDropdownOpen}
-              placeholder="All Statuses"
-            />
-
             {/* Priority Filter */}
             <CustomDropdown
               options={priorityOptions}
-              value={priorityFilter}
-              onChange={setPriorityFilter}
+              value={filters.priority || 'all'}
+              onChange={(value) => setPriority(value === 'all' ? undefined : value as TestPriority)}
               isOpen={priorityDropdownOpen}
               setIsOpen={setPriorityDropdownOpen}
               placeholder="All Priorities"
@@ -223,8 +226,8 @@ const TestCases: React.FC = () => {
             {/* Category Filter */}
             <CustomDropdown
               options={categoryOptions}
-              value={categoryFilter}
-              onChange={setCategoryFilter}
+              value={filters.category || 'all'}
+              onChange={(value) => setCategory(value === 'all' ? undefined : value as TestCategory)}
               isOpen={categoryDropdownOpen}
               setIsOpen={setCategoryDropdownOpen}
               placeholder="All Categories"
@@ -235,14 +238,71 @@ const TestCases: React.FC = () => {
 
       {/* Test Cases List */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-800">
-            {filteredTestCases.length} of {testCases.length} test cases
-          </h2>
-        </div>
+        {!selectedProject ? (
+          <div className="bg-white rounded-lg p-8 border border-gray-200 text-center">
+            <p className="text-gray-600">Please select a project to view test cases.</p>
+          </div>
+        ) : testCasesLoading ? (
+          <div className="bg-white rounded-lg p-8 border border-gray-200 text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-400" />
+            <p className="text-gray-600">Loading test cases...</p>
+          </div>
+        ) : testCasesError ? (
+          <div className="bg-white rounded-lg p-8 border border-gray-200 text-center">
+            <AlertCircle className="w-8 h-8 mx-auto mb-4 text-red-500" />
+            <p className="text-red-600 mb-4">{testCasesError}</p>
+            <button
+              onClick={() => refetch()}
+              className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </button>
+          </div>
+        ) : !testCases || testCases.length === 0 ? (
+          <div className="bg-white rounded-lg p-8 border border-gray-200 text-center">
+            <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+            <h3 className="text-lg font-medium text-gray-800 mb-2">No test cases found</h3>
+            <p className="text-gray-600 mb-6">Get started by creating your first test case for this project.</p>
+            <Link
+              to="/create"
+              className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Test Case
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-800">
+                {testCases.length} of {totalCount} test cases
+              </h2>
+              {totalPages > 1 && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setPage(page - 1)}
+                    disabled={!hasPrevious}
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Page {page} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage(page + 1)}
+                    disabled={!hasNext}
+                    className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
 
-        <div className="space-y-3">
-          {filteredTestCases.map((testCase: TestCase) => (
+            <div className="space-y-3">
+              {testCases.map((testCase: FrontendTestCase) => (
             <div key={testCase.id} className="bg-white rounded-lg p-6 border border-gray-200 hover:border-gray-300 transition-colors">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -310,7 +370,9 @@ const TestCases: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
