@@ -8,6 +8,7 @@ from app.db.base import get_db
 from app.repo.document_repo import DocumentRepo
 from app.repo.project_repo import ProjectRepo
 from app.repo.test_case_repo import TestCaseRepo
+from app.repo.test_run_repo import TestRunRepo
 from app.schemas.communication.test_case import ExtendedResponseTestcase
 from app.schemas.crud.test_case import (
     CreateTestCase,
@@ -17,6 +18,7 @@ from app.schemas.crud.test_case import (
     ResponseTestCase,
     UpdateTestCase,
 )
+from app.schemas.crud.test_run import PaginatedResponseTestRunsByTestCase
 
 test_cases_router = APIRouter(prefix="/test-cases", tags=["Test Cases"])
 
@@ -394,4 +396,111 @@ async def delete_test_case(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete test case: {str(e)}",
+        )
+
+
+@test_cases_router.get(
+    "/{test_case_id:str}/test-runs",
+    response_model=PaginatedResponseTestRunsByTestCase,
+    summary="Get All Test Runs for Test Case",
+    description="Retrieve all test runs for a specific test case with pagination and sorting by start date",
+    responses={
+        200: create_success_response(
+            "Test runs retrieved successfully", PaginatedResponseTestRunsByTestCase
+        ),
+        **COMMON_ERROR_RESPONSES,
+    },
+)
+async def get_test_runs_by_test_case(
+    test_case_id: str,
+    page: int = 1,
+    page_size: int = 10,
+    sort_order: str = "desc",
+    db_session: Session = Depends(get_db),
+) -> PaginatedResponseTestRunsByTestCase:
+    """
+    Retrieve all test runs for a specific test case with pagination and sorting.
+
+    This endpoint returns a paginated list of extended test runs for the specified test case,
+    sorted by start date (started_at). The most recent test runs are returned first by default.
+    Each test run includes associated browser configurations and execution history.
+
+    The endpoint follows the relationship chain: TestCase → TestTraversal → TestRun
+    to retrieve all test runs across all test traversals for the given test case.
+
+    Args:
+        test_case_id: Test case identifier
+        page: Page number (1-based, default: 1)
+        page_size: Number of records per page (default: 10, max: 100)
+        sort_order: Sort order - "asc" for oldest first, "desc" for newest first (default: "desc")
+        db_session: Database session
+
+    Returns:
+        PaginatedResponseTestRunsByTestCase: Paginated list of extended test runs with metadata
+    """
+    try:
+        # Validate sort order
+        if sort_order.lower() not in ["asc", "desc"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="sort_order must be either 'asc' or 'desc'",
+            )
+
+        # Validate page_size
+        if page_size <= 0 or page_size > 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="page_size must be between 1 and 100",
+            )
+
+        # Validate page
+        if page <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="page must be 1 or greater",
+            )
+
+        # Validate that the test case exists
+        test_case = TestCaseRepo.get_by_id(db=db_session, test_case_id=test_case_id)
+        if not test_case:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Test case with id {test_case_id} not found",
+            )
+
+        # Get extended test runs with sorting, pagination, and filtering by test case
+        extended_test_runs = TestRunRepo.get_all_extended_by_test_case_id_with_sorting_and_filter(
+            db=db_session,
+            test_case_id=test_case_id,
+            page=page,
+            page_size=page_size,
+            sort_order=sort_order,
+        )
+
+        # Get total count for pagination metadata
+        total_count = TestRunRepo.count_by_test_case_id(db=db_session, test_case_id=test_case_id)
+
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+        has_next = page < total_pages
+        has_previous = page > 1
+
+        return PaginatedResponseTestRunsByTestCase(
+            items=extended_test_runs,
+            total_count=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+            has_next=has_next,
+            has_previous=has_previous,
+            test_case_id=test_case_id,
+            test_case_name=test_case.test_name,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve test runs for test case: {str(e)}",
         )

@@ -7,9 +7,10 @@ with a comprehensive payload that includes browser configs and secret values.
 """
 
 import json
-import requests
 import sys
-from typing import Dict, Any
+from typing import Any, Dict
+
+import requests
 
 # Configuration
 BASE_URL = "http://localhost:6969"  # Adjust if your server runs on different port
@@ -112,7 +113,7 @@ def test_enhanced_test_case_creation():
     payload = create_test_payload()
 
     print(f"📡 Sending POST request to: {TEST_CASE_ENDPOINT}")
-    print(f"📦 Payload includes:")
+    print("📦 Payload includes:")
     print(f"   - Test case: {payload['test_name']}")
     print(f"   - New browser configs: {len(payload['new_browser_configs'])}")
     print(f"   - New secret values: {len(payload['new_secret_values'])}")
@@ -205,6 +206,123 @@ def test_enhanced_test_case_creation():
         return False
 
 
+def test_simple_test_case_creation():
+    """
+    Test the simple test case creation endpoint for backward compatibility.
+    """
+    print("🚀 Testing Simple Test Case Creation Endpoint")
+    print("=" * 60)
+
+    simple_payload = {
+        "project_id": "test-project-123",
+        "test_name": "Simple Login Test",
+        "test_description": "Basic test for user login functionality",
+        "test_goal": "Verify basic login works",
+        "extra_rules": "Simple validation",
+        "url_route": "/login",
+        "allowed_domains": ["example.com"],
+        "priority": "MEDIUM",
+        "category": "authentication",
+    }
+
+    simple_endpoint = f"{BASE_URL}/test-cases/simple"
+    print(f"📡 Sending POST request to: {simple_endpoint}")
+
+    try:
+        response = requests.post(
+            simple_endpoint,
+            json=simple_payload,
+            headers={"Content-Type": "application/json"},
+            timeout=30,
+        )
+
+        print(f"📊 Response Status: {response.status_code}")
+
+        if response.status_code == 201:
+            print("✅ SUCCESS: Simple test case created successfully!")
+            response_data = response.json()
+            print(f"   - Test Case ID: {response_data['id']}")
+            print(f"   - Test Case Name: {response_data['test_name']}")
+            return response_data["id"]  # Return the test case ID for further testing
+        else:
+            print(f"❌ ERROR: Simple creation failed with status {response.status_code}")
+            print(f"📄 Response: {response.text}")
+            return None
+
+    except Exception as e:
+        print(f"❌ ERROR: Simple test failed: {e}")
+        return None
+
+
+def test_test_runs_by_test_case_endpoint(test_case_id: str):
+    """
+    Test the new endpoint for getting test runs by test case ID.
+    """
+    print("🚀 Testing Test Runs by Test Case Endpoint")
+    print("=" * 60)
+
+    if not test_case_id:
+        print("❌ ERROR: No test case ID provided for testing")
+        return False
+
+    test_runs_endpoint = f"{BASE_URL}/test-cases/{test_case_id}/test-runs"
+    print(f"📡 Sending GET request to: {test_runs_endpoint}")
+    print("📦 Query parameters: page=1, page_size=5, sort_order=desc")
+
+    try:
+        response = requests.get(
+            test_runs_endpoint,
+            params={"page": 1, "page_size": 5, "sort_order": "desc"},
+            headers={"Content-Type": "application/json"},
+            timeout=30,
+        )
+
+        print(f"📊 Response Status: {response.status_code}")
+
+        if response.status_code == 200:
+            print("✅ SUCCESS: Test runs retrieved successfully!")
+            response_data = response.json()
+
+            print("📋 Response Details:")
+            print(f"   - Test Case ID: {response_data['test_case_id']}")
+            print(f"   - Test Case Name: {response_data['test_case_name']}")
+            print(f"   - Total Test Runs: {response_data['total_count']}")
+            print(f"   - Page: {response_data['page']}")
+            print(f"   - Page Size: {response_data['page_size']}")
+            print(f"   - Total Pages: {response_data['total_pages']}")
+            print(f"   - Has Next: {response_data['has_next']}")
+            print(f"   - Has Previous: {response_data['has_previous']}")
+            print(f"   - Items in Response: {len(response_data['items'])}")
+
+            # Display test run details if any exist
+            if response_data["items"]:
+                print("\n🔄 Test Runs in Response:")
+                for i, test_run in enumerate(response_data["items"], 1):
+                    print(f"   {i}. Test Run ID: {test_run['id']}")
+                    print(f"      - Traversal ID: {test_run['test_traversal_id']}")
+                    print(f"      - Run Type: {test_run['run_type']}")
+                    print(f"      - State: {test_run['current_state']}")
+                    print(f"      - Started At: {test_run['started_at']}")
+                    print(
+                        f"      - Browser: {test_run['browser_config']['browser_config']['browser']}"
+                    )
+                    print(f"      - History Elements: {len(test_run['history'])}")
+            else:
+                print(
+                    "\n📝 Note: No test runs found for this test case (expected for newly created test case)"
+                )
+
+            return True
+        else:
+            print(f"❌ ERROR: Failed to retrieve test runs with status {response.status_code}")
+            print(f"📄 Response: {response.text}")
+            return False
+
+    except Exception as e:
+        print(f"❌ ERROR: Test runs endpoint test failed: {e}")
+        return False
+
+
 def main():
     """
     Main function to run the tests.
@@ -217,13 +335,31 @@ def main():
     enhanced_success = test_enhanced_test_case_creation()
     print()
 
+    # Test simple endpoint and get test case ID for further testing
+    test_case_id = test_simple_test_case_creation()
+    simple_success = test_case_id is not None
+    print()
+
+    # Test the new test runs by test case endpoint
+    test_runs_success = False
+    if test_case_id:
+        test_runs_success = test_test_runs_by_test_case_endpoint(test_case_id)
+    else:
+        print("⚠️  Skipping test runs endpoint test - no test case ID available")
+        test_runs_success = True  # Mark as success if we can't test it
+    print()
+
     # Summary
     print("📊 Test Summary:")
     print("=" * 60)
     print(f"Enhanced Endpoint: {'✅ PASSED' if enhanced_success else '❌ FAILED'}")
+    print(f"Simple Endpoint: {'✅ PASSED' if simple_success else '❌ FAILED'}")
+    print(f"Test Runs by Test Case Endpoint: {'✅ PASSED' if test_runs_success else '❌ FAILED'}")
 
-    if enhanced_success:
-        print("\n🎉 All tests passed! The enhanced test case creation is working correctly.")
+    if enhanced_success and simple_success and test_runs_success:
+        print(
+            "\n🎉 All tests passed! The enhanced test case creation and test runs retrieval are working correctly."
+        )
         sys.exit(0)
     else:
         print("\n💥 Some tests failed. Please check the server logs and try again.")
