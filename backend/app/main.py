@@ -1,15 +1,30 @@
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from app.api.v1.router import api_router
 from app.config import settings
+from dev.delete_all_data import delete_all_data
+from dev.upload_realistic_data import upload_realistic_data
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    delete_all_data(force=True)
+    upload_realistic_data()
+
+    yield
+
 
 app = FastAPI(
     title="Bugninja Platform API",
     description="Backend API for the Bugninja Platform",
     version="0.1.0",
     debug=settings.DEBUG,
+    lifespan=lifespan,
 )
 
 

@@ -331,6 +331,71 @@ class PaginatedResponseExtendedTestRun(PaginatedResponse[ExtendedResponseTestRun
         )
 
 
+class PaginatedResponseTestRunsByTestCase(PaginatedResponse[ExtendedResponseTestRun]):
+    """
+    Paginated response schema for test runs by test case.
+
+    This schema provides a standardized structure for paginated test run responses
+    filtered by test case, with metadata about the pagination state, test case information,
+    and the actual extended test run items.
+    """
+
+    test_case_id: str
+    test_case_name: str
+
+    @classmethod
+    def sample_factory_build(
+        cls,
+        test_case_id: str = CUID().generate(),
+        test_case_name: str = "Sample Test Case",
+        total_count: int = 15,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> "PaginatedResponseTestRunsByTestCase":
+        """
+        Generate a sample PaginatedResponseTestRunsByTestCase instance for testing and documentation.
+
+        Args:
+            test_case_id: Test case ID for the response (default: generated CUID)
+            test_case_name: Test case name for the response (default: "Sample Test Case")
+            total_count: Total number of test runs for the test case (default: 15)
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+
+        Returns:
+            PaginatedResponseTestRunsByTestCase: A sample paginated response with fake test run data
+        """
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+        skip = (page - 1) * page_size
+        items_in_page = min(page_size, max(0, total_count - skip))
+
+        # Generate sample extended test run items
+        extended_test_run_items = [
+            ExtendedResponseTestRun.sample_factory_build(
+                test_traversal_id=CUID().generate(),
+                project_id=CUID().generate(),
+            )
+            for _ in range(items_in_page)
+        ]
+
+        # Calculate pagination state
+        has_next = page < total_pages
+        has_previous = page > 1
+
+        return cls(
+            items=extended_test_run_items,
+            total_count=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+            has_next=has_next,
+            has_previous=has_previous,
+            test_case_id=test_case_id,
+            test_case_name=test_case_name,
+        )
+
+
 if __name__ == "__main__":
     # Demo: Generate and display sample test runs
     rich_print(CreateTestRun.sample_factory_build())

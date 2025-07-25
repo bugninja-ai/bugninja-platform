@@ -590,3 +590,121 @@ class TestRunRepo:
                 extended_test_runs.append(extended_test_run)
 
         return extended_test_runs
+
+    @staticmethod
+    def get_all_by_test_case_id_with_sorting_and_filter(
+        db: Session,
+        test_case_id: str,
+        page: int = 1,
+        page_size: int = 10,
+        sort_order: str = "desc",
+    ) -> Sequence[TestRun]:
+        """
+        Retrieve all test runs for a specific test case with pagination and sorting.
+
+        This method gets all test traversals for the given test case, then retrieves
+        all test runs for those traversals with pagination and sorting.
+
+        Args:
+            db: Database session
+            test_case_id: Test case identifier
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
+
+        Returns:
+            Sequence[TestRun]: List of test runs sorted by started_at date
+        """
+        # Get all test traversal IDs for the test case
+        from app.repo.test_traversal_repo import TestTraversalRepo
+
+        test_traversals = TestTraversalRepo.get_by_test_case_id(db, test_case_id)
+        if not test_traversals:
+            return []
+
+        traversal_ids = [tt.id for tt in test_traversals]
+
+        # Build the query with pagination and sorting
+        statement = select(TestRun).where(TestRun.test_traversal_id.in_(traversal_ids))
+
+        # Apply sorting
+        if sort_order.lower() == "desc":
+            statement = statement.order_by(col(TestRun.started_at).desc())
+        else:
+            statement = statement.order_by(col(TestRun.started_at).asc())
+
+        # Apply pagination
+        offset = (page - 1) * page_size
+        statement = statement.offset(offset).limit(page_size)
+
+        return db.exec(statement).all()
+
+    @staticmethod
+    def get_all_extended_by_test_case_id_with_sorting_and_filter(
+        db: Session,
+        test_case_id: str,
+        page: int = 1,
+        page_size: int = 10,
+        sort_order: str = "desc",
+    ) -> List[ExtendedResponseTestRun]:
+        """
+        Retrieve all extended test runs for a specific test case with pagination and sorting.
+
+        This method gets all test traversals for the given test case, then retrieves
+        all extended test runs for those traversals with pagination and sorting.
+
+        Args:
+            db: Database session
+            test_case_id: Test case identifier
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
+
+        Returns:
+            List[ExtendedResponseTestRun]: List of extended test runs sorted by started_at date
+        """
+        # Get basic test runs with pagination and filtering
+        test_runs = TestRunRepo.get_all_by_test_case_id_with_sorting_and_filter(
+            db=db,
+            test_case_id=test_case_id,
+            page=page,
+            page_size=page_size,
+            sort_order=sort_order,
+        )
+
+        # Convert to extended responses
+        extended_test_runs = []
+        for test_run in test_runs:
+            extended_test_run = TestRunRepo.get_extended_by_id(db, test_run.id)
+            if extended_test_run:
+                extended_test_runs.append(extended_test_run)
+
+        return extended_test_runs
+
+    @staticmethod
+    def count_by_test_case_id(db: Session, test_case_id: str) -> int:
+        """
+        Get the total number of test runs for a specific test case.
+
+        This method counts all test runs across all test traversals for the given test case.
+
+        Args:
+            db: Database session
+            test_case_id: Test case identifier
+
+        Returns:
+            int: Total number of test runs for the test case
+        """
+        # Get all test traversal IDs for the test case
+        from app.repo.test_traversal_repo import TestTraversalRepo
+
+        test_traversals = TestTraversalRepo.get_by_test_case_id(db, test_case_id)
+        if not test_traversals:
+            return 0
+
+        traversal_ids = [tt.id for tt in test_traversals]
+
+        # Count test runs for those traversals
+        statement = select(TestRun).where(TestRun.test_traversal_id.in_(traversal_ids))
+        test_runs = db.exec(statement).all()
+        return len(test_runs)

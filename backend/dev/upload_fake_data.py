@@ -1,7 +1,7 @@
 """
 Mock Data Upload Script
 
-This script creates a comprehensive set of mock data for testing the application.
+This script creates a comprehensive set of fake data for testing the application.
 It creates a complete hierarchy of entities with proper relationships:
 - 1 Project
 - 1 Document
@@ -55,9 +55,9 @@ from app.schemas.crud.test_run import CreateTestRun
 from app.schemas.crud.test_traversal import CreateTestTraversal
 
 
-def upload_mock_data() -> None:
+def upload_fake_data() -> None:
     """
-    Upload comprehensive mock data to the database.
+    Upload comprehensive fake data to the database.
 
     Creates a complete test dataset with all required relationships
     and proper foreign key constraints.
@@ -67,13 +67,13 @@ def upload_mock_data() -> None:
     """
     with QuinoContextManager() as db:
         try:
-            rich_print("Starting mock data upload...")
+            rich_print("Starting fake data upload...")
 
             # Check if there are existing projects
             existing_projects = ProjectRepo.get_all(db)
             if not existing_projects:
 
-                rich_print("✓ Database is empty, proceeding with mock data upload...")
+                rich_print("✓ Database is empty, proceeding with fake data upload...")
 
                 # Phase 1: Core entities (Project, Document, BrowserConfig, SecretValue)
                 rich_print("Creating core entities...")
@@ -259,10 +259,10 @@ def upload_mock_data() -> None:
                     rich_print(f"   • {project.name} (ID: {project.id})")
 
         except Exception as e:
-            rich_print(f"❌ Error during mock data upload: {e}")
+            rich_print(f"❌ Error during fake data upload: {e}")
             db.rollback()
             raise
 
 
 if __name__ == "__main__":
-    upload_mock_data()
+    upload_fake_data()
