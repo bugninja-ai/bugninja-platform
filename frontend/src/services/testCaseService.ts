@@ -14,6 +14,8 @@ import {
 export class TestCaseService {
   private static readonly ENDPOINTS = {
     TEST_CASES: '/test-cases/',
+    TEST_RUNS: '/test-cases/{testCaseId}/test-runs',
+    ALL_TEST_RUNS: '/test-runs/',
   };
 
   /**
@@ -227,6 +229,120 @@ export class TestCaseService {
     } catch (error: any) {
       const apiError: ApiError = {
         message: error.response?.data?.detail || error.message || 'Failed to delete test case',
+        status: error.response?.status,
+        code: error.code,
+      };
+      throw apiError;
+    }
+  }
+
+  /**
+   * Fetch test runs for a specific test case
+   */
+  static async getTestRuns(testCaseId: string, params?: {
+    page?: number;
+    page_size?: number;
+    sort_order?: 'asc' | 'desc';
+  }): Promise<{
+    items: any[];
+    total_count: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+    has_next: boolean;
+    has_previous: boolean;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
+      if (params?.sort_order) queryParams.append('sort_order', params.sort_order);
+
+      const url = this.ENDPOINTS.TEST_RUNS.replace('{testCaseId}', testCaseId);
+      const fullUrl = `${url}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      
+      const response = await apiClient.get<{
+        items: any[];
+        total_count: number;
+        page: number;
+        page_size: number;
+        total_pages: number;
+        has_next: boolean;
+        has_previous: boolean;
+      }>(fullUrl);
+      
+      return response.data;
+    } catch (error: any) {
+      const apiError: ApiError = {
+        message: error.response?.data?.detail || error.message || 'Failed to fetch test runs',
+        status: error.response?.status,
+        code: error.code,
+      };
+      throw apiError;
+    }
+  }
+
+  /**
+   * Fetch the most recent test runs for a test case (for display on detail page)
+   */
+  static async getRecentTestRuns(testCaseId: string, limit: number = 3): Promise<any[]> {
+    try {
+      const response = await this.getTestRuns(testCaseId, {
+        page: 1,
+        page_size: limit,
+        sort_order: 'desc'
+      });
+      
+      return response.items;
+    } catch (error: any) {
+      // If there's an error fetching test runs, return empty array rather than throwing
+      console.warn('Failed to fetch recent test runs:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch all test runs across all test cases with pagination
+   */
+  static async getAllTestRuns(params?: {
+    page?: number;
+    page_size?: number;
+    sort_order?: 'asc' | 'desc';
+    test_traversal_id?: string;
+  }): Promise<{
+    items: any[];
+    total_count: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+    has_next: boolean;
+    has_previous: boolean;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
+      if (params?.sort_order) queryParams.append('sort_order', params.sort_order);
+      if (params?.test_traversal_id) queryParams.append('test_traversal_id', params.test_traversal_id);
+
+      const url = `${this.ENDPOINTS.ALL_TEST_RUNS}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      
+      const response = await apiClient.get<{
+        items: any[];
+        total_count: number;
+        page: number;
+        page_size: number;
+        total_pages: number;
+        has_next: boolean;
+        has_previous: boolean;
+      }>(url);
+      
+      return response.data;
+    } catch (error: any) {
+      const apiError: ApiError = {
+        message: error.response?.data?.detail || error.message || 'Failed to fetch test runs',
         status: error.response?.status,
         code: error.code,
       };

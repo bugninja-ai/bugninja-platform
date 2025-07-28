@@ -1,18 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FrontendTestCase, ApiState, ApiError, TestPriority, TestCategory } from '../types';
+import { ApiState, ApiError } from '../types';
 import { TestCaseService } from '../services/testCaseService';
 
-export interface UseTestCasesParams {
-  projectId?: string;
+export interface UseTestRunsParams {
   page?: number;
   pageSize?: number;
   search?: string;
-  priority?: TestPriority;
-  category?: TestCategory;
+  status?: string;
   sortOrder?: 'asc' | 'desc';
+  testTraversalId?: string;
 }
 
-export interface UseTestCasesResult extends ApiState<FrontendTestCase[]> {
+export interface UseTestRunsResult extends ApiState<any[]> {
   // Pagination info
   totalCount: number;
   page: number;
@@ -26,21 +25,21 @@ export interface UseTestCasesResult extends ApiState<FrontendTestCase[]> {
   setPage: (page: number) => void;
   setPageSize: (pageSize: number) => void;
   setSearch: (search: string) => void;
-  setPriority: (priority: TestPriority | undefined) => void;
-  setCategory: (category: TestCategory | undefined) => void;
+  setStatus: (status: string | undefined) => void;
   setSortOrder: (sortOrder: 'asc' | 'desc') => void;
+  setTestTraversalId: (id: string | undefined) => void;
   
   // Current filters
   filters: {
     search: string;
-    priority?: TestPriority;
-    category?: TestCategory;
+    status?: string;
     sortOrder: 'asc' | 'desc';
+    testTraversalId?: string;
   };
 }
 
-export const useTestCases = (initialParams?: UseTestCasesParams): UseTestCasesResult => {
-  const [state, setState] = useState<ApiState<FrontendTestCase[]>>({
+export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResult => {
+  const [state, setState] = useState<ApiState<any[]>>({
     data: null,
     loading: true,
     error: null,
@@ -56,20 +55,19 @@ export const useTestCases = (initialParams?: UseTestCasesParams): UseTestCasesRe
 
   // Filter state
   const [search, setSearchState] = useState(initialParams?.search || '');
-  const [priority, setPriorityState] = useState<TestPriority | undefined>(initialParams?.priority);
-  const [category, setCategoryState] = useState<TestCategory | undefined>(initialParams?.category);
+  const [status, setStatusState] = useState<string | undefined>(initialParams?.status);
   const [sortOrder, setSortOrderState] = useState<'asc' | 'desc'>(initialParams?.sortOrder || 'desc');
+  const [testTraversalId, setTestTraversalIdState] = useState<string | undefined>(initialParams?.testTraversalId);
 
-  const fetchTestCases = useCallback(async () => {
+  const fetchTestRuns = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       
-      const response = await TestCaseService.getTestCases({
+      const response = await TestCaseService.getAllTestRuns({
         page,
         page_size: pageSize,
         sort_order: sortOrder,
-        project_id: initialParams?.projectId,
-        search: search || undefined,
+        test_traversal_id: testTraversalId,
       });
       
       setState(prev => ({ 
@@ -92,13 +90,13 @@ export const useTestCases = (initialParams?: UseTestCasesParams): UseTestCasesRe
         loading: false, 
         error: apiError.message 
       }));
-      console.error('Failed to fetch test cases:', apiError);
+      console.error('Failed to fetch test runs:', apiError);
     }
-  }, [page, pageSize, sortOrder, initialParams?.projectId, search]);
+  }, [page, pageSize, sortOrder, testTraversalId]);
 
   const refetch = useCallback(async () => {
-    await fetchTestCases();
-  }, [fetchTestCases]);
+    await fetchTestRuns();
+  }, [fetchTestRuns]);
 
   // Reset to first page when filters change
   const setPage = useCallback((newPage: number) => {
@@ -115,13 +113,8 @@ export const useTestCases = (initialParams?: UseTestCasesParams): UseTestCasesRe
     setPageState(1); // Reset to first page when searching
   }, []);
 
-  const setPriority = useCallback((newPriority: TestPriority | undefined) => {
-    setPriorityState(newPriority);
-    setPageState(1); // Reset to first page when filtering
-  }, []);
-
-  const setCategory = useCallback((newCategory: TestCategory | undefined) => {
-    setCategoryState(newCategory);
+  const setStatus = useCallback((newStatus: string | undefined) => {
+    setStatusState(newStatus);
     setPageState(1); // Reset to first page when filtering
   }, []);
 
@@ -130,17 +123,31 @@ export const useTestCases = (initialParams?: UseTestCasesParams): UseTestCasesRe
     setPageState(1); // Reset to first page when sorting
   }, []);
 
+  const setTestTraversalId = useCallback((newId: string | undefined) => {
+    setTestTraversalIdState(newId);
+    setPageState(1); // Reset to first page when filtering
+  }, []);
+
   // Fetch data when dependencies change
   useEffect(() => {
-    if (initialParams?.projectId) {
-      fetchTestCases();
-    }
-  }, [fetchTestCases, initialParams?.projectId]);
+    fetchTestRuns();
+  }, [fetchTestRuns]);
 
-  // Client-side filtering for priority and category (since backend might not support all filters)
-  const filteredData = state.data?.filter(testCase => {
-    if (priority && testCase.priority !== priority) return false;
-    if (category && testCase.category !== category) return false;
+  // Client-side filtering for search and status since backend might not support all filters
+  const filteredData = state.data?.filter(testRun => {
+    if (search) {
+      const searchLower = search.toLowerCase();
+      const matchesSearch = 
+        (testRun.test_case?.test_name?.toLowerCase().includes(searchLower)) ||
+        (testRun.test_case?.test_description?.toLowerCase().includes(searchLower)) ||
+        (testRun.id?.toLowerCase().includes(searchLower));
+      if (!matchesSearch) return false;
+    }
+    
+    if (status && status !== 'all' && testRun.status !== status) {
+      return false;
+    }
+    
     return true;
   }) || null;
 
@@ -158,14 +165,14 @@ export const useTestCases = (initialParams?: UseTestCasesParams): UseTestCasesRe
     setPage,
     setPageSize,
     setSearch,
-    setPriority,
-    setCategory,
+    setStatus,
     setSortOrder,
+    setTestTraversalId,
     filters: {
       search,
-      priority,
-      category,
+      status,
       sortOrder,
+      testTraversalId,
     },
   };
 }; 

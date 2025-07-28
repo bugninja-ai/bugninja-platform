@@ -37,6 +37,8 @@ const TestCaseDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [visibleSecrets, setVisibleSecrets] = useState<Set<string>>(new Set());
   const [copiedSecret, setCopiedSecret] = useState<string | null>(null);
+  const [recentTestRuns, setRecentTestRuns] = useState<any[]>([]);
+  const [testRunsLoading, setTestRunsLoading] = useState(false);
   
   // Edit mode states
   const [editingConfig, setEditingConfig] = useState(false);
@@ -93,11 +95,27 @@ const TestCaseDetail: React.FC = () => {
       const tc = await TestCaseService.getTestCase(testCaseId);
       setTestCase(tc);
       setEditableTestCase(tc);
+      
+      // Load recent test runs in parallel
+      loadRecentTestRuns(testCaseId);
     } catch (error: any) {
       console.error('Failed to load test case:', error);
       setError(error.message || 'Failed to load test case');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRecentTestRuns = async (testCaseId: string) => {
+    try {
+      setTestRunsLoading(true);
+      const runs = await TestCaseService.getRecentTestRuns(testCaseId, 3);
+      setRecentTestRuns(runs);
+    } catch (error: any) {
+      console.error('Failed to load recent test runs:', error);
+      // Don't set error state for test runs, just log and continue
+    } finally {
+      setTestRunsLoading(false);
     }
   };
 
@@ -1007,7 +1025,9 @@ const TestCaseDetail: React.FC = () => {
                   </div>
                 </div>
                 
-                {config.geolocation && (
+                {config.geolocation && 
+                 config.geolocation.latitude !== undefined && 
+                 config.geolocation.longitude !== undefined && (
                   <div className="md:col-span-2">
                     <label className="block text-xs font-medium text-gray-500 mb-1">Geolocation</label>
                     <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded text-gray-700">
@@ -1199,78 +1219,73 @@ const TestCaseDetail: React.FC = () => {
         </div>
         
         <div className="space-y-3">
-          {/* Mock recent runs - in real app, this would come from API */}
-          {[
-            {
-              id: '1',
-              status: 'passed',
-              startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-              duration: 45.2,
-              passedSteps: 8,
-              totalSteps: 8
-            },
-            {
-              id: '2', 
-              status: 'failed',
-              startedAt: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-              duration: 32.1,
-              passedSteps: 6,
-              totalSteps: 8
-            },
-            {
-              id: '3',
-              status: 'passed', 
-              startedAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-              duration: 43.7,
-              passedSteps: 8,
-              totalSteps: 8
-            }
-          ].map((run) => (
-            <div key={run.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  {run.status === 'passed' ? (
-                    <CheckCircle className="w-5 h-5 text-emerald-500" />
-                  ) : run.status === 'failed' ? (
-                    <AlertCircle className="w-5 h-5 text-red-500" />
-                  ) : (
-                    <Clock className="w-5 h-5 text-yellow-500" />
-                  )}
-                  <span className={`text-sm font-medium capitalize ${
-                    run.status === 'passed' ? 'text-emerald-600' :
-                    run.status === 'failed' ? 'text-red-600' :
-                    'text-yellow-600'
-                  }`}>
-                    {run.status}
-                  </span>
-                </div>
-                
-                <div className="text-sm text-gray-600">
-                  {run.passedSteps}/{run.totalSteps} steps passed
-                </div>
-                
-                <div className="flex items-center space-x-1 text-sm text-gray-500">
-                  <Calendar className="w-4 h-4" />
-                  <span>{run.startedAt.toLocaleDateString()}</span>
-                </div>
-                
-                <div className="flex items-center space-x-1 text-sm text-gray-500">
-                  <Clock className="w-4 h-4" />
-                  <span>{run.duration}s</span>
-                </div>
-              </div>
-              
-              <Link
-                to={`/history/${run.id}`}
-                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <Eye className="w-4 h-4 mr-1" />
-                View Details
-              </Link>
+          {testRunsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-indigo-600 mr-2" />
+              <span className="text-gray-600">Loading recent test runs...</span>
             </div>
-          ))}
+          ) : recentTestRuns.length > 0 ? (
+            recentTestRuns.map((run) => {
+              const startedAt = new Date(run.started_at || run.startedAt || run.created_at);
+              const completedAt = run.completed_at || run.completedAt;
+              const duration = run.duration || (completedAt ? (new Date(completedAt).getTime() - startedAt.getTime()) / 1000 : 0);
+              const passedSteps = run.passed_steps || run.passedSteps || 0;
+              const totalSteps = run.total_steps || run.totalSteps || run.steps?.length || 0;
+              const status = run.status || 'pending';
+              
+              return (
+                <div key={run.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      {status === 'passed' ? (
+                        <CheckCircle className="w-5 h-5 text-emerald-500" />
+                      ) : status === 'failed' ? (
+                        <AlertCircle className="w-5 h-5 text-red-500" />
+                      ) : (
+                        <Clock className="w-5 h-5 text-yellow-500" />
+                      )}
+                      <span className={`text-sm font-medium capitalize ${
+                        status === 'passed' ? 'text-emerald-600' :
+                        status === 'failed' ? 'text-red-600' :
+                        status === 'pending' ? 'text-blue-600' :
+                        'text-yellow-600'
+                      }`}>
+                        {status}
+                      </span>
+                    </div>
+                    
+                    {totalSteps > 0 && (
+                      <div className="text-sm text-gray-600">
+                        {passedSteps}/{totalSteps} steps passed
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center space-x-1 text-sm text-gray-500">
+                      <Calendar className="w-4 h-4" />
+                      <span>{startedAt.toLocaleDateString()}</span>
+                    </div>
+                    
+                    {duration > 0 && (
+                      <div className="flex items-center space-x-1 text-sm text-gray-500">
+                        <Clock className="w-4 h-4" />
+                        <span>{duration.toFixed(1)}s</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Link
+                    to={`/history/${run.id}`}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Eye className="w-4 h-4 mr-1" />
+                    View Details
+                  </Link>
+                </div>
+              );
+            })
+          ) : null}
           
-          {testCase.totalRuns === 0 && (
+          {!testRunsLoading && recentTestRuns.length === 0 && (
             <div className="text-center py-8">
               <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <Clock className="w-8 h-8 text-gray-400" />
