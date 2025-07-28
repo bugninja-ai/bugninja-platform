@@ -138,7 +138,7 @@ async def create_simple_test_case(
     "/",
     response_model=PaginatedResponseExtendedTestCase,
     summary="Get All Test Cases",
-    description="Retrieve all test cases with pagination, sorting, and optional project filtering",
+    description="Retrieve all test cases with pagination, sorting, and project filtering",
     responses={
         200: create_success_response(
             "Test cases retrieved successfully", PaginatedResponseExtendedTestCase
@@ -147,25 +147,25 @@ async def create_simple_test_case(
     },
 )
 async def get_all_test_cases(
+    project_id: Optional[str] = None,
     page: int = 1,
     page_size: int = 10,
     sort_order: str = "desc",
-    project_id: Optional[str] = None,
     db_session: Session = Depends(get_db),
 ) -> PaginatedResponseExtendedTestCase:
     """
-    Retrieve all test cases with pagination, sorting, and optional project filtering.
+    Retrieve all test cases with pagination, sorting, and project filtering.
 
     This endpoint returns a paginated list of extended test cases in the system,
     sorted by creation date. The most recent test cases are returned first by default.
     Each test case includes associated documents and browser configurations.
-    Optionally filter by project ID to get only test cases for a specific project.
+    Filter by project ID to get only test cases for a specific project.
 
     Args:
+        project_id: Project ID to filter by
         page: Page number (1-based, default: 1)
         page_size: Number of records per page (default: 10, max: 100)
         sort_order: Sort order - "asc" for oldest first, "desc" for newest first (default: "desc")
-        project_id: Optional project ID to filter by (default: None - returns all test cases)
         db_session: Database session
 
     Returns:
@@ -193,7 +193,6 @@ async def get_all_test_cases(
                 detail="page must be 1 or greater",
             )
 
-        # Validate project_id if provided
         if project_id:
             project = ProjectRepo.get_by_id(db=db_session, project_id=project_id)
             if not project:

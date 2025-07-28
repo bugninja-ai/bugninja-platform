@@ -76,8 +76,8 @@ async def get_all_projects(
     Args:
         page: Page number (1-based, default: 1)
         page_size: Number of records per page (default: 10, max: 100)
-        sort_order: Sort order - "asc" for oldest first, "desc" for newest first (default: "desc")
         db_session: Database session
+        sort_order: Sort order - "asc" for oldest first, "desc" for newest first
 
     Returns:
         PaginatedResponseProject: Paginated list of projects with metadata
