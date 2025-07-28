@@ -6,17 +6,22 @@ All methods work with the provided database session and use SQLModel table defin
 """
 
 from datetime import datetime, timezone
-from typing import List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.browser_config import BrowserConfig
 from app.db.history_element import HistoryElement
+from app.db.test_case import TestCase
 from app.db.test_run import RunOrigin, RunState, RunType, TestRun
-from app.schemas.communication.test_run import ExtendedResponseTestRun
+from app.db.test_traversal import TestTraversal
+from app.schemas.communication.test_run import (
+    ExtendedResponseBrainState,
+    ExtendedResponseHistoryElement,
+    ExtendedResponseTestRun,
+)
 from app.schemas.crud.browser_config import ResponseBrowserConfig
-from app.schemas.crud.history_element import ResponseHistoryElement
 from app.schemas.crud.test_run import CreateTestRun, ResponseTestRun, UpdateTestRun
 
 
@@ -490,40 +495,25 @@ class TestRunRepo:
             updated_at=browser_config.updated_at,
         )
 
-        # Get associated history elements
-        history_statement = (
-            select(HistoryElement)
-            .where(HistoryElement.test_run_id == test_run_id)
-            .order_by(col(HistoryElement.action_started_at).asc())
+        # Get extended brain states for this test run
+        repo_instance = TestRunRepo()
+        extended_brain_states = repo_instance.get_extended_brain_states_by_test_traversal_id(
+            db, test_run.test_traversal_id
         )
-        history_elements = db.exec(history_statement).all()
-
-        # Convert history elements to ResponseHistoryElement
-        response_history_elements = []
-        for he in history_elements:
-            response_history_element = ResponseHistoryElement(
-                id=he.id,
-                test_run_id=he.test_run_id,
-                action_id=he.action_id,
-                action_started_at=he.action_started_at,
-                action_finished_at=he.action_finished_at,
-                history_element_state=he.history_element_state,
-                screenshot=he.screenshot,
-            )
-            response_history_elements.append(response_history_element)
 
         return ExtendedResponseTestRun(
             id=test_run.id,
             test_traversal_id=test_run.test_traversal_id,
-            browser_config=response_browser_config,
-            run_type=test_run.run_type,
-            origin=test_run.origin,
+            browser_config_id=test_run.browser_config_id,
+            run_type=test_run.run_type.value,
+            origin=test_run.origin.value,
             repair_was_needed=test_run.repair_was_needed,
+            current_state=test_run.current_state.value,
             started_at=test_run.started_at,
             finished_at=test_run.finished_at,
-            current_state=test_run.current_state,
-            history=response_history_elements,
             run_gif=test_run.run_gif,
+            browser_config=response_browser_config,
+            brain_states=extended_brain_states,
         )
 
     @staticmethod
@@ -625,7 +615,7 @@ class TestRunRepo:
         traversal_ids = [tt.id for tt in test_traversals]
 
         # Build the query with pagination and sorting
-        statement = select(TestRun).where(TestRun.test_traversal_id.in_(traversal_ids))
+        statement = select(TestRun).where(col(TestRun.test_traversal_id).in_(traversal_ids))
 
         # Apply sorting
         if sort_order.lower() == "desc":
@@ -705,6 +695,207 @@ class TestRunRepo:
         traversal_ids = [tt.id for tt in test_traversals]
 
         # Count test runs for those traversals
-        statement = select(TestRun).where(TestRun.test_traversal_id.in_(traversal_ids))
+        statement = select(TestRun).where(col(TestRun.test_traversal_id).in_(traversal_ids))
         test_runs = db.exec(statement).all()
         return len(test_runs)
+
+    @staticmethod
+    def get_all_extended_by_project_id_with_sorting_and_filter(
+        db: Session,
+        project_id: str,
+        page: int = 1,
+        page_size: int = 10,
+        sort_order: str = "desc",
+    ) -> List[ExtendedResponseTestRun]:
+        """
+        Retrieve all extended test runs for a specific project with pagination and sorting.
+
+        This method uses a single optimized query with JOINs to efficiently retrieve
+        all test runs for a project including browser config and history data.
+
+        Args:
+            db: Database session
+            project_id: Project identifier
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
+
+        Returns:
+            List[ExtendedResponseTestRun]: List of extended test runs sorted by started_at date
+        """
+
+        # Build optimized query with JOINs for test runs and browser configs
+        statement = (
+            select(TestRun, BrowserConfig)
+            .join(TestTraversal, col(TestRun.test_traversal_id) == col(TestTraversal.id))
+            .join(TestCase, col(TestTraversal.test_case_id) == col(TestCase.id))
+            .outerjoin(BrowserConfig, col(TestRun.browser_config_id) == col(BrowserConfig.id))
+            .where(TestCase.project_id == project_id)
+        )
+
+        # Apply sorting
+        if sort_order.lower() == "desc":
+            statement = statement.order_by(col(TestRun.started_at).desc())
+        else:
+            statement = statement.order_by(col(TestRun.started_at).asc())
+
+        # Apply pagination
+        offset = (page - 1) * page_size
+        statement = statement.offset(offset).limit(page_size)
+
+        # Execute query
+        results = db.exec(statement).all()
+
+        # Convert to extended responses
+        extended_test_runs = []
+        for test_run, browser_config in results:
+            # Skip test runs without browser config (consistent with get_extended_by_id)
+            if not browser_config:
+                continue
+
+            # Build browser config response
+            response_browser_config = ResponseBrowserConfig(
+                id=browser_config.id,
+                project_id=browser_config.project_id,
+                created_at=browser_config.created_at,
+                updated_at=browser_config.updated_at,
+                browser_config=browser_config.browser_config,
+            )
+
+            # Get extended brain states for this test run
+            repo_instance = TestRunRepo()
+            extended_brain_states = repo_instance.get_extended_brain_states_by_test_traversal_id(
+                db, test_run.test_traversal_id
+            )
+
+            # Build extended test run response
+            extended_test_run = ExtendedResponseTestRun(
+                id=test_run.id,
+                test_traversal_id=test_run.test_traversal_id,
+                browser_config_id=test_run.browser_config_id,
+                run_type=test_run.run_type.value,
+                origin=test_run.origin.value,
+                repair_was_needed=test_run.repair_was_needed,
+                current_state=test_run.current_state.value,
+                started_at=test_run.started_at,
+                finished_at=test_run.finished_at,
+                run_gif=test_run.run_gif,
+                browser_config=response_browser_config,
+                brain_states=extended_brain_states,
+            )
+            extended_test_runs.append(extended_test_run)
+
+        return extended_test_runs
+
+    @staticmethod
+    def count_by_project_id(db: Session, project_id: str) -> int:
+        """
+        Get the total number of test runs for a specific project.
+
+        This method uses an optimized count query with JOINs.
+
+        Args:
+            db: Database session
+            project_id: Project identifier
+
+        Returns:
+            int: Total number of test runs for the project
+        """
+        from app.db.test_case import TestCase
+        from app.db.test_traversal import TestTraversal
+
+        # Build optimized count query with JOINs
+        statement = (
+            select(TestRun)
+            .join(TestTraversal, col(TestRun.test_traversal_id) == col(TestTraversal.id))
+            .join(TestCase, col(TestTraversal.test_case_id) == col(TestCase.id))
+            .where(TestCase.project_id == project_id)
+        )
+
+        test_runs = db.exec(statement).all()
+        return len(test_runs)
+
+    def get_extended_brain_states_by_test_traversal_id(
+        self, db: Session, test_traversal_id: str
+    ) -> List[ExtendedResponseBrainState]:
+        """
+        Get extended brain states for a test traversal with history elements.
+
+        Args:
+            db: Database session
+            test_traversal_id: Test traversal ID
+
+        Returns:
+            List of extended brain states with history elements
+        """
+        from sqlmodel import col, select
+
+        from app.db.action import Action
+        from app.db.brain_state import BrainState
+        from app.db.history_element import HistoryElement
+        from app.schemas.communication.test_run import (
+            ExtendedResponseBrainState,
+            ExtendedResponseHistoryElement,
+        )
+
+        # Get brain states with their history elements and action data
+        statement = (
+            select(BrainState, HistoryElement, Action)
+            .join(Action, col(BrainState.id) == col(Action.brain_state_id))
+            .join(HistoryElement, col(Action.id) == col(HistoryElement.action_id))
+            .where(BrainState.test_traversal_id == test_traversal_id)
+            .order_by(col(BrainState.idx_in_run).asc(), col(HistoryElement.action_started_at).asc())
+        )
+
+        results = db.exec(statement).all()
+
+        # Group history elements by brain state
+        brain_state_history_map = {}
+        brain_state: BrainState
+
+        for brain_state, history_element, action in results:
+            if brain_state.id not in brain_state_history_map:
+                brain_state_history_map[brain_state.id] = {
+                    "brain_state": brain_state,
+                    "history_elements": [],
+                }
+
+            # Create extended history element with both history and action data
+            extended_history_element = ExtendedResponseHistoryElement(
+                # History element fields
+                id=history_element.id,
+                test_run_id=history_element.test_run_id,
+                action_id=history_element.action_id,
+                action_started_at=history_element.action_started_at,
+                action_finished_at=history_element.action_finished_at,
+                history_element_state=history_element.history_element_state.value,
+                screenshot=history_element.screenshot,
+                # Action fields
+                action=action.action,
+                dom_element_data=action.dom_element_data,
+                valid=action.valid,
+                idx_in_brain_state=action.idx_in_brain_state,
+            )
+            brain_state_history_map[brain_state.id]["history_elements"].append(
+                extended_history_element
+            )
+
+        # Convert to response schemas
+        extended_brain_states = []
+        for brain_state_data in brain_state_history_map.values():
+            brain_state = brain_state_data["brain_state"]  # type: ignore
+            history_elements: List[ExtendedResponseHistoryElement] = brain_state_data["history_elements"]  # type: ignore
+
+            extended_brain_state = ExtendedResponseBrainState(
+                id=brain_state.id,
+                test_traversal_id=brain_state.test_traversal_id,
+                idx_in_run=brain_state.idx_in_run,
+                valid=brain_state.valid,
+                evaluation_previous_goal=brain_state.evaluation_previous_goal,
+                memory=brain_state.memory,
+                next_goal=brain_state.next_goal,
+                history_elements=history_elements,
+            )
+            extended_brain_states.append(extended_brain_state)
+
+        return extended_brain_states

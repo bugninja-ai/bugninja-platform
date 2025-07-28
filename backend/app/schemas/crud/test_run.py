@@ -310,8 +310,9 @@ class PaginatedResponseExtendedTestRun(PaginatedResponse[ExtendedResponseTestRun
         extended_test_run_items = [
             ExtendedResponseTestRun.sample_factory_build(
                 test_traversal_id=test_traversal_id or CUID().generate(),
-                include_history=True,
-                history_count=3,
+                project_id=CUID().generate(),
+                include_brain_states=True,
+                brain_state_count=3,
             )
             for _ in range(items_in_page)
         ]
@@ -375,6 +376,8 @@ class PaginatedResponseTestRunsByTestCase(PaginatedResponse[ExtendedResponseTest
             ExtendedResponseTestRun.sample_factory_build(
                 test_traversal_id=CUID().generate(),
                 project_id=CUID().generate(),
+                include_brain_states=True,
+                brain_state_count=3,
             )
             for _ in range(items_in_page)
         ]

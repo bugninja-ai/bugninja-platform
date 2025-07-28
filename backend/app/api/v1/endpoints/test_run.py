@@ -7,10 +7,12 @@ from app.api.v1.endpoints.utils import COMMON_ERROR_RESPONSES, create_success_re
 from app.db.base import get_db
 from app.repo.test_run_repo import TestRunRepo
 from app.repo.test_traversal_repo import TestTraversalRepo
-from app.schemas.communication.test_run import ExtendedResponseTestRun
+from app.schemas.communication.test_run import (
+    ExtendedResponseTestRun,
+    PaginatedResponseExtendedTestRun,
+)
 from app.schemas.crud.test_run import (
     CreateTestRun,
-    PaginatedResponseExtendedTestRun,
     ResponseTestRun,
     UpdateTestRun,
 )
@@ -77,7 +79,7 @@ async def create_test_run(
     "/",
     response_model=PaginatedResponseExtendedTestRun,
     summary="Get All Test Runs",
-    description="Retrieve all test runs with pagination, sorting, and optional test traversal filtering",
+    description="Retrieve all test runs with pagination, sorting, and test traversal filtering",
     responses={
         200: create_success_response(
             "Test runs retrieved successfully", PaginatedResponseExtendedTestRun
@@ -93,7 +95,7 @@ async def get_all_test_runs(
     db_session: Session = Depends(get_db),
 ) -> PaginatedResponseExtendedTestRun:
     """
-    Retrieve all test runs with pagination, sorting, and optional test traversal filtering.
+    Retrieve all test runs with pagination, sorting, and test traversal filtering.
 
     This endpoint returns a paginated list of extended test runs in the system,
     sorted by start date (started_at). The most recent test runs are returned first by default.
@@ -132,7 +134,7 @@ async def get_all_test_runs(
                 detail="page must be 1 or greater",
             )
 
-        # Validate test_traversal_id if provided
+        # Handle test_traversal_id filtering
         if test_traversal_id:
             test_traversal = TestTraversalRepo.get_by_id(
                 db=db_session, test_traversal_id=test_traversal_id
@@ -334,4 +336,108 @@ async def delete_test_run(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete test run: {str(e)}",
+        )
+
+
+@test_runs_router.get(
+    "/project/{project_id:str}",
+    response_model=PaginatedResponseExtendedTestRun,
+    summary="Get Test Runs by Project",
+    description="Retrieve all test runs for a specific project with pagination and sorting",
+    responses={
+        200: create_success_response(
+            "Test runs retrieved successfully", PaginatedResponseExtendedTestRun
+        ),
+        **COMMON_ERROR_RESPONSES,
+    },
+)
+async def get_test_runs_by_project(
+    project_id: str,
+    page: int = 1,
+    page_size: int = 10,
+    sort_order: str = "desc",
+    db_session: Session = Depends(get_db),
+) -> PaginatedResponseExtendedTestRun:
+    """
+    Retrieve all test runs for a specific project with pagination and sorting.
+
+    This endpoint returns a paginated list of extended test runs for the specified project,
+    sorted by start date (started_at). The most recent test runs are returned first by default.
+    Each test run includes associated browser configurations and execution history.
+
+    Args:
+        project_id: Project identifier
+        page: Page number (1-based, default: 1)
+        page_size: Number of records per page (default: 10, max: 100)
+        sort_order: Sort order - "asc" for oldest first, "desc" for newest first (default: "desc")
+        db_session: Database session
+
+    Returns:
+        PaginatedResponseExtendedTestRun: Paginated list of extended test runs with metadata
+    """
+    try:
+        # Validate sort order
+        if sort_order.lower() not in ["asc", "desc"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="sort_order must be either 'asc' or 'desc'",
+            )
+
+        # Validate page_size
+        if page_size <= 0 or page_size > 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="page_size must be between 1 and 100",
+            )
+
+        # Validate page
+        if page <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="page must be 1 or greater",
+            )
+
+        # Validate that the project exists
+        from app.repo.project_repo import ProjectRepo
+
+        project = ProjectRepo.get_by_id(db=db_session, project_id=project_id)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project with id {project_id} not found",
+            )
+
+        # Get extended test runs with sorting, pagination, and filtering by project
+        extended_test_runs = TestRunRepo.get_all_extended_by_project_id_with_sorting_and_filter(
+            db=db_session,
+            project_id=project_id,
+            page=page,
+            page_size=page_size,
+            sort_order=sort_order,
+        )
+
+        # Get total count for pagination metadata
+        total_count = TestRunRepo.count_by_project_id(db=db_session, project_id=project_id)
+
+        # Calculate pagination metadata
+        total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
+        has_next = page < total_pages
+        has_previous = page > 1
+
+        return PaginatedResponseExtendedTestRun(
+            items=extended_test_runs,
+            total_count=total_count,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+            has_next=has_next,
+            has_previous=has_previous,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve test runs: {str(e)}",
         )

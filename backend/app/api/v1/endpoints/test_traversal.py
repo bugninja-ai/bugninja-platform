@@ -85,7 +85,7 @@ async def create_test_traversal(
     "/",
     response_model=PaginatedResponseExtendedTestTraversal,
     summary="Get All Test Traversals",
-    description="Retrieve all test traversals with pagination, sorting, and optional test case filtering",
+    description="Retrieve all test traversals with pagination, sorting, and test case filtering",
     responses={
         200: create_success_response(
             "Test traversals retrieved successfully", PaginatedResponseExtendedTestTraversal
@@ -101,7 +101,7 @@ async def get_all_test_traversals(
     db_session: Session = Depends(get_db),
 ) -> PaginatedResponseExtendedTestTraversal:
     """
-    Retrieve all test traversals with pagination, sorting, and optional test case filtering.
+    Retrieve all test traversals with pagination, sorting, and test case filtering.
 
     This endpoint returns a paginated list of extended test traversals in the system,
     sorted by creation date. The most recent test traversals are returned first by default.
@@ -140,7 +140,7 @@ async def get_all_test_traversals(
                 detail="page must be 1 or greater",
             )
 
-        # Validate test_case_id if provided
+        # Handle test_case_id filtering
         if test_case_id:
             test_case = TestCaseRepo.get_by_id(db=db_session, test_case_id=test_case_id)
             if not test_case:
@@ -228,43 +228,6 @@ async def get_test_traversal_by_id(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve test traversal: {str(e)}",
-        )
-
-
-@test_traversals_router.get(
-    "/test-case/{test_case_id:str}",
-    response_model=List[ExtendedResponseTestTraversal],
-    summary="Get Test Traversals by Test Case",
-    description="Retrieve all test traversals for a specific test case with extended details",
-    responses={
-        200: create_success_response(
-            "Test case traversals retrieved successfully", ExtendedResponseTestTraversal
-        ),
-        **COMMON_ERROR_RESPONSES,
-    },
-)
-async def get_test_traversals_by_test_case(
-    test_case_id: str,
-    skip: int = 0,
-    limit: int = 100,
-    db_session: Session = Depends(get_db),
-) -> List[ExtendedResponseTestTraversal]:
-    """
-    Retrieve all test traversals for a specific test case with extended details.
-
-    This endpoint returns a paginated list of all test traversals associated with a particular test case,
-    including browser configurations, latest runs, and secret values for each traversal.
-    Use skip and limit parameters for pagination control.
-    """
-    try:
-        extended_test_traversals = TestTraversalRepo.get_extended_by_test_case_id(
-            db=db_session, test_case_id=test_case_id, skip=skip, limit=limit
-        )
-        return list(extended_test_traversals)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve test case traversals: {str(e)}",
         )
 
 

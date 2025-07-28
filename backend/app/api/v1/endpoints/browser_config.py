@@ -125,19 +125,45 @@ async def get_browser_config_by_id(
 )
 async def get_browser_configs_by_project(
     project_id: str,
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    page_size: int = 10,
     db_session: Session = Depends(get_db),
 ) -> List[ResponseBrowserConfig]:
     """
     Retrieve all browser configurations for a specific project.
 
     This endpoint returns a paginated list of all browser configurations associated with a particular project.
-    Use skip and limit parameters for pagination control.
+    Use page and page_size parameters for pagination control.
+
+    Args:
+        project_id: Project identifier
+        page: Page number (1-based, default: 1)
+        page_size: Number of records per page (default: 10, max: 100)
+        db_session: Database session
+
+    Returns:
+        List[ResponseBrowserConfig]: List of browser configurations
     """
     try:
+        # Validate page_size
+        if page_size <= 0 or page_size > 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="page_size must be between 1 and 100",
+            )
+
+        # Validate page
+        if page <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="page must be 1 or greater",
+            )
+
+        # Calculate skip from page and page_size
+        skip = (page - 1) * page_size
+
         browser_configs = BrowserConfigRepo.get_by_project_id(
-            db=db_session, project_id=project_id, skip=skip, limit=limit
+            db=db_session, project_id=project_id, skip=skip, limit=page_size
         )
         return [
             ResponseBrowserConfig(
