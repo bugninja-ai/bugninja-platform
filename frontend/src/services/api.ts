@@ -2,6 +2,7 @@ import axios from 'axios';
 
 // API configuration
 const API_BASE_URL = 'http://localhost:8000/api/v1';
+export const BASE_DOMAIN = 'http://localhost:8000';
 
 // Create axios instance with default configuration
 export const apiClient = axios.create({

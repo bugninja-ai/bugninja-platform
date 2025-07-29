@@ -91,7 +91,7 @@ class LightResponseTestRun(BaseModel):
             __model__ = LightResponseTestRun
             __faker__ = faker
 
-            state = faker.random_element([RunState.STARTING, RunState.RUNNING, RunState.FINISHED])
+            state = faker.random_element([RunState.PENDING, RunState.FINISHED, RunState.FAILED])
 
         element = LightResponseTestRunFactory.build()
         element.id = id

@@ -68,8 +68,12 @@ export class TestCaseService {
       } : undefined, // ✅ Real backend data (may be null)
     }));
 
-    // Create empty secrets array (backend doesn't seem to have secrets in test case response)
-    const secrets: TestSecret[] = [];
+    // Transform backend secrets to frontend format
+    const secrets: TestSecret[] = backendTestCase.secrets?.map(secret => ({
+      id: secret.id,
+      secretName: secret.secret_name,
+      value: secret.secret_value
+    })) || [];
 
     return {
       id: backendTestCase.id,
@@ -84,10 +88,10 @@ export class TestCaseService {
       createdAt: new Date(backendTestCase.created_at),
       updatedAt: new Date(backendTestCase.updated_at),
       lastRunAt: undefined, // Could be populated from test runs
-      passRate: 0, // Would need to be calculated from test runs
-      totalRuns: 0, // Would need to be calculated from test runs
-      passedRuns: 0, // Would need to be calculated from test runs
-      failedRuns: 0, // Would need to be calculated from test runs
+      passRate: backendTestCase.success_rate,
+      totalRuns: backendTestCase.total_runs,
+      passedRuns: backendTestCase.passed_runs,
+      failedRuns: backendTestCase.failed_runs,
       startingUrl: backendTestCase.url_routes,
       allowedDomains: backendTestCase.allowed_domains,
       extraRules,

@@ -26,9 +26,10 @@ import {
   Loader2,
   RefreshCw
 } from 'lucide-react';
-import { FrontendTestCase } from '../types';
+import { FrontendTestCase, TestCategory } from '../types';
 import { TestCaseService } from '../services/testCaseService';
 import { CustomDropdown } from '../components/CustomDropdown';
+import { BASE_DOMAIN } from '../services/api';
 
 const TestCaseDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -46,10 +47,12 @@ const TestCaseDetail: React.FC = () => {
   const [editingBrowsers, setEditingBrowsers] = useState(false);
   const [editingSecrets, setEditingSecrets] = useState(false);
   const [editingGoal, setEditingGoal] = useState(false);
+  const [editingBasicInfo, setEditingBasicInfo] = useState(false);
   
   // Dropdown states for browser configs
   const [userAgentDropdowns, setUserAgentDropdowns] = useState<Record<string, boolean>>({});
   const [viewportDropdowns, setViewportDropdowns] = useState<Record<string, boolean>>({});
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   
   // Editable values
   const [editableTestCase, setEditableTestCase] = useState<FrontendTestCase | null>(null);
@@ -86,6 +89,16 @@ const TestCaseDetail: React.FC = () => {
     { value: '414x896', label: '414 × 896 (iPhone Plus)' },
     { value: '360x640', label: '360 × 640 (Android)' },
     { value: 'custom', label: 'Custom Resolution' }
+  ];
+
+  // Category options for dropdown
+  const categoryOptions = [
+    { value: 'authentication', label: 'Authentication' },
+    { value: 'banking', label: 'Banking' },
+    { value: 'payments', label: 'Payments' },
+    { value: 'security', label: 'Security' },
+    { value: 'ui', label: 'UI' },
+    { value: 'api', label: 'API' }
   ];
 
   const loadTestCase = async (testCaseId: string) => {
@@ -162,6 +175,30 @@ const TestCaseDetail: React.FC = () => {
   const handleCancelGoal = () => {
     setEditableTestCase({ ...testCase! });
     setEditingGoal(false);
+  };
+
+  const handleEditBasicInfo = () => {
+    setEditingBasicInfo(true);
+    setEditableTestCase({ ...testCase! });
+  };
+
+  const handleSaveBasicInfo = async () => {
+    if (!editableTestCase) return;
+    try {
+      // Here you would normally call an API to save the changes
+      // await mockApi.updateTestCase(editableTestCase);
+      setTestCase(editableTestCase);
+      setEditingBasicInfo(false);
+      setCategoryDropdownOpen(false);
+    } catch (error) {
+      console.error('Failed to save basic information:', error);
+    }
+  };
+
+  const handleCancelBasicInfo = () => {
+    setEditableTestCase({ ...testCase! });
+    setEditingBasicInfo(false);
+    setCategoryDropdownOpen(false);
   };
 
   const handleEditRules = () => {
@@ -266,13 +303,15 @@ const TestCaseDetail: React.FC = () => {
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
+    const normalizedStatus = status.toLowerCase();
+    switch (normalizedStatus) {
       case 'passed':
+      case 'finished':
         return <CheckCircle className="w-4 h-4 text-emerald-500" />;
       case 'failed':
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
+        return <X className="w-4 h-4 text-red-500" />;
       case 'pending':
-        return <Clock className="w-4 h-4 text-blue-500" />;
+        return <Clock className="w-4 h-4 text-yellow-500" />;
       default:
         return <Clock className="w-4 h-4 text-yellow-500" />;
     }
@@ -350,7 +389,6 @@ const TestCaseDetail: React.FC = () => {
               <span className={`text-sm font-medium ${
                 testCase.status === 'passed' ? 'text-emerald-600' :
                 testCase.status === 'failed' ? 'text-red-600' :
-                testCase.status === 'pending' ? 'text-blue-600' :
                 'text-yellow-600'
               }`}>
                 {testCase.status.charAt(0).toUpperCase() + testCase.status.slice(1)}
@@ -419,12 +457,42 @@ const TestCaseDetail: React.FC = () => {
       </div>
 
       {/* Basic Information */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Basic Information</h2>
+      <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200" style={{ position: 'relative', zIndex: editingBasicInfo && categoryDropdownOpen ? 1000 : 'auto' }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-800">Basic information</h2>
+          <div className="flex items-center space-x-2">
+            {editingBasicInfo ? (
+              <>
+                <button
+                  onClick={handleSaveBasicInfo}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  <Save className="w-4 h-4 mr-1" />
+                  Save
+                </button>
+                <button
+                  onClick={handleCancelBasicInfo}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={handleEditBasicInfo}
+                className="inline-flex items-center p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Edit basic information"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Test Case ID</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Test case ID</label>
             <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800">
               {testCase.id}
             </div>
@@ -439,9 +507,21 @@ const TestCaseDetail: React.FC = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-            <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 capitalize">
-              {testCase.category}
-            </div>
+            {editingBasicInfo ? (
+              <CustomDropdown
+                options={categoryOptions}
+                value={editableTestCase?.category || ''}
+                onChange={(value) => setEditableTestCase(prev => prev ? { ...prev, category: value as TestCategory } : null)}
+                isOpen={categoryDropdownOpen}
+                setIsOpen={setCategoryDropdownOpen}
+                placeholder="Select Category"
+                fullWidth={true}
+              />
+            ) : (
+              <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 capitalize">
+                {testCase.category}
+              </div>
+            )}
           </div>
 
           <div>
@@ -453,7 +533,7 @@ const TestCaseDetail: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Last Updated</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Last updated</label>
             <div className="flex items-center space-x-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800">
               <Calendar className="w-4 h-4 text-gray-400" />
               <span>{testCase.updatedAt.toLocaleDateString()}</span>
@@ -461,7 +541,7 @@ const TestCaseDetail: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Total Runs</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Total runs</label>
             <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800">
               {testCase.totalRuns}
             </div>
@@ -472,7 +552,7 @@ const TestCaseDetail: React.FC = () => {
       {/* Test Configuration */}
       <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-800">Test Configuration</h2>
+          <h2 className="text-lg font-semibold text-gray-800">Test configuration</h2>
           <div className="flex items-center space-x-2">
             {editingConfig ? (
               <>
@@ -529,7 +609,7 @@ const TestCaseDetail: React.FC = () => {
           {/* Allowed Domains */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">Allowed Domains</label>
+              <label className="block text-sm font-medium text-gray-700">Allowed domains</label>
               {editingConfig && (
                                   <button
                     onClick={() => {
@@ -601,7 +681,7 @@ const TestCaseDetail: React.FC = () => {
       {(testCase.extraRules.length > 0 || editingRules) && (
         <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">Extra Rules</h2>
+            <h2 className="text-lg font-semibold text-gray-800">Extra rules</h2>
             <div className="flex items-center space-x-2">
               {editingRules ? (
                 <>
@@ -715,7 +795,7 @@ const TestCaseDetail: React.FC = () => {
       {/* Browser Configurations */}
       <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-800">Browser Configurations</h2>
+          <h2 className="text-lg font-semibold text-gray-800">Browser configurations</h2>
           <div className="flex items-center space-x-2">
             {editingBrowsers ? (
               <>
@@ -809,7 +889,7 @@ const TestCaseDetail: React.FC = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">User Agent</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">User agent</label>
                     <div className="space-y-2">
                       <CustomDropdown
                         options={commonUserAgents}
@@ -854,7 +934,7 @@ const TestCaseDetail: React.FC = () => {
                   </div>
                   
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Viewport Resolution</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Viewport resolution</label>
                     <div className="space-y-2">
                       <CustomDropdown
                         options={commonViewports}
@@ -1012,7 +1092,7 @@ const TestCaseDetail: React.FC = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">User Agent</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">User agent</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded text-gray-700 text-xs break-all">
                     {config.userAgent}
                   </div>
@@ -1208,7 +1288,7 @@ const TestCaseDetail: React.FC = () => {
       {/* Run History Summary */}
       <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-800">Recent Test Runs</h2>
+          <h2 className="text-lg font-semibold text-gray-800">Recent test runs</h2>
           <Link
             to={`/history?testCase=${testCase.id}`}
             className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
@@ -1227,59 +1307,100 @@ const TestCaseDetail: React.FC = () => {
           ) : recentTestRuns.length > 0 ? (
             recentTestRuns.map((run) => {
               const startedAt = new Date(run.started_at || run.startedAt || run.created_at);
-              const completedAt = run.completed_at || run.completedAt;
+              const completedAt = run.finished_at || run.completed_at || run.completedAt;
               const duration = run.duration || (completedAt ? (new Date(completedAt).getTime() - startedAt.getTime()) / 1000 : 0);
               const passedSteps = run.passed_steps || run.passedSteps || 0;
               const totalSteps = run.total_steps || run.totalSteps || run.steps?.length || 0;
-              const status = run.status || 'pending';
+              const status = (run.status || run.current_state || 'PENDING').toUpperCase();
+              const runGifPath = run.run_gif || run.runGif;
+              const runGif = runGifPath ? `${BASE_DOMAIN}/${runGifPath}` : null;
+              const runType = run.run_type || run.runType;
+              const origin = run.origin;
+              const browserConfig = run.browser_config || run.browserConfig;
               
               return (
-                <div key={run.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      {status === 'passed' ? (
-                        <CheckCircle className="w-5 h-5 text-emerald-500" />
-                      ) : status === 'failed' ? (
-                        <AlertCircle className="w-5 h-5 text-red-500" />
-                      ) : (
-                        <Clock className="w-5 h-5 text-yellow-500" />
-                      )}
-                      <span className={`text-sm font-medium capitalize ${
-                        status === 'passed' ? 'text-emerald-600' :
-                        status === 'failed' ? 'text-red-600' :
-                        status === 'pending' ? 'text-blue-600' :
-                        'text-yellow-600'
-                      }`}>
-                        {status}
-                      </span>
+                <div key={run.id} className="flex items-start space-x-4 p-4 bg-gray-50 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
+                  {/* GIF Display */}
+                  {runGif && (
+                    <div className="flex-shrink-0">
+                      <img 
+                        src={runGif} 
+                        alt="Test run animation"
+                        className="w-24 h-16 object-cover rounded-lg border border-gray-300"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
                     </div>
-                    
-                    {totalSteps > 0 && (
-                      <div className="text-sm text-gray-600">
-                        {passedSteps}/{totalSteps} steps passed
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center space-x-1 text-sm text-gray-500">
-                      <Calendar className="w-4 h-4" />
-                      <span>{startedAt.toLocaleDateString()}</span>
-                    </div>
-                    
-                    {duration > 0 && (
-                      <div className="flex items-center space-x-1 text-sm text-gray-500">
-                        <Clock className="w-4 h-4" />
-                        <span>{duration.toFixed(1)}s</span>
-                      </div>
-                    )}
-                  </div>
+                  )}
                   
-                  <Link
-                    to={`/history/${run.id}`}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <Eye className="w-4 h-4 mr-1" />
-                    View Details
-                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                          {status === 'FINISHED' ? (
+                            <CheckCircle className="w-5 h-5 text-emerald-500" />
+                          ) : status === 'FAILED' ? (
+                            <X className="w-5 h-5 text-red-500" />
+                          ) : (
+                            <Clock className="w-5 h-5 text-yellow-500" />
+                          )}
+                          <span className={`text-sm font-medium capitalize ${
+                            status === 'FINISHED' ? 'text-emerald-600' :
+                            status === 'FAILED' ? 'text-red-600' :
+                            'text-yellow-600'
+                          }`}>
+                            {status.toLowerCase()}
+                          </span>
+                        </div>
+                        
+                        {totalSteps > 0 && (
+                          <div className="text-sm text-gray-600">
+                            {passedSteps}/{totalSteps} steps passed
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center space-x-1 text-sm text-gray-500">
+                          <Calendar className="w-4 h-4" />
+                          <span>{startedAt.toLocaleDateString()}</span>
+                        </div>
+                        
+                        {duration > 0 && (
+                          <div className="flex items-center space-x-1 text-sm text-gray-500">
+                            <Clock className="w-4 h-4" />
+                            <span>{duration.toFixed(1)}s</span>
+                          </div>
+                        )}
+                        
+                        {runType && (
+                          <div className="text-sm text-gray-500">
+                            <span className="font-medium">Type:</span> {runType}
+                          </div>
+                        )}
+                        
+                        {origin && (
+                          <div className="text-sm text-gray-500">
+                            <span className="font-medium">Origin:</span> {origin}
+                          </div>
+                        )}
+                        
+                        {browserConfig?.browser_config?.viewport && (
+                          <div className="flex items-center space-x-1 text-sm text-gray-500">
+                            <Monitor className="w-4 h-4" />
+                            <span>{browserConfig.browser_config.viewport.width}×{browserConfig.browser_config.viewport.height}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <Link
+                        to={`/history/${run.id}`}
+                        className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        View Details
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               );
             })
@@ -1304,7 +1425,7 @@ const TestCaseDetail: React.FC = () => {
         </div>
       </div>
       <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Execution Summary</h2>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Execution summary</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center">

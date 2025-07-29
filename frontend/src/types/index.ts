@@ -205,11 +205,21 @@ export interface BackendBrowserConfig {
   };
 }
 
+export interface BackendSecretValue {
+  id: string;
+  project_id: string;
+  created_at: string;
+  updated_at: string;
+  secret_name: string;
+  secret_value: string;
+}
+
 export interface BackendTestCase {
   id: string;
   project_id: string;
   document: BackendDocument | null;
   browser_configs: BackendBrowserConfig[];
+  secrets: BackendSecretValue[];
   created_at: string;
   updated_at: string;
   test_name: string;
@@ -220,6 +230,10 @@ export interface BackendTestCase {
   allowed_domains: string[];
   priority: 'low' | 'medium' | 'high' | 'critical';
   category: string | null;
+  total_runs: number;
+  passed_runs: number;
+  failed_runs: number;
+  success_rate: number;
 }
 
 export interface PaginatedTestCasesResponse {

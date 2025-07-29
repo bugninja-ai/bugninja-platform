@@ -74,7 +74,7 @@ class CreateTestRun(CreationModel):
             origin = faker.random_element([RunOrigin.USER, RunOrigin.CICD])
             repair_was_needed = faker.boolean()
             current_state = faker.random_element(
-                [RunState.STARTING, RunState.RUNNING, RunState.FINISHED]
+                [RunState.PENDING, RunState.FINISHED, RunState.FAILED]
             )
             history = [
                 {"action": "click", "element": "button", "timestamp": faker.date_time().isoformat()}
@@ -126,7 +126,7 @@ class UpdateTestRun(UpdateModel):
             repair_was_needed = faker.boolean()
             finished_at = faker.date_time()
             current_state = faker.random_element(
-                [RunState.STARTING, RunState.RUNNING, RunState.FINISHED]
+                [RunState.PENDING, RunState.FINISHED, RunState.FAILED]
             )
             history = [
                 {"action": "type", "element": "input", "timestamp": faker.date_time().isoformat()}
@@ -204,7 +204,7 @@ class ResponseTestRun(BaseModel):
             started_at = faker.date_time()
             finished_at = faker.date_time()
             current_state = faker.random_element(
-                [RunState.STARTING, RunState.RUNNING, RunState.FINISHED]
+                [RunState.PENDING, RunState.FINISHED, RunState.FAILED]
             )
             history = [ResponseHistoryElement.sample_factory_build() for _ in range(4)]
             run_gif = faker.image_url()

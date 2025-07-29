@@ -263,9 +263,9 @@ class TestRunRepo:
         return db.exec(statement).all()
 
     @staticmethod
-    def get_running_runs(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TestRun]:
+    def get_pending_runs(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TestRun]:
         """
-        Retrieve all currently running test runs.
+        Retrieve all currently pending test runs.
 
         Args:
             db: Database session
@@ -273,11 +273,11 @@ class TestRunRepo:
             limit: Maximum number of records to return
 
         Returns:
-            Sequence[TestRun]: List of running test runs
+            Sequence[TestRun]: List of pending test runs
         """
         statement = (
             select(TestRun)
-            .where(TestRun.current_state == RunState.RUNNING)
+            .where(TestRun.current_state == RunState.PENDING)
             .offset(skip)
             .limit(limit)
         )

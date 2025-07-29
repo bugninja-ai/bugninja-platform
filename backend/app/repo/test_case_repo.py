@@ -463,11 +463,18 @@ class TestCaseRepo:
         # Get associated browser configs
         browser_configs = TestCaseRepo.get_browser_configs_by_test_case_id(db, test_case_id)
 
+        # Get associated secrets through test traversals
+        secrets = TestCaseRepo._get_secrets_by_test_case_id(db, test_case_id)
+
+        # Calculate execution statistics
+        execution_stats = TestCaseRepo._calculate_execution_statistics(db, test_case_id)
+
         return ExtendedResponseTestcase(
             id=test_case.id,
             project_id=test_case.project_id,
             document=response_document,
             browser_configs=browser_configs,
+            secrets=secrets,
             created_at=test_case.created_at,
             updated_at=test_case.updated_at,
             test_name=test_case.test_name,
@@ -478,7 +485,101 @@ class TestCaseRepo:
             allowed_domains=test_case.allowed_domains,
             priority=test_case.priority,
             category=test_case.category,
+            total_runs=execution_stats["total_runs"],
+            passed_runs=execution_stats["passed_runs"],
+            failed_runs=execution_stats["failed_runs"],
+            success_rate=execution_stats["success_rate"],
         )
+
+    @staticmethod
+    def _get_secrets_by_test_case_id(db: Session, test_case_id: str) -> List[ResponseSecretValue]:
+        """
+        Retrieve all secrets associated with a test case through its test traversals.
+
+        Args:
+            db: Database session
+            test_case_id: Test case identifier
+
+        Returns:
+            List[ResponseSecretValue]: List of secret values associated with the test case
+        """
+        # Get all test traversals for this test case
+        traversal_statement = select(TestTraversal).where(
+            TestTraversal.test_case_id == test_case_id
+        )
+        test_traversals = db.exec(traversal_statement).all()
+
+        if not test_traversals:
+            return []
+
+        # Get all unique secret values associated with these traversals
+        traversal_ids = [traversal.id for traversal in test_traversals]
+
+        secret_statement = (
+            select(SecretValue)
+            .join(SecretValueTestTraversal)
+            .where(
+                SecretValue.id == SecretValueTestTraversal.secret_value_id,
+                SecretValueTestTraversal.test_traversal_id.in_(traversal_ids),
+            )
+            .distinct()
+        )
+        secret_values = db.exec(secret_statement).all()
+
+        # Convert to ResponseSecretValue objects
+        response_secrets = [
+            ResponseSecretValue(
+                id=sv.id,
+                project_id=sv.project_id,
+                created_at=sv.created_at,
+                updated_at=sv.updated_at,
+                secret_name=sv.secret_name,
+                secret_value=sv.secret_value,
+            )
+            for sv in secret_values
+        ]
+
+        return response_secrets
+
+    @staticmethod
+    def _calculate_execution_statistics(db: Session, test_case_id: str) -> dict:
+        """
+        Calculate execution statistics for a test case.
+
+        Args:
+            db: Database session
+            test_case_id: Test case identifier
+
+        Returns:
+            dict: Dictionary containing execution statistics
+        """
+        from app.db.test_run import TestRun, RunState
+
+        # Get all test runs for this test case through test traversals
+        test_runs_statement = (
+            select(TestRun)
+            .join(TestTraversal)
+            .where(
+                TestRun.test_traversal_id == TestTraversal.id,
+                TestTraversal.test_case_id == test_case_id,
+            )
+        )
+        test_runs = db.exec(test_runs_statement).all()
+
+        total_runs = len(test_runs)
+        # Count different states: FINISHED = passed, FAILED = failed, PENDING = in progress
+        passed_runs = len([run for run in test_runs if run.current_state == RunState.FINISHED])
+        failed_runs = len([run for run in test_runs if run.current_state == RunState.FAILED])
+
+        # Calculate success rate
+        success_rate = (passed_runs / total_runs * 100) if total_runs > 0 else 0.0
+
+        return {
+            "total_runs": total_runs,
+            "passed_runs": passed_runs,
+            "failed_runs": failed_runs,
+            "success_rate": round(success_rate, 1),
+        }
 
     @staticmethod
     def get_extended_by_project_id(

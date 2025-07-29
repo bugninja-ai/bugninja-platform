@@ -31,15 +31,15 @@ class RunOrigin(str, enum.Enum):
     """Enumeration for test run origins."""
 
     USER = "USER"
-    CICD = "CICD"
+    CICD = "CI/CD"
 
 
 class RunState(str, enum.Enum):
     """Enumeration for test run states."""
 
-    STARTING = "STARTING"
-    RUNNING = "RUNNING"
+    PENDING = "PENDING"
     FINISHED = "FINISHED"
+    FAILED = "FAILED"
 
 
 class TestRun(SQLModel, table=True):
@@ -70,7 +70,7 @@ class TestRun(SQLModel, table=True):
     )
     repair_was_needed: bool = Field(nullable=False)
     current_state: RunState = Field(
-        default=RunState.STARTING,
+        default=RunState.PENDING,
         sa_column=Column(SQLModelEnum(RunState, name="runstate")),
     )
     run_gif: str = Field(max_length=500, nullable=False)

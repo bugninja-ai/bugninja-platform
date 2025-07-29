@@ -469,7 +469,7 @@ def create_varied_run_data() -> List[Dict[str, Any]]:
             "run_type": RunType.REPLAY,
             "origin": RunOrigin.CICD,
             "repair_was_needed": True,
-            "current_state": RunState.FINISHED,
+            "current_state": RunState.FAILED,
         },
         {
             "run_type": RunType.REPLAY_WITH_HEALING,
@@ -481,19 +481,19 @@ def create_varied_run_data() -> List[Dict[str, Any]]:
             "run_type": RunType.AGENTIC,
             "origin": RunOrigin.CICD,
             "repair_was_needed": False,
-            "current_state": RunState.FINISHED,
+            "current_state": RunState.PENDING,
         },
         {
             "run_type": RunType.REPLAY,
             "origin": RunOrigin.USER,
             "repair_was_needed": False,
-            "current_state": RunState.FINISHED,
+            "current_state": RunState.FAILED,
         },
         {
             "run_type": RunType.REPLAY_WITH_HEALING,
             "origin": RunOrigin.CICD,
             "repair_was_needed": True,
-            "current_state": RunState.FINISHED,
+            "current_state": RunState.PENDING,
         },
     ]
 
