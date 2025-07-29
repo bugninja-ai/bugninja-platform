@@ -48,11 +48,16 @@ services:
       # Only mount specific directories for development, not the entire backend
       - ./backend/app:/app/app
       - ./backend/dev:/app/dev
+      - ./backend/content:/app/content:rw
     environment:
       - DATABASE_URL=postgresql+psycopg2://bugninja_user:bugninja_password@postgres:5432/bugninja
       - REDIS_URL=redis://redis:6379
       - API_DEBUG=true
       - API_CORS_ORIGINS=["http://localhost:3000"]
+    command: >
+      sh -c "
+        mkdir -p /app/content/run_gifs /app/content/run_he_screenshots
+      "
     depends_on:
       postgres:
         condition: service_healthy

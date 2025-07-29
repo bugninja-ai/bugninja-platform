@@ -2,6 +2,7 @@
 
 # General
 traverse_*.json
+content
 
 # Environment variables
 .env

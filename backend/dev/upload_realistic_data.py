@@ -18,6 +18,8 @@ It creates a complete hierarchy of entities with proper relationships:
 - SecretValue-TestTraversal associations
 """
 
+import os
+import shutil
 from typing import Any, Dict, List
 
 from rich import print as rich_print
@@ -57,6 +59,114 @@ from app.schemas.crud.secret_value import CreateSecretValue
 from app.schemas.crud.test_case import CreateTestCase
 from app.schemas.crud.test_run import CreateTestRun
 from app.schemas.crud.test_traversal import CreateTestTraversal
+
+
+def setup_content_folders() -> None:
+    """
+    Create the content folder structure for storing images and GIFs.
+
+    Creates:
+    - content/
+    - content/run_gifs/
+    - content/run_he_screenshots/
+    """
+    content_dir = "content"
+    run_gifs_dir = os.path.join(content_dir, "run_gifs")
+    run_he_screenshots_dir = os.path.join(content_dir, "run_he_screenshots")
+
+    # Create content directory if it doesn't exist
+    if not os.path.exists(content_dir):
+        os.makedirs(content_dir)
+        rich_print(f"✓ Created directory: {content_dir}")
+
+    # Create run_gifs directory if it doesn't exist
+    if not os.path.exists(run_gifs_dir):
+        os.makedirs(run_gifs_dir)
+        rich_print(f"✓ Created directory: {run_gifs_dir}")
+
+    # Create run_he_screenshots directory if it doesn't exist
+    if not os.path.exists(run_he_screenshots_dir):
+        os.makedirs(run_he_screenshots_dir)
+        rich_print(f"✓ Created directory: {run_he_screenshots_dir}")
+
+
+def copy_images_for_history_elements(history_element_ids: List[str]) -> Dict[str, str]:
+    """
+    Copy polar_bear.png for each history element with the correct naming convention.
+
+    Args:
+        history_element_ids: List of history element IDs
+
+    Returns:
+        Dict mapping history element ID to its image path
+    """
+    source_image = "dev/polar_bear.png"
+    image_mapping = {}
+
+    if not os.path.exists(source_image):
+        rich_print(f"⚠️ Warning: Source image {source_image} not found")
+        return image_mapping
+
+    for history_element_id in history_element_ids:
+        # Create filename with .jpg extension as requested
+        filename = f"{history_element_id}.jpg"
+        destination_path = os.path.join("content", "run_he_screenshots", filename)
+
+        try:
+            shutil.copy2(source_image, destination_path)
+            image_mapping[history_element_id] = f"content/run_he_screenshots/{filename}"
+            rich_print(f"✓ Copied image for history element {history_element_id}")
+        except Exception as e:
+            rich_print(f"❌ Error copying image for history element {history_element_id}: {e}")
+
+    return image_mapping
+
+
+def copy_images_for_test_runs(test_run_ids: List[str]) -> Dict[str, str]:
+    """
+    Copy baby_polar_bear.gif for each test run with the correct naming convention.
+
+    Args:
+        test_run_ids: List of test run IDs
+
+    Returns:
+        Dict mapping test run ID to its GIF path
+    """
+    source_gif = "dev/baby_polar_bear.gif"
+    gif_mapping = {}
+
+    if not os.path.exists(source_gif):
+        rich_print(f"⚠️ Warning: Source GIF {source_gif} not found")
+        return gif_mapping
+
+    for test_run_id in test_run_ids:
+        # Create filename with .gif extension as requested
+        filename = f"{test_run_id}.gif"
+        destination_path = os.path.join("content", "run_gifs", filename)
+
+        try:
+            shutil.copy2(source_gif, destination_path)
+            gif_mapping[test_run_id] = f"content/run_gifs/{filename}"
+            rich_print(f"✓ Copied GIF for test run {test_run_id}")
+        except Exception as e:
+            rich_print(f"❌ Error copying GIF for test run {test_run_id}: {e}")
+
+    return gif_mapping
+
+
+def generate_unique_ids(count: int) -> List[str]:
+    """
+    Generate unique IDs for history elements and test runs.
+
+    Args:
+        count: Number of IDs to generate
+
+    Returns:
+        List of unique IDs
+    """
+    from cuid2 import Cuid as CUID
+
+    return [CUID().generate() for _ in range(count)]
 
 
 def create_realistic_browser_configs() -> List[Dict[str, Any]]:
@@ -1214,11 +1324,48 @@ def upload_realistic_data() -> None:
                 # Phase 5: Test execution
                 rich_print("Creating test execution data...")
 
+                # Generate IDs for test runs and history elements first
+                rich_print("Generating unique IDs for test runs and history elements...")
+
+                # Calculate total number of history elements
+                total_history_elements = 0
+                for traversal in traversals:
+                    # Count brain states for this traversal
+                    traversal_brain_states = [
+                        bs for bs in brain_states if bs.test_traversal_id == traversal.id
+                    ]
+                    # Each brain state has one action
+                    total_history_elements += len(traversal_brain_states)
+
+                # Generate IDs
+                test_run_ids = generate_unique_ids(len(traversals))
+                history_element_ids = generate_unique_ids(total_history_elements)
+
+                rich_print(
+                    f"✓ Generated {len(test_run_ids)} test run IDs and {len(history_element_ids)} history element IDs"
+                )
+
+                # Copy images for test runs and history elements
+                rich_print("Copying images for test runs and history elements...")
+                test_run_gif_mapping = copy_images_for_test_runs(test_run_ids)
+                history_element_image_mapping = copy_images_for_history_elements(
+                    history_element_ids
+                )
+
+                rich_print(
+                    f"✓ Copied {len(test_run_gif_mapping)} test run GIFs and {len(history_element_image_mapping)} history element images"
+                )
+
                 # Create Test Run for each traversal with varied data
                 test_runs: List[TestRun] = []
                 varied_run_data = create_varied_run_data()
                 for i, traversal in enumerate(traversals):
                     run_data = varied_run_data[i % len(varied_run_data)]
+                    test_run_id = test_run_ids[i]
+                    gif_path = test_run_gif_mapping.get(
+                        test_run_id, f"content/run_gifs/{test_run_id}.gif"
+                    )
+
                     test_run = TestRunRepo.create(
                         db,
                         CreateTestRun(
@@ -1228,7 +1375,7 @@ def upload_realistic_data() -> None:
                             origin=run_data["origin"],
                             repair_was_needed=run_data["repair_was_needed"],
                             current_state=run_data["current_state"],
-                            run_gif=f"/test-runs/{traversal.id}/recording_{i+1}.gif",
+                            run_gif=gif_path,
                         ),
                     )
                     test_runs.append(test_run)
@@ -1262,6 +1409,7 @@ def upload_realistic_data() -> None:
 
                 # Create History Elements for actions in test runs with varied states
                 history_count = 0
+                history_element_id_index = 0
                 history_states = [
                     HistoryElementState.PASSED,
                     HistoryElementState.FAILED,
@@ -1287,16 +1435,25 @@ def upload_realistic_data() -> None:
                     for i, action in enumerate(traversal_actions):
                         # Vary the history element state
                         state = history_states[(test_run_idx + i) % len(history_states)]
+
+                        # Get the history element ID and corresponding image path
+                        history_element_id = history_element_ids[history_element_id_index]
+                        screenshot_path = history_element_image_mapping.get(
+                            history_element_id,
+                            f"content/run_he_screenshots/{history_element_id}.jpg",
+                        )
+
                         HistoryElementRepo.create(
                             db,
                             CreateHistoryElement(
                                 test_run_id=test_run.id,
                                 action_id=action.id,
                                 history_element_state=state,
-                                screenshot=f"/screenshots/test_run_{test_run_idx + 1}_action_{i + 1}_{action.id}.png",
+                                screenshot=screenshot_path,
                             ),
                         )
                         history_count += 1
+                        history_element_id_index += 1
 
                 rich_print(f"✓ Created {history_count} history elements with varied states")
 

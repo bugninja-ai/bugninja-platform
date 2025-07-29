@@ -8,6 +8,8 @@ Use this script to clear the database before uploading mock data.
 """
 
 import argparse
+import os
+import shutil
 import sys
 from typing import List
 
@@ -28,6 +30,54 @@ from app.repo import (
     TestRunRepo,
     TestTraversalRepo,
 )
+
+
+def cleanup_content_folder() -> None:
+    """
+    Clean up the content folder by removing all files and subdirectories.
+
+    This function removes:
+    - content/run_gifs/ (and all files within)
+    - content/run_he_screenshots/ (and all files within)
+    - content/ (if empty after cleanup)
+    """
+    content_dir = "content"
+
+    if not os.path.exists(content_dir):
+        rich_print("✓ Content folder does not exist, nothing to clean up.")
+        return
+
+    rich_print("🗑️  Cleaning up content folder...")
+
+    # Clean up run_gifs directory
+    run_gifs_dir = os.path.join(content_dir, "run_gifs")
+    if os.path.exists(run_gifs_dir):
+        try:
+            shutil.rmtree(run_gifs_dir)
+            rich_print(f"✓ Deleted directory: {run_gifs_dir}")
+        except Exception as e:
+            rich_print(f"❌ Error deleting {run_gifs_dir}: {e}")
+
+    # Clean up run_he_screenshots directory
+    run_he_screenshots_dir = os.path.join(content_dir, "run_he_screenshots")
+    if os.path.exists(run_he_screenshots_dir):
+        try:
+            shutil.rmtree(run_he_screenshots_dir)
+            rich_print(f"✓ Deleted directory: {run_he_screenshots_dir}")
+        except Exception as e:
+            rich_print(f"❌ Error deleting {run_he_screenshots_dir}: {e}")
+
+    # Remove content directory if it's empty
+    try:
+        if os.path.exists(content_dir) and not os.listdir(content_dir):
+            os.rmdir(content_dir)
+            rich_print(f"✓ Deleted empty directory: {content_dir}")
+        elif os.path.exists(content_dir):
+            rich_print(f"✓ Content directory {content_dir} still exists (not empty)")
+    except Exception as e:
+        rich_print(f"❌ Error removing content directory: {e}")
+
+    rich_print("✅ Content folder cleanup completed!")
 
 
 def confirm_deletion(force: bool = False) -> bool:
@@ -237,6 +287,9 @@ def delete_all_data(force: bool = False) -> None:
 
             # Commit all changes
             db.commit()
+
+            # Clean up content folder
+            cleanup_content_folder()
 
             # Verify deletion
             rich_print("\nVerifying deletion...")
