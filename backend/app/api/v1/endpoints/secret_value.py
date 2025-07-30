@@ -5,8 +5,8 @@ from sqlmodel import Session
 
 from app.api.v1.endpoints.utils import COMMON_ERROR_RESPONSES, create_success_response
 from app.db.base import get_db
-from app.repo.project_repo import ProjectRepo
 from app.repo.secret_value_repo import SecretValueRepo
+from app.repo.test_case_repo import TestCaseRepo
 from app.schemas.crud.secret_value import CreateSecretValue, ResponseSecretValue
 
 secret_values_router = APIRouter(prefix="/secret-values", tags=["Secret Values"])
@@ -31,15 +31,17 @@ async def create_secret_value(
     Create a new secret value with the specified name and value.
 
     This endpoint creates a new secret value in the system and returns the created secret value instance.
-    The secret value will be associated with a specific project and should be encrypted at rest.
+    The secret value will be associated with a specific test case and should be encrypted at rest.
     """
     try:
-        # Validate that the referenced project exists
-        project = ProjectRepo.get_by_id(db=db_session, project_id=secret_value_data.project_id)
-        if not project:
+        # Validate that the referenced test case exists
+        test_case = TestCaseRepo.get_by_id(
+            db=db_session, test_case_id=secret_value_data.test_case_id
+        )
+        if not test_case:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Project with id {secret_value_data.project_id} not found",
+                detail=f"Test case with id {secret_value_data.test_case_id} not found",
             )
 
         created_secret_value = SecretValueRepo.create(

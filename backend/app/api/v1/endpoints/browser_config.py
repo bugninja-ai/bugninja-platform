@@ -6,7 +6,7 @@ from sqlmodel import Session
 from app.api.v1.endpoints.utils import COMMON_ERROR_RESPONSES, create_success_response
 from app.db.base import get_db
 from app.repo.browser_config_repo import BrowserConfigRepo
-from app.repo.project_repo import ProjectRepo
+from app.repo.test_case_repo import TestCaseRepo
 from app.schemas.crud.browser_config import CreateBrowserConfig, ResponseBrowserConfig
 
 browser_configs_router = APIRouter(prefix="/browser-configs", tags=["Browser Configurations"])
@@ -15,36 +15,39 @@ browser_configs_router = APIRouter(prefix="/browser-configs", tags=["Browser Con
 @browser_configs_router.post(
     "/",
     response_model=ResponseBrowserConfig,
-    summary="Create Browser Configuration",
-    description="Create a new browser configuration with the provided data",
+    summary="Create Browser Configuration and Test Traversal",
+    description="Create a new browser configuration and automatically create a test traversal using a specific test case",
     status_code=status.HTTP_201_CREATED,
     responses={
         201: create_success_response(
-            "Browser configuration created successfully", ResponseBrowserConfig
+            "Browser configuration and test traversal created successfully", ResponseBrowserConfig
         ),
         **COMMON_ERROR_RESPONSES,
     },
 )
-async def create_browser_config(
+async def create_browser_config_and_traversal(
     browser_config_data: CreateBrowserConfig,
     db_session: Session = Depends(get_db),
 ) -> ResponseBrowserConfig:
     """
-    Create a new browser configuration with the specified settings.
+    Create a new browser configuration and automatically create a test traversal.
 
-    This endpoint creates a new browser configuration in the system and returns the created configuration instance.
-    The configuration will be associated with a specific project and can contain browser-specific settings.
+    This endpoint creates a new browser configuration and automatically creates a test traversal
+    using the specified test case. The test case ID is provided in the browser_config_data.
+    The test traversal will be named with the pattern: "Traversal - {test_case_name} ({browser_type})"
     """
     try:
-        # Validate that the referenced project exists
-        project = ProjectRepo.get_by_id(db=db_session, project_id=browser_config_data.project_id)
-        if not project:
+        # Validate that the referenced test case exists
+        test_case = TestCaseRepo.get_by_id(
+            db=db_session, test_case_id=browser_config_data.test_case_id
+        )
+        if not test_case:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Project with id {browser_config_data.project_id} not found",
+                detail=f"Test case with id {browser_config_data.test_case_id} not found",
             )
 
-        created_browser_config = BrowserConfigRepo.create(
+        created_browser_config = BrowserConfigRepo.create_with_traversal(
             db=db_session, browser_config_data=browser_config_data
         )
         return ResponseBrowserConfig(

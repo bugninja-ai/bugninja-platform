@@ -12,6 +12,7 @@ from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.secret_value import SecretValue
+from app.db.secret_value_test_case import SecretValueTestCase
 from app.schemas.crud.secret_value import CreateSecretValue, UpdateSecretValue
 
 
@@ -34,9 +35,17 @@ class SecretValueRepo:
         Returns:
             SecretValue: The created secret value instance
         """
+        # Lazy import to avoid circular dependency
+        from app.repo.test_case_repo import TestCaseRepo
+
+        # Get the test case to retrieve the project_id
+        test_case = TestCaseRepo.get_by_id(db, secret_value_data.test_case_id)
+        if not test_case:
+            raise ValueError(f"Test case with id {secret_value_data.test_case_id} not found")
+
         secret_value = SecretValue(
             id=CUID().generate(),
-            project_id=secret_value_data.project_id,
+            project_id=test_case.project_id,
             secret_name=secret_value_data.secret_name,
             secret_value=secret_value_data.secret_value,
             created_at=datetime.now(timezone.utc),
@@ -288,3 +297,85 @@ class SecretValueRepo:
 
         db.commit()
         return count
+
+    @staticmethod
+    def get_by_test_case_id(db: Session, test_case_id: str) -> Sequence[SecretValue]:
+        """
+        Retrieve all secret values associated with a specific test case.
+
+        Args:
+            db: Database session
+            test_case_id: Test case identifier
+
+        Returns:
+            Sequence[SecretValue]: List of secret values associated with the test case
+        """
+        statement = (
+            select(SecretValue)
+            .join(SecretValueTestCase)
+            .where(
+                SecretValue.id == SecretValueTestCase.secret_value_id,
+                SecretValueTestCase.test_case_id == test_case_id,
+            )
+        )
+        return db.exec(statement).all()
+
+    @staticmethod
+    def associate_with_test_case(db: Session, secret_value_id: str, test_case_id: str) -> bool:
+        """
+        Associate a secret value with a test case.
+
+        Args:
+            db: Database session
+            secret_value_id: Secret value identifier
+            test_case_id: Test case identifier
+
+        Returns:
+            bool: True if association was created, False if it already exists
+        """
+        # Check if association already exists
+        existing_association = db.exec(
+            select(SecretValueTestCase).where(
+                SecretValueTestCase.secret_value_id == secret_value_id,
+                SecretValueTestCase.test_case_id == test_case_id,
+            )
+        ).first()
+
+        if existing_association:
+            return False
+
+        # Create new association
+        association = SecretValueTestCase(
+            secret_value_id=secret_value_id,
+            test_case_id=test_case_id,
+        )
+        db.add(association)
+        db.commit()
+        return True
+
+    @staticmethod
+    def disassociate_from_test_case(db: Session, secret_value_id: str, test_case_id: str) -> bool:
+        """
+        Remove association between a secret value and a test case.
+
+        Args:
+            db: Database session
+            secret_value_id: Secret value identifier
+            test_case_id: Test case identifier
+
+        Returns:
+            bool: True if association was removed, False if it didn't exist
+        """
+        association = db.exec(
+            select(SecretValueTestCase).where(
+                SecretValueTestCase.secret_value_id == secret_value_id,
+                SecretValueTestCase.test_case_id == test_case_id,
+            )
+        ).first()
+
+        if not association:
+            return False
+
+        db.delete(association)
+        db.commit()
+        return True

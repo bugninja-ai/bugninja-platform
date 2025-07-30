@@ -22,25 +22,25 @@ class CreateSecretValue(CreationModel):
 
     Secret values store sensitive configuration data for projects such as
     API keys, passwords, and other credentials. Each secret belongs to
-    a specific project and should be encrypted at rest.
+    a specific test case and should be encrypted at rest.
 
     Attributes:
-        project_id: Reference to the project this secret belongs to
+        test_case_id: Reference to the test case this secret belongs to
         secret_name: Human-readable name/identifier for the secret
         secret_value: The actual secret value (should be encrypted)
     """
 
-    project_id: str
+    test_case_id: str
     secret_name: str
     secret_value: str
 
     @classmethod
-    def sample_factory_build(cls, project_id: str = CUID().generate()) -> "CreateSecretValue":
+    def sample_factory_build(cls, test_case_id: str = CUID().generate()) -> "CreateSecretValue":
         """
         Generate a sample CreateSecretValue instance for testing.
 
         Args:
-            project_id: Project ID that the secret belongs to
+            test_case_id: Test case ID that the secret belongs to
 
         Returns:
             CreateSecretValue: A sample secret value with fake data
@@ -54,7 +54,7 @@ class CreateSecretValue(CreationModel):
             secret_value = faker.password()
 
         element = CreateSecretValueFactory.build()
-        element.project_id = project_id
+        element.test_case_id = test_case_id
 
         return element
 

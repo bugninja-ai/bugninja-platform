@@ -32,6 +32,9 @@ globs: **/*.py, src/**/*.py, tests/**/*.py
 - Use `Protocol` for duck typing
 - Use `-> None` type hinting for functions with no return value
 
+## Database handling and migration
+- You are NOT allowed to generate migrations by hand, but you may remind the user to do the migrations using alembic functions
+
 ## Testing
 - Use pytest for testing framework
 - Use pytest-cov for coverage reporting

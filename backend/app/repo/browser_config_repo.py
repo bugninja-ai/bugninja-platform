@@ -12,10 +12,12 @@ from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.browser_config import BrowserConfig
+from app.db.test_traversal import TestTraversal
 from app.schemas.crud.browser_config import (
     CreateBrowserConfig,
     UpdateBrowserConfig,
 )
+from app.schemas.crud.test_traversal import CreateTestTraversal
 
 
 class BrowserConfigRepo:
@@ -28,7 +30,7 @@ class BrowserConfigRepo:
     @staticmethod
     def create(db: Session, browser_config_data: CreateBrowserConfig) -> BrowserConfig:
         """
-        Create a new browser configuration in the database.
+        Create a new browser configuration in the database and create a test traversal for it.
 
         Args:
             db: Database session
@@ -37,9 +39,17 @@ class BrowserConfigRepo:
         Returns:
             BrowserConfig: The created browser configuration instance
         """
+        # Lazy import to avoid circular dependency
+        from app.repo.test_case_repo import TestCaseRepo
+
+        # Get the test case to retrieve the project_id
+        test_case = TestCaseRepo.get_by_id(db, browser_config_data.test_case_id)
+        if not test_case:
+            raise ValueError(f"Test case with id {browser_config_data.test_case_id} not found")
+
         browser_config = BrowserConfig(
             id=CUID().generate(),
-            project_id=browser_config_data.project_id,
+            project_id=test_case.project_id,
             browser_config=browser_config_data.browser_config,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
@@ -47,6 +57,10 @@ class BrowserConfigRepo:
         db.add(browser_config)
         db.commit()
         db.refresh(browser_config)
+
+        # Create a test traversal for this browser config
+        BrowserConfigRepo._create_test_traversal_for_browser_config(db, browser_config)
+
         return browser_config
 
     @staticmethod
@@ -302,3 +316,154 @@ class BrowserConfigRepo:
             .limit(limit)
         )
         return db.exec(statement).all()
+
+    @staticmethod
+    def _create_test_traversal_for_browser_config(
+        db: Session, browser_config: BrowserConfig
+    ) -> Optional[TestTraversal]:
+        """
+        Create a test traversal for a browser configuration.
+
+        Args:
+            db: Database session
+            browser_config: The browser configuration to create a traversal for
+
+        Returns:
+            Optional[TestTraversal]: The created test traversal if successful, None otherwise
+        """
+        try:
+            # Lazy imports to avoid circular dependency
+            from app.repo.test_case_repo import TestCaseRepo
+            from app.repo.test_traversal_repo import TestTraversalRepo
+
+            # Get test cases for the same project
+            test_cases = TestCaseRepo.get_by_project_id(
+                db, browser_config.project_id, skip=0, limit=10
+            )
+
+            if not test_cases:
+                # No test cases available for this project, skip traversal creation
+                return None
+
+            # Use the first test case for the traversal
+            test_case = test_cases[0]
+
+            # Generate traversal name based on browser config and test case
+            browser_type = browser_config.browser_config.get("browser", "Unknown")
+            traversal_name = f"Traversal - {test_case.test_name} ({browser_type})"
+
+            # Create test traversal data
+            test_traversal_data = CreateTestTraversal(
+                test_case_id=test_case.id,
+                browser_config_id=browser_config.id,
+                traversal_name=traversal_name,
+            )
+
+            # Create the test traversal
+            test_traversal = TestTraversalRepo.create(db, test_traversal_data)
+
+            return test_traversal
+
+        except Exception as e:
+            # Log error but don't fail the browser config creation
+            print(
+                f"Warning: Failed to create test traversal for browser config {browser_config.id}: {e}"
+            )
+            return None
+
+    @staticmethod
+    def create_with_traversal(
+        db: Session, browser_config_data: CreateBrowserConfig
+    ) -> BrowserConfig:
+        """
+        Create a new browser configuration and automatically create a test traversal.
+
+        Args:
+            db: Database session
+            browser_config_data: Browser configuration creation data
+
+        Returns:
+            BrowserConfig: The created browser configuration instance
+        """
+        # Lazy import to avoid circular dependency
+        from app.repo.test_case_repo import TestCaseRepo
+
+        # Get the test case to retrieve the project_id
+        test_case = TestCaseRepo.get_by_id(db, browser_config_data.test_case_id)
+        if not test_case:
+            raise ValueError(f"Test case with id {browser_config_data.test_case_id} not found")
+
+        browser_config = BrowserConfig(
+            id=CUID().generate(),
+            project_id=test_case.project_id,
+            browser_config=browser_config_data.browser_config,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+        db.add(browser_config)
+        db.commit()
+        db.refresh(browser_config)
+
+        # Create a test traversal for this browser config using the specified test case
+        BrowserConfigRepo._create_test_traversal_with_specific_test_case(
+            db, browser_config, browser_config_data.test_case_id
+        )
+
+        return browser_config
+
+    @staticmethod
+    def _create_test_traversal_with_specific_test_case(
+        db: Session, browser_config: BrowserConfig, test_case_id: str
+    ) -> Optional[TestTraversal]:
+        """
+        Create a test traversal for a browser configuration with a specific test case.
+
+        Args:
+            db: Database session
+            browser_config: The browser configuration to create a traversal for
+            test_case_id: The specific test case ID to use
+
+        Returns:
+            Optional[TestTraversal]: The created test traversal if successful, None otherwise
+        """
+        try:
+            # Lazy imports to avoid circular dependency
+            from app.repo.test_case_repo import TestCaseRepo
+            from app.repo.test_traversal_repo import TestTraversalRepo
+
+            # Get the specific test case
+            test_case = TestCaseRepo.get_by_id(db, test_case_id)
+
+            if not test_case:
+                print(f"Warning: Test case {test_case_id} not found")
+                return None
+
+            # Verify the test case belongs to the same project
+            if test_case.project_id != browser_config.project_id:
+                print(
+                    f"Warning: Test case {test_case_id} does not belong to the same project as browser config"
+                )
+                return None
+
+            # Generate traversal name based on browser config and test case
+            browser_type = browser_config.browser_config.get("browser", "Unknown")
+            traversal_name = f"Traversal - {test_case.test_name} ({browser_type})"
+
+            # Create test traversal data
+            test_traversal_data = CreateTestTraversal(
+                test_case_id=test_case.id,
+                browser_config_id=browser_config.id,
+                traversal_name=traversal_name,
+            )
+
+            # Create the test traversal
+            test_traversal = TestTraversalRepo.create(db, test_traversal_data)
+
+            return test_traversal
+
+        except Exception as e:
+            # Log error but don't fail the browser config creation
+            print(
+                f"Warning: Failed to create test traversal for browser config {browser_config.id}: {e}"
+            )
+            return None

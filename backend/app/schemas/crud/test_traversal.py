@@ -249,7 +249,6 @@ class PaginatedResponseExtendedTestTraversal(PaginatedResponse[ExtendedResponseT
             ExtendedResponseTestTraversal.sample_factory_build(
                 project_id=CUID().generate(),
                 include_latest_run=True,
-                secret_count=2,
             )
             for _ in range(items_in_page)
         ]

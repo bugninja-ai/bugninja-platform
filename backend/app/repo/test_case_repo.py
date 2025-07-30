@@ -6,7 +6,7 @@ All methods work with the provided database session and use SQLModel table defin
 """
 
 from datetime import datetime, timezone
-from typing import List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
@@ -14,11 +14,13 @@ from sqlmodel import Session, col, select
 from app.db.browser_config import BrowserConfig
 from app.db.document import Document
 from app.db.secret_value import SecretValue
-from app.db.secret_value_test_traversal import SecretValueTestTraversal
+from app.db.secret_value_test_case import SecretValueTestCase
 from app.db.test_case import TestCase
 from app.db.test_case_browser_config import TestCaseBrowserConfig
+from app.db.test_run import RunState, TestRun
 from app.db.test_traversal import TestTraversal
-from app.repo.browser_config_repo import BrowserConfigRepo
+
+# BrowserConfigRepo is imported lazily to avoid circular dependency
 from app.repo.document_repo import DocumentRepo
 from app.repo.project_repo import ProjectRepo
 from app.repo.secret_value_repo import SecretValueRepo
@@ -373,7 +375,7 @@ class TestCaseRepo:
             int: Total number of test cases matching the filter
         """
         if project_id:
-            statement = select(TestCase.id).where(TestCase.project_id == project_id)
+            statement = select((TestCase.id)).where(TestCase.project_id == project_id)
         else:
             statement = select(TestCase.id)
 
@@ -463,7 +465,7 @@ class TestCaseRepo:
         # Get associated browser configs
         browser_configs = TestCaseRepo.get_browser_configs_by_test_case_id(db, test_case_id)
 
-        # Get associated secrets through test traversals
+        # Get associated secrets through test case association
         secrets = TestCaseRepo._get_secrets_by_test_case_id(db, test_case_id)
 
         # Calculate execution statistics
@@ -494,7 +496,7 @@ class TestCaseRepo:
     @staticmethod
     def _get_secrets_by_test_case_id(db: Session, test_case_id: str) -> List[ResponseSecretValue]:
         """
-        Retrieve all secrets associated with a test case through its test traversals.
+        Retrieve all secrets associated with a test case.
 
         Args:
             db: Database session
@@ -503,26 +505,14 @@ class TestCaseRepo:
         Returns:
             List[ResponseSecretValue]: List of secret values associated with the test case
         """
-        # Get all test traversals for this test case
-        traversal_statement = select(TestTraversal).where(
-            TestTraversal.test_case_id == test_case_id
-        )
-        test_traversals = db.exec(traversal_statement).all()
-
-        if not test_traversals:
-            return []
-
-        # Get all unique secret values associated with these traversals
-        traversal_ids = [traversal.id for traversal in test_traversals]
-
+        # Get all secret values associated with this test case
         secret_statement = (
             select(SecretValue)
-            .join(SecretValueTestTraversal)
+            .join(SecretValueTestCase)
             .where(
-                SecretValue.id == SecretValueTestTraversal.secret_value_id,
-                SecretValueTestTraversal.test_traversal_id.in_(traversal_ids),
+                SecretValue.id == SecretValueTestCase.secret_value_id,
+                SecretValueTestCase.test_case_id == test_case_id,
             )
-            .distinct()
         )
         secret_values = db.exec(secret_statement).all()
 
@@ -542,7 +532,7 @@ class TestCaseRepo:
         return response_secrets
 
     @staticmethod
-    def _calculate_execution_statistics(db: Session, test_case_id: str) -> dict:
+    def _calculate_execution_statistics(db: Session, test_case_id: str) -> Dict[str, Any]:
         """
         Calculate execution statistics for a test case.
 
@@ -553,7 +543,6 @@ class TestCaseRepo:
         Returns:
             dict: Dictionary containing execution statistics
         """
-        from app.db.test_run import TestRun, RunState
 
         # Get all test runs for this test case through test traversals
         test_runs_statement = (
@@ -655,6 +644,9 @@ class TestCaseRepo:
         if not browser_config_ids:
             return []
 
+        # Lazy import to avoid circular dependency
+        from app.repo.browser_config_repo import BrowserConfigRepo
+
         browser_configs = []
         for browser_config_id in browser_config_ids:
             browser_config = BrowserConfigRepo.get_by_id(db, browser_config_id)
@@ -728,18 +720,26 @@ class TestCaseRepo:
         secret_values: List[SecretValue],
     ) -> List[TestTraversal]:
         """
-        Create test traversals for each browser config and associate all secret values.
+        Create test traversals for each browser config and associate secret values with test case.
 
         Args:
             db: Database session
             test_case_id: Test case ID to create traversals for
             browser_configs: List of browser configs to create traversals for
-            secret_values: List of secret values to associate with each traversal
+            secret_values: List of secret values to associate with the test case
 
         Returns:
             List[TestTraversal]: List of created test traversals
         """
         test_traversals = []
+
+        # Associate all secret values with the test case
+        for secret_value in secret_values:
+            association = SecretValueTestCase(
+                test_case_id=test_case_id,
+                secret_value_id=secret_value.id,
+            )
+            db.add(association)
 
         for i, browser_config in enumerate(browser_configs):
             # Create test traversal
@@ -755,14 +755,6 @@ class TestCaseRepo:
 
             test_traversal = TestTraversalRepo.create(db, test_traversal_data)
             test_traversals.append(test_traversal)
-
-            # Associate all secret values with this traversal
-            for secret_value in secret_values:
-                association = SecretValueTestTraversal(
-                    secret_value_id=secret_value.id,
-                    test_traversal_id=test_traversal.id,
-                )
-                db.add(association)
 
         return test_traversals
 
@@ -809,6 +801,9 @@ class TestCaseRepo:
             test_case = TestCaseRepo.create(db, test_case_data)
 
             # Create new browser configs
+            # Lazy import to avoid circular dependency
+            from app.repo.browser_config_repo import BrowserConfigRepo
+
             created_browser_configs = []
             if test_case_data.new_browser_configs:
                 for browser_config_data in test_case_data.new_browser_configs:

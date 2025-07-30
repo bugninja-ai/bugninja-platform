@@ -15,7 +15,7 @@ It creates a complete hierarchy of entities with proper relationships:
 - 6 Cost records
 - 90-108 History Elements (one per action in test runs)
 - TestCase-BrowserConfig associations
-- SecretValue-TestTraversal associations
+- SecretValue-TestCase associations
 """
 
 import os
@@ -30,7 +30,7 @@ from app.db.brain_state import BrainState
 from app.db.browser_config import BrowserConfig
 from app.db.history_element import HistoryElementState
 from app.db.secret_value import SecretValue
-from app.db.secret_value_test_traversal import SecretValueTestTraversal
+from app.db.secret_value_test_case import SecretValueTestCase
 from app.db.test_case import TestCase, TestCasePriority
 from app.db.test_case_browser_config import TestCaseBrowserConfig
 from app.db.test_run import RunOrigin, RunState, RunType, TestRun
@@ -1017,38 +1017,6 @@ def upload_realistic_data() -> None:
                 rich_print(f"✓ Created document: {document.name}")
                 db.commit()
 
-                # Create 3 Browser Configs
-                browser_configs: List[BrowserConfig] = []
-                browser_config_data = create_realistic_browser_configs()
-                for i, config in enumerate(browser_config_data):
-                    browser_config = BrowserConfigRepo.create(
-                        db,
-                        CreateBrowserConfig(
-                            project_id=project.id, browser_config=config["browser_config"]
-                        ),
-                    )
-                    browser_configs.append(browser_config)
-                    rich_print(f"✓ Created browser config {i+1}: {config['name']}")
-                db.commit()
-
-                # Create 6 Secret Values
-                secret_values: List[SecretValue] = []
-                secret_data = create_realistic_secrets()
-                for i, secret in enumerate(secret_data):
-                    secret_value = SecretValueRepo.create(
-                        db,
-                        CreateSecretValue(
-                            project_id=project.id,
-                            secret_name=secret["secret_name"],
-                            secret_value=secret["secret_value"],
-                        ),
-                    )
-                    secret_values.append(secret_value)
-                    rich_print(f"✓ Created secret value {i+1}: {secret_value.secret_name}")
-
-                db.commit()
-                rich_print("✓ Committed Phase 1 entities")
-
                 # Phase 2: Test Cases
                 rich_print("Creating test cases...")
 
@@ -1133,6 +1101,60 @@ def upload_realistic_data() -> None:
 
                 db.commit()
 
+                # Create 3 Browser Configs
+                browser_configs: List[BrowserConfig] = []
+                browser_config_data = create_realistic_browser_configs()
+                for i, config in enumerate(browser_config_data):
+                    # Assign browser configs to specific test cases
+                    # Chrome for IMDB, Firefox for Amazon, Safari for Netflix/GitHub
+                    if i == 0:  # Chrome
+                        test_case_id = imdb_test_case.id
+                    elif i == 1:  # Firefox
+                        test_case_id = amazon_test_case.id
+                    else:  # Safari
+                        test_case_id = netflix_test_case.id
+
+                    browser_config = BrowserConfigRepo.create(
+                        db,
+                        CreateBrowserConfig(
+                            test_case_id=test_case_id, browser_config=config["browser_config"]
+                        ),
+                    )
+                    browser_configs.append(browser_config)
+                    rich_print(f"✓ Created browser config {i+1}: {config['name']}")
+                db.commit()
+
+                # Create 6 Secret Values
+                secret_values: List[SecretValue] = []
+                secret_data = create_realistic_secrets()
+                for i, secret in enumerate(secret_data):
+                    # Assign secrets to specific test cases based on the secret type
+                    if "IMDB" in secret["secret_name"]:
+                        test_case_id = imdb_test_case.id
+                    elif "AMAZON" in secret["secret_name"]:
+                        test_case_id = amazon_test_case.id
+                    elif "NETFLIX" in secret["secret_name"]:
+                        test_case_id = netflix_test_case.id
+                    elif "GITHUB" in secret["secret_name"]:
+                        test_case_id = github_test_case.id
+                    else:
+                        # Default to first test case if no match
+                        test_case_id = test_cases[0].id
+
+                    secret_value = SecretValueRepo.create(
+                        db,
+                        CreateSecretValue(
+                            test_case_id=test_case_id,
+                            secret_name=secret["secret_name"],
+                            secret_value=secret["secret_value"],
+                        ),
+                    )
+                    secret_values.append(secret_value)
+                    rich_print(f"✓ Created secret value {i+1}: {secret_value.secret_name}")
+
+                db.commit()
+                rich_print("✓ Committed Phase 2 entities")
+
                 # Create TestCase-BrowserConfig associations
                 rich_print("Creating test case - browser config associations...")
                 for test_case in test_cases:
@@ -1168,47 +1190,43 @@ def upload_realistic_data() -> None:
 
                 db.commit()
 
-                # Link secret values to traversals
-                rich_print("Linking secret values to traversals...")
-                for traversal in traversals:
+                # Link secret values to test cases
+                rich_print("Linking secret values to test cases...")
+                for test_case in test_cases:
                     # Link relevant secrets based on test case
-                    if "IMDB" in traversal.traversal_name:
+                    if "IMDB" in test_case.test_name:
                         # Link IMDB API key
-                        link = SecretValueTestTraversal(
-                            secret_value_id=secret_values[0].id, test_traversal_id=traversal.id
+                        link = SecretValueTestCase(
+                            secret_value_id=secret_values[0].id, test_case_id=test_case.id
                         )
                         db.add(link)
-                        rich_print(
-                            f"✓ Linked IMDB API key to traversal: {traversal.traversal_name}"
-                        )
-                    elif "Amazon" in traversal.traversal_name:
+                        rich_print(f"✓ Linked IMDB API key to test case: {test_case.test_name}")
+                    elif "Amazon" in test_case.test_name:
                         # Link Amazon credentials
                         for secret in secret_values[1:4]:  # Amazon email, password, payment info
-                            link = SecretValueTestTraversal(
-                                secret_value_id=secret.id, test_traversal_id=traversal.id
+                            link = SecretValueTestCase(
+                                secret_value_id=secret.id, test_case_id=test_case.id
                             )
                             db.add(link)
                         rich_print(
-                            f"✓ Linked Amazon credentials to traversal: {traversal.traversal_name}"
+                            f"✓ Linked Amazon credentials to test case: {test_case.test_name}"
                         )
-                    elif "Netflix" in traversal.traversal_name:
+                    elif "Netflix" in test_case.test_name:
                         # Link Netflix credentials
-                        link = SecretValueTestTraversal(
-                            secret_value_id=secret_values[4].id, test_traversal_id=traversal.id
+                        link = SecretValueTestCase(
+                            secret_value_id=secret_values[4].id, test_case_id=test_case.id
                         )
                         db.add(link)
                         rich_print(
-                            f"✓ Linked Netflix credentials to traversal: {traversal.traversal_name}"
+                            f"✓ Linked Netflix credentials to test case: {test_case.test_name}"
                         )
                     else:  # GitHub
                         # Link GitHub token
-                        link = SecretValueTestTraversal(
-                            secret_value_id=secret_values[5].id, test_traversal_id=traversal.id
+                        link = SecretValueTestCase(
+                            secret_value_id=secret_values[5].id, test_case_id=test_case.id
                         )
                         db.add(link)
-                        rich_print(
-                            f"✓ Linked GitHub token to traversal: {traversal.traversal_name}"
-                        )
+                        rich_print(f"✓ Linked GitHub token to test case: {test_case.test_name}")
 
                 db.commit()
                 rich_print("✓ Committed Phase 3 entities")
@@ -1474,7 +1492,7 @@ def upload_realistic_data() -> None:
                 rich_print("   • 12 Cost Records")
                 rich_print(f"   • {history_count} History Elements")
                 rich_print("   • 12 TestCase-BrowserConfig associations")
-                rich_print("   • SecretValue-TestTraversal associations")
+                rich_print("   • SecretValue-TestCase associations")
 
             else:
                 rich_print(

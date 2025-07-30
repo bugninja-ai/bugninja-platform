@@ -26,17 +26,20 @@ class CreateBrowserConfig(CreationModel):
     reusable across different test cases.
 
     Attributes:
-        project_id: Reference to the project this browser config belongs to
+        test_case_id: Reference to the test case this browser config belongs to
         browser_config: Dictionary containing browser-specific configuration settings
     """
 
-    project_id: str
+    test_case_id: str
     browser_config: Dict[str, Any]
 
     @classmethod
-    def sample_factory_build(cls, project_id: str = CUID().generate()) -> "CreateBrowserConfig":
+    def sample_factory_build(cls, test_case_id: str = CUID().generate()) -> "CreateBrowserConfig":
         """
         Generate a sample CreateBrowserConfig instance for testing.
+
+        Args:
+            test_case_id: Test case ID that the browser config belongs to
 
         Returns:
             CreateBrowserConfig: A sample browser config with fake data
@@ -49,7 +52,7 @@ class CreateBrowserConfig(CreationModel):
             browser_config = generate_browser_config_data(faker, "default")
 
         element = CreateBrowserConfigFactory.build()
-        element.project_id = project_id
+        element.test_case_id = test_case_id
 
         return element
 
@@ -98,6 +101,7 @@ class ResponseBrowserConfig(BaseModel):
 
     Attributes:
         id: Unique browser config identifier
+        project_id: Reference to the project this browser config belongs to
         created_at: Timestamp when browser config was created
         updated_at: Timestamp when browser config was last updated
         browser_config: Browser-specific configuration settings
@@ -118,6 +122,7 @@ class ResponseBrowserConfig(BaseModel):
 
         Args:
             id: Browser config ID to use in the sample
+            project_id: Project ID that the browser config belongs to
 
         Returns:
             ResponseBrowserConfig: A sample response browser config with fake data

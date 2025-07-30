@@ -12,8 +12,6 @@ from sqlmodel import Field, Relationship
 from app.db.base import TimestampedModel
 from app.db.brain_state import BrainState
 from app.db.browser_config import BrowserConfig
-from app.db.secret_value import SecretValue
-from app.db.secret_value_test_traversal import SecretValueTestTraversal
 from app.db.test_run import TestRun
 
 
@@ -42,4 +40,3 @@ class TestTraversal(TimestampedModel, table=True):
 
     brain_states: List["BrainState"] = Relationship(cascade_delete=True)
     test_runs: List["TestRun"] = Relationship(cascade_delete=True)
-    secret_values: List["SecretValue"] = Relationship(link_model=SecretValueTestTraversal)
