@@ -25,7 +25,7 @@ from rich import print as rich_print
 from app.db.base import QuinoContextManager
 from app.db.browser_config import BrowserConfig
 from app.db.secret_value import SecretValue
-from app.db.secret_value_test_traversal import SecretValueTestTraversal
+from app.db.secret_value_test_case import SecretValueTestCase
 from app.db.test_case import TestCase
 from app.db.test_case_browser_config import TestCaseBrowserConfig
 from app.db.test_traversal import TestTraversal
@@ -88,29 +88,6 @@ def upload_fake_data() -> None:
                 rich_print(f"✓ Created document: {document.name}")
                 db.commit()
 
-                # Create 3 Browser Configs
-                browser_configs: List[BrowserConfig] = []
-                for i in range(3):
-                    browser_config = BrowserConfigRepo.create(
-                        db, CreateBrowserConfig.sample_factory_build(project.id)
-                    )
-                    browser_configs.append(browser_config)
-                    rich_print(f"✓ Created browser config {i+1}")
-                db.commit()
-
-                # Create 5 Secret Values
-                secret_values: List[SecretValue] = []
-                for i in range(5):
-                    secret_value = SecretValueRepo.create(
-                        db, CreateSecretValue.sample_factory_build(project.id)
-                    )
-                    secret_values.append(secret_value)
-                    rich_print(f"✓ Created secret value {i+1}: {secret_value.secret_name}")
-
-                # Commit Phase 1 to ensure IDs are available
-                db.commit()
-                rich_print("✓ Committed Phase 1 entities")
-
                 # Phase 2: Test Cases
                 rich_print("Creating test cases...")
 
@@ -125,6 +102,31 @@ def upload_fake_data() -> None:
                     rich_print(f"✓ Created test case {i+1}: {test_case.test_name}")
 
                 db.commit()
+
+                # Create 3 Browser Configs
+                browser_configs: List[BrowserConfig] = []
+                for i in range(3):
+                    browser_config = BrowserConfigRepo.create(
+                        db, CreateBrowserConfig.sample_factory_build(test_cases[i].id)
+                    )
+                    browser_configs.append(browser_config)
+                    rich_print(f"✓ Created browser config {i+1}")
+                db.commit()
+
+                # Create 5 Secret Values
+                secret_values: List[SecretValue] = []
+                for i in range(5):
+                    # Assign secrets to test cases in a round-robin fashion
+                    test_case_id = test_cases[i % len(test_cases)].id
+                    secret_value = SecretValueRepo.create(
+                        db, CreateSecretValue.sample_factory_build(test_case_id)
+                    )
+                    secret_values.append(secret_value)
+                    rich_print(f"✓ Created secret value {i+1}: {secret_value.secret_name}")
+
+                # Commit Phase 1 to ensure IDs are available
+                db.commit()
+                rich_print("✓ Committed Phase 1 entities")
                 # Create TestCase-BrowserConfig associations (many-to-many)
                 rich_print("Creating test case - browser config associations...")
                 for test_case in test_cases:
@@ -158,16 +160,16 @@ def upload_fake_data() -> None:
                         )
 
                 db.commit()
-                # Link first 2 traversals to all 5 secret values
-                rich_print("Linking secret values to traversals...")
-                for i, traversal in enumerate(traversals[:2]):
+                # Link first 2 test cases to all 5 secret values
+                rich_print("Linking secret values to test cases...")
+                for i, test_case in enumerate(test_cases[:2]):
                     for secret_value in secret_values:
-                        link = SecretValueTestTraversal(
-                            secret_value_id=secret_value.id, test_traversal_id=traversal.id
+                        link = SecretValueTestCase(
+                            secret_value_id=secret_value.id, test_case_id=test_case.id
                         )
                         db.add(link)
                         rich_print(
-                            f"✓ Linked secret '{secret_value.secret_name}' to traversal {i+1}"
+                            f"✓ Linked secret '{secret_value.secret_name}' to test case {i+1}"
                         )
 
                 # Commit Phase 3
@@ -248,7 +250,7 @@ def upload_fake_data() -> None:
                 rich_print("   • 1 Test Run")
                 rich_print("   • 1 Cost Record")
                 rich_print("   • 9 History Elements")
-                rich_print("   • 2 Traversals linked to all 5 Secret Values")
+                rich_print("   • 2 Test Cases linked to all 5 Secret Values")
                 rich_print("   • 9 TestCase-BrowserConfig associations")
             else:
                 rich_print(

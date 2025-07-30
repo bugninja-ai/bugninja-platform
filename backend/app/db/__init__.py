@@ -14,7 +14,7 @@ from app.db.document import Document
 from app.db.history_element import HistoryElement
 from app.db.project import Project
 from app.db.secret_value import SecretValue
-from app.db.secret_value_test_traversal import SecretValueTestTraversal
+from app.db.secret_value_test_case import SecretValueTestCase
 from app.db.test_case import TestCase
 from app.db.test_case_browser_config import TestCaseBrowserConfig
 from app.db.test_run import TestRun
@@ -30,7 +30,7 @@ __all__ = [
     "HistoryElement",
     "Project",
     "SecretValue",
-    "SecretValueTestTraversal",
+    "SecretValueTestCase",
     "TestCase",
     "TestCaseBrowserConfig",
     "TestRun",

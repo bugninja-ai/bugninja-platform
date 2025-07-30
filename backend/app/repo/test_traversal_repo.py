@@ -12,13 +12,10 @@ from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
 from app.db.browser_config import BrowserConfig
-from app.db.secret_value import SecretValue
-from app.db.secret_value_test_traversal import SecretValueTestTraversal
 from app.db.test_run import TestRun
 from app.db.test_traversal import TestTraversal
 from app.schemas.communication.test_traversal import (
     ExtendedResponseTestTraversal,
-    LightResponseSecretValue,
     LightResponseTestRun,
 )
 from app.schemas.crud.browser_config import ResponseBrowserConfig
@@ -422,34 +419,13 @@ class TestTraversalRepo:
                 finished_at=latest_run.finished_at,
             )
 
-        # Get associated secret values through the many-to-many relationship
-
-        secret_values_statement = (
-            select(SecretValue)
-            .join(SecretValueTestTraversal)
-            .where(
-                SecretValue.id == SecretValueTestTraversal.secret_value_id,
-                SecretValueTestTraversal.test_traversal_id == test_traversal_id,
-            )
-        )
-        secret_values = db.exec(secret_values_statement).all()
-
-        # Convert secret values to LightResponseSecretValue
-        light_secret_values = [
-            LightResponseSecretValue(
-                id=sv.id,
-                secret_name=sv.secret_name,
-            )
-            for sv in secret_values
-        ]
-
         return ExtendedResponseTestTraversal(
             id=test_traversal.id,
             created_at=test_traversal.created_at,
+            updated_at=test_traversal.updated_at,
             traversal_name=test_traversal.traversal_name,
             browser_config=response_browser_config,
             latest_run=light_latest_run,
-            attached_secret_values=light_secret_values,
         )
 
     @staticmethod

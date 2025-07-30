@@ -5,9 +5,16 @@ from sqlmodel import Session
 
 from app.api.v1.endpoints.utils import COMMON_ERROR_RESPONSES, create_success_response
 from app.db.base import get_db
-from app.repo.project_repo import ProjectRepo
 from app.repo.secret_value_repo import SecretValueRepo
-from app.schemas.crud.secret_value import CreateSecretValue, ResponseSecretValue
+from app.repo.test_case_repo import TestCaseRepo
+from app.schemas.crud.secret_value import (
+    BulkCreateSecretValueRequest,
+    BulkCreateSecretValueResponse,
+    BulkUpdateSecretValueRequest,
+    BulkUpdateSecretValueResponse,
+    CreateSecretValue,
+    ResponseSecretValue,
+)
 
 secret_values_router = APIRouter(prefix="/secret-values", tags=["Secret Values"])
 
@@ -31,15 +38,17 @@ async def create_secret_value(
     Create a new secret value with the specified name and value.
 
     This endpoint creates a new secret value in the system and returns the created secret value instance.
-    The secret value will be associated with a specific project and should be encrypted at rest.
+    The secret value will be associated with a specific test case and should be encrypted at rest.
     """
     try:
-        # Validate that the referenced project exists
-        project = ProjectRepo.get_by_id(db=db_session, project_id=secret_value_data.project_id)
-        if not project:
+        # Validate that the referenced test case exists
+        test_case = TestCaseRepo.get_by_id(
+            db=db_session, test_case_id=secret_value_data.test_case_id
+        )
+        if not test_case:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Project with id {secret_value_data.project_id} not found",
+                detail=f"Test case with id {secret_value_data.test_case_id} not found",
             )
 
         created_secret_value = SecretValueRepo.create(
@@ -59,6 +68,172 @@ async def create_secret_value(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create secret value: {str(e)}",
+        )
+
+
+@secret_values_router.post(
+    "/bulk",
+    response_model=BulkCreateSecretValueResponse,
+    summary="Bulk Create Secret Values",
+    description="Create multiple secret values",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        201: create_success_response(
+            "Secret values created successfully", BulkCreateSecretValueResponse
+        ),
+        **COMMON_ERROR_RESPONSES,
+    },
+)
+async def bulk_create_secret_values(
+    request_data: BulkCreateSecretValueRequest,
+    db_session: Session = Depends(get_db),
+) -> BulkCreateSecretValueResponse:
+    """
+    Create multiple secret values.
+
+    This endpoint creates multiple secret values in a single operation.
+    The endpoint handles partial failures gracefully and returns detailed
+    information about successful and failed creations.
+
+    Args:
+        request_data: Bulk creation request containing secret values
+        db_session: Database session
+
+    Returns:
+        BulkCreateSecretValueResponse: Response with created entities and error details
+    """
+    try:
+        # Validate that all secret values reference valid test cases
+        test_case_ids = set()
+        for secret_value in request_data.secret_values:
+            test_case_ids.add(secret_value.test_case_id)
+
+        # Validate all test cases exist and belong to the same project
+        test_cases = {}
+        project_id = None
+        for test_case_id in test_case_ids:
+            test_case = TestCaseRepo.get_by_id(db=db_session, test_case_id=test_case_id)
+            if not test_case:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Test case with id {test_case_id} not found",
+                )
+            test_cases[test_case_id] = test_case
+
+            # Ensure all test cases belong to the same project
+            if project_id is None:
+                project_id = test_case.project_id
+            elif test_case.project_id != project_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"All secret values must belong to the same project. Expected {project_id}, got {test_case.project_id}",
+                )
+
+        # Perform bulk creation
+        created_secret_values, failed_creations = SecretValueRepo.bulk_create(
+            db=db_session, secret_values_data=request_data.secret_values
+        )
+
+        # Convert to response models
+        response_secret_values = [
+            ResponseSecretValue(
+                id=sv.id,
+                project_id=sv.project_id,
+                created_at=sv.created_at,
+                updated_at=sv.updated_at,
+                secret_name=sv.secret_name,
+                secret_value=sv.secret_value,
+            )
+            for sv in created_secret_values
+        ]
+
+        return BulkCreateSecretValueResponse(
+            created_secret_values=response_secret_values,
+            total_created=len(created_secret_values),
+            failed_creations=failed_creations,
+        )
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Validation error: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create secret values: {str(e)}",
+        )
+
+
+@secret_values_router.put(
+    "/bulk",
+    response_model=BulkUpdateSecretValueResponse,
+    summary="Bulk Update Secret Values",
+    description="Update multiple secret values",
+    responses={
+        200: create_success_response(
+            "Secret values updated successfully", BulkUpdateSecretValueResponse
+        ),
+        **COMMON_ERROR_RESPONSES,
+    },
+)
+async def bulk_update_secret_values(
+    request_data: BulkUpdateSecretValueRequest,
+    db_session: Session = Depends(get_db),
+) -> BulkUpdateSecretValueResponse:
+    """
+    Update multiple secret values.
+
+    This endpoint updates multiple secret values in a single operation.
+    The endpoint handles partial failures gracefully and returns detailed
+    information about successful and failed updates.
+
+    Args:
+        request_data: Bulk update request containing secret value updates
+        db_session: Database session
+
+    Returns:
+        BulkUpdateSecretValueResponse: Response with updated entities and error details
+    """
+    try:
+        # Perform bulk update
+        updated_secret_values, failed_updates = SecretValueRepo.bulk_update(
+            db=db_session,
+            secret_values_data=request_data.secret_values,
+        )
+
+        # Convert to response models
+        response_secret_values = [
+            ResponseSecretValue(
+                id=sv.id,
+                project_id=sv.project_id,
+                created_at=sv.created_at,
+                updated_at=sv.updated_at,
+                secret_name=sv.secret_name,
+                secret_value=sv.secret_value,
+            )
+            for sv in updated_secret_values
+        ]
+
+        return BulkUpdateSecretValueResponse(
+            updated_secret_values=response_secret_values,
+            total_updated=len(updated_secret_values),
+            failed_updates=failed_updates,
+        )
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Validation error: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update secret values: {str(e)}",
         )
 
 

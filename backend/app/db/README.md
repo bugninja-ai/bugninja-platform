@@ -45,7 +45,7 @@ The SQLModel library combines SQLAlchemy and Pydantic, providing:
 
 - **`SecretValue`**: Sensitive configuration data (API keys, passwords)
 - **`TestCaseBrowserConfig`**: Many-to-many relationship between test cases and browser configs
-- **`SecretValueTestTraversal`**: Many-to-many relationship between secrets and test traversals
+- **`SecretValueTestCase`**: Many-to-many relationship between secrets and test cases
 
 ## Enumeration System
 

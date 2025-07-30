@@ -70,6 +70,7 @@ async def create_test_traversal(
             test_case_id=created_test_traversal.test_case_id,
             browser_config_id=created_test_traversal.browser_config_id,
             created_at=created_test_traversal.created_at,
+            updated_at=created_test_traversal.updated_at,
             traversal_name=created_test_traversal.traversal_name,
         )
     except HTTPException:
@@ -270,6 +271,7 @@ async def update_test_traversal(
             test_case_id=updated_test_traversal.test_case_id,
             browser_config_id=updated_test_traversal.browser_config_id,
             created_at=updated_test_traversal.created_at,
+            updated_at=updated_test_traversal.updated_at,
             traversal_name=updated_test_traversal.traversal_name,
         )
     except HTTPException:
@@ -326,6 +328,7 @@ async def delete_test_traversal(
             test_case_id=test_traversal.test_case_id,
             browser_config_id=test_traversal.browser_config_id,
             created_at=test_traversal.created_at,
+            updated_at=test_traversal.updated_at,
             traversal_name=test_traversal.traversal_name,
         )
     except HTTPException:

@@ -13,7 +13,6 @@ from .project import (
 from .test_case import ExtendedResponseTestcase
 from .test_traversal import (
     ExtendedResponseTestTraversal,
-    LightResponseSecretValue,
     LightResponseTestRun,
 )
 
@@ -26,6 +25,5 @@ __all__ = [
     "ExtendedResponseTestcase",
     # Test traversal communication schemas
     "ExtendedResponseTestTraversal",
-    "LightResponseSecretValue",
     "LightResponseTestRun",
 ]

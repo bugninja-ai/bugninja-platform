@@ -26,7 +26,6 @@ from app.schemas.communication.project import (
 from app.schemas.communication.test_case import ExtendedResponseTestcase
 from app.schemas.communication.test_traversal import (
     ExtendedResponseTestTraversal,
-    LightResponseSecretValue,
     LightResponseTestRun,
 )
 
@@ -50,6 +49,5 @@ __all__ = [
     "ResponseSecretsOfProject",
     "ExtendedResponseTestcase",
     "ExtendedResponseTestTraversal",
-    "LightResponseSecretValue",
     "LightResponseTestRun",
 ]

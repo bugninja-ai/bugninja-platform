@@ -14,7 +14,8 @@ from sqlmodel import Field, Relationship
 
 from app.db.base import TimestampedModel
 from app.db.document import Document
-from app.db.test_run import TestRun
+from app.db.secret_value import SecretValue
+from app.db.secret_value_test_case import SecretValueTestCase
 from app.db.test_traversal import TestTraversal
 
 
@@ -62,3 +63,4 @@ class TestCase(TimestampedModel, table=True):
     # Relationships
     document: "Document" = Relationship()
     test_traversals: List["TestTraversal"] = Relationship(cascade_delete=True)
+    secret_values: List["SecretValue"] = Relationship(link_model=SecretValueTestCase)

@@ -15,47 +15,7 @@ from rich import print as rich_print
 
 from app.schemas.crud.base import faker
 from app.schemas.crud.browser_config import ResponseBrowserConfig
-from app.schemas.crud.secret_value import ResponseSecretValue
 from app.schemas.crud.test_run import RunState
-
-
-class LightResponseSecretValue(BaseModel):
-    """
-    Lightweight secret value response for test traversal communication.
-
-    Contains essential secret value information without sensitive details,
-    used when listing secrets within test traversal responses.
-
-    Attributes:
-        id: Unique secret value identifier
-        secret_name: Human-readable name/identifier for the secret
-    """
-
-    id: str
-    secret_name: str
-
-    @classmethod
-    def sample_factory_build(cls, id: str = CUID().generate()) -> "LightResponseSecretValue":
-        """
-        Generate a sample LightResponseSecretValue instance for testing.
-
-        Args:
-            id: Secret value ID to use in the sample
-
-        Returns:
-            LightResponseSecretValue: A sample lightweight secret value with fake data
-        """
-
-        class LightResponseSecretValueFactory(ModelFactory[LightResponseSecretValue]):
-            __model__ = LightResponseSecretValue
-            __faker__ = faker
-
-            secret_name = faker.word()
-
-        element = LightResponseSecretValueFactory.build()
-        element.id = id
-
-        return element
 
 
 class LightResponseTestRun(BaseModel):
@@ -103,25 +63,24 @@ class ExtendedResponseTestTraversal(BaseModel):
     """
     Extended test traversal response with comprehensive details.
 
-    Contains full test traversal information including browser configuration,
-    latest run details, and associated secret values. Used for comprehensive
-    test traversal data retrieval.
+    Contains full test traversal information including browser configuration
+    and latest run details. Used for comprehensive test traversal data retrieval.
 
     Attributes:
         id: Unique test traversal identifier
         created_at: Timestamp when traversal was created
+        updated_at: Timestamp when traversal was last updated
         traversal_name: Human-readable name for the test traversal
         browser_config: Full browser configuration details
         latest_run: Lightweight information about the most recent test run
-        attached_secret_values: List of lightweight secret values associated with this traversal
     """
 
     id: str
     created_at: datetime
+    updated_at: datetime
     traversal_name: str
     browser_config: ResponseBrowserConfig
     latest_run: Optional[LightResponseTestRun]
-    attached_secret_values: List[LightResponseSecretValue]
 
     @classmethod
     def sample_factory_build(
@@ -129,7 +88,6 @@ class ExtendedResponseTestTraversal(BaseModel):
         id: str = CUID().generate(),
         project_id: str = CUID().generate(),
         include_latest_run: bool = True,
-        secret_count: int = 2,
     ) -> "ExtendedResponseTestTraversal":
         """
         Generate a sample ExtendedResponseTestTraversal instance for testing.
@@ -138,7 +96,6 @@ class ExtendedResponseTestTraversal(BaseModel):
             id: Test traversal ID to use in the sample
             project_id: Project ID to use for browser config
             include_latest_run: Whether to include a sample latest run
-            secret_count: Number of secret values to generate
 
         Returns:
             ExtendedResponseTestTraversal: A sample extended test traversal response with fake data
@@ -152,6 +109,7 @@ class ExtendedResponseTestTraversal(BaseModel):
 
         element = ExtendedResponseTestTraversalFactory.build()
         element.id = id
+        element.updated_at = element.created_at  # Set updated_at to same as created_at for samples
 
         # Generate browser config
         element.browser_config = ResponseBrowserConfig.sample_factory_build(project_id=project_id)
@@ -162,20 +120,12 @@ class ExtendedResponseTestTraversal(BaseModel):
         else:
             element.latest_run = None
 
-        # Generate secret values
-        element.attached_secret_values = [
-            LightResponseSecretValue.sample_factory_build() for _ in range(secret_count)
-        ]
-
         return element
 
 
 if __name__ == "__main__":
     # Demo: Generate and display sample communication schemas
-    rich_print("=== LightResponseSecretValue Sample ===")
-    rich_print(LightResponseSecretValue.sample_factory_build())
-
-    rich_print("\n=== LightResponseTestRun Sample ===")
+    rich_print("=== LightResponseTestRun Sample ===")
     rich_print(LightResponseTestRun.sample_factory_build())
 
     rich_print("\n=== ExtendedResponseTestTraversal Sample (with latest run) ===")

@@ -246,9 +246,9 @@ def delete_all_data(force: bool = False) -> None:
             result = db.exec(text("DELETE FROM testcasebrowserconfig"))
             rich_print(f"✓ Deleted {result.rowcount} test case - browser config associations")
 
-            # Delete SecretValueTestTraversal associations using direct SQL
-            result = db.exec(text("DELETE FROM secretvaluetesttraversal"))
-            rich_print(f"✓ Deleted {result.rowcount} secret value - test traversal associations")
+            # Delete SecretValueTestCase associations using direct SQL
+            result = db.exec(text("DELETE FROM secretvaluetestcase"))
+            rich_print(f"✓ Deleted {result.rowcount} secret value - test case associations")
 
             # 7. Delete Test Cases (depends on Project and Document)
             rich_print("Deleting test cases...")
