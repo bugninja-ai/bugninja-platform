@@ -69,6 +69,7 @@ class ExtendedResponseTestTraversal(BaseModel):
     Attributes:
         id: Unique test traversal identifier
         created_at: Timestamp when traversal was created
+        updated_at: Timestamp when traversal was last updated
         traversal_name: Human-readable name for the test traversal
         browser_config: Full browser configuration details
         latest_run: Lightweight information about the most recent test run
@@ -76,6 +77,7 @@ class ExtendedResponseTestTraversal(BaseModel):
 
     id: str
     created_at: datetime
+    updated_at: datetime
     traversal_name: str
     browser_config: ResponseBrowserConfig
     latest_run: Optional[LightResponseTestRun]
@@ -107,6 +109,7 @@ class ExtendedResponseTestTraversal(BaseModel):
 
         element = ExtendedResponseTestTraversalFactory.build()
         element.id = id
+        element.updated_at = element.created_at  # Set updated_at to same as created_at for samples
 
         # Generate browser config
         element.browser_config = ResponseBrowserConfig.sample_factory_build(project_id=project_id)

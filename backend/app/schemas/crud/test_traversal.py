@@ -108,10 +108,10 @@ class ResponseTestTraversal(BaseModel):
 
     Attributes:
         id: Unique test traversal identifier
-        project_id: Reference to the project this traversal belongs to
         test_case_id: Reference to the test case being executed
         browser_config_id: Reference to the browser configuration being used
         created_at: Timestamp when traversal was created
+        updated_at: Timestamp when traversal was last updated
         traversal_name: Human-readable name for the test traversal
     """
 
@@ -119,6 +119,7 @@ class ResponseTestTraversal(BaseModel):
     test_case_id: str
     browser_config_id: str
     created_at: datetime
+    updated_at: datetime
     traversal_name: str
 
     @classmethod

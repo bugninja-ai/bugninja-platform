@@ -7,7 +7,14 @@ from app.api.v1.endpoints.utils import COMMON_ERROR_RESPONSES, create_success_re
 from app.db.base import get_db
 from app.repo.browser_config_repo import BrowserConfigRepo
 from app.repo.test_case_repo import TestCaseRepo
-from app.schemas.crud.browser_config import CreateBrowserConfig, ResponseBrowserConfig
+from app.schemas.crud.browser_config import (
+    BulkCreateBrowserConfigRequest,
+    BulkCreateBrowserConfigResponse,
+    BulkUpdateBrowserConfigRequest,
+    BulkUpdateBrowserConfigResponse,
+    CreateBrowserConfig,
+    ResponseBrowserConfig,
+)
 
 browser_configs_router = APIRouter(prefix="/browser-configs", tags=["Browser Configurations"])
 
@@ -63,6 +70,146 @@ async def create_browser_config_and_traversal(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create browser configuration: {str(e)}",
+        )
+
+
+@browser_configs_router.post(
+    "/bulk",
+    response_model=BulkCreateBrowserConfigResponse,
+    summary="Bulk Create Browser Configurations",
+    description="Create multiple browser configurations with test traversals",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        201: create_success_response(
+            "Browser configurations created successfully", BulkCreateBrowserConfigResponse
+        ),
+        **COMMON_ERROR_RESPONSES,
+    },
+)
+async def bulk_create_browser_configs(
+    request_data: BulkCreateBrowserConfigRequest,
+    db_session: Session = Depends(get_db),
+) -> BulkCreateBrowserConfigResponse:
+    """
+    Create multiple browser configurations with test traversals.
+
+    This endpoint creates multiple browser configurations and automatically
+    creates test traversals for each one using the test case ID specified
+    in each browser config. The endpoint handles partial failures gracefully
+    and returns detailed information about successful and failed creations.
+
+    Args:
+        request_data: Bulk creation request containing browser configs
+        db_session: Database session
+
+    Returns:
+        BulkCreateBrowserConfigResponse: Response with created entities and error details
+    """
+    try:
+        # Perform bulk creation
+        created_browser_configs, failed_creations = BrowserConfigRepo.bulk_create_with_traversals(
+            db=db_session,
+            browser_configs_data=request_data.browser_configs,
+        )
+
+        # Convert to response models
+        response_browser_configs = [
+            ResponseBrowserConfig(
+                id=bc.id,
+                project_id=bc.project_id,
+                created_at=bc.created_at,
+                updated_at=bc.updated_at,
+                browser_config=bc.browser_config,
+            )
+            for bc in created_browser_configs
+        ]
+
+        return BulkCreateBrowserConfigResponse(
+            created_browser_configs=response_browser_configs,
+            total_created=len(created_browser_configs),
+            failed_creations=failed_creations,
+        )
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Validation error: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create browser configurations: {str(e)}",
+        )
+
+
+@browser_configs_router.put(
+    "/bulk",
+    response_model=BulkUpdateBrowserConfigResponse,
+    summary="Bulk Update Browser Configurations",
+    description="Update multiple browser configurations",
+    responses={
+        200: create_success_response(
+            "Browser configurations updated successfully", BulkUpdateBrowserConfigResponse
+        ),
+        **COMMON_ERROR_RESPONSES,
+    },
+)
+async def bulk_update_browser_configs(
+    request_data: BulkUpdateBrowserConfigRequest,
+    db_session: Session = Depends(get_db),
+) -> BulkUpdateBrowserConfigResponse:
+    """
+    Update multiple browser configurations.
+
+    This endpoint updates multiple browser configurations in a single operation.
+    The endpoint handles partial failures gracefully and returns detailed
+    information about successful and failed updates.
+
+    Args:
+        request_data: Bulk update request containing browser config updates
+        db_session: Database session
+
+    Returns:
+        BulkUpdateBrowserConfigResponse: Response with updated entities and error details
+    """
+    try:
+        # Perform bulk update
+        updated_browser_configs, failed_updates = BrowserConfigRepo.bulk_update(
+            db=db_session,
+            browser_configs_data=request_data.browser_configs,
+        )
+
+        # Convert to response models
+        response_browser_configs = [
+            ResponseBrowserConfig(
+                id=bc.id,
+                project_id=bc.project_id,
+                created_at=bc.created_at,
+                updated_at=bc.updated_at,
+                browser_config=bc.browser_config,
+            )
+            for bc in updated_browser_configs
+        ]
+
+        return BulkUpdateBrowserConfigResponse(
+            updated_browser_configs=response_browser_configs,
+            total_updated=len(updated_browser_configs),
+            failed_updates=failed_updates,
+        )
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Validation error: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update browser configurations: {str(e)}",
         )
 
 

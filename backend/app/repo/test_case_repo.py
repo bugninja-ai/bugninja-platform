@@ -910,6 +910,7 @@ class TestCaseRepo:
                     test_case_id=tt.test_case_id,
                     browser_config_id=tt.browser_config_id,
                     created_at=tt.created_at,
+                    updated_at=tt.updated_at,
                     traversal_name=tt.traversal_name,
                 )
                 for tt in created_test_traversals

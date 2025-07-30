@@ -422,6 +422,7 @@ class TestTraversalRepo:
         return ExtendedResponseTestTraversal(
             id=test_traversal.id,
             created_at=test_traversal.created_at,
+            updated_at=test_traversal.updated_at,
             traversal_name=test_traversal.traversal_name,
             browser_config=response_browser_config,
             latest_run=light_latest_run,
