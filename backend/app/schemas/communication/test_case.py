@@ -60,7 +60,7 @@ class ExtendedResponseTestcase(BaseModel):
     test_name: str
     test_description: str
     test_goal: str
-    extra_rules: str
+    extra_rules: List[str]
     url_routes: str
     allowed_domains: List[str]
     priority: TestCasePriority
@@ -100,7 +100,7 @@ class ExtendedResponseTestcase(BaseModel):
             test_name = faker.catch_phrase()
             test_description = faker.paragraph(nb_sentences=3)
             test_goal = faker.sentence()
-            extra_rules = faker.paragraph(nb_sentences=2)
+            extra_rules = [faker.sentence() for _ in range(faker.random_int(min=1, max=3))]
             url_routes = faker.url()
             allowed_domains = [faker.domain_name() for _ in range(3)]
             priority = faker.random_element(

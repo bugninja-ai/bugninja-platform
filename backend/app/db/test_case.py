@@ -54,7 +54,7 @@ class TestCase(TimestampedModel, table=True):
     test_name: str = Field(max_length=255, nullable=False)
     test_description: str = Field(nullable=False)
     test_goal: str = Field(nullable=False)
-    extra_rules: str = Field(nullable=False)
+    extra_rules: List[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
     url_route: str = Field(max_length=500, nullable=False)
     allowed_domains: List[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
     priority: TestCasePriority = Field(default=TestCasePriority.MEDIUM, nullable=False)

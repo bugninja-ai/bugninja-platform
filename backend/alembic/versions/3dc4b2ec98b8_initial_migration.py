@@ -168,7 +168,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("test_goal", AutoString(), nullable=False),
-        sa.Column("extra_rules", AutoString(), nullable=False),
+        sa.Column("extra_rules", postgresql.ARRAY(sa.String()), nullable=True),
         sa.Column(
             "url_route",
             AutoString(length=500),

@@ -50,7 +50,7 @@ class CreateTestCase(CreationModel):
     test_name: str
     test_description: str
     test_goal: str
-    extra_rules: str
+    extra_rules: List[str]
     url_route: str
     allowed_domains: List[str]
     priority: TestCasePriority
@@ -90,7 +90,7 @@ class CreateTestCase(CreationModel):
             test_name = faker.user_name()
             test_description = faker.paragraph()
             test_goal = faker.paragraph()
-            extra_rules = faker.sentence()
+            extra_rules = [faker.sentence() for _ in range(faker.random_int(min=1, max=3))]
             url_route = faker.url()
             allowed_domains = [faker.url() for _ in range(3)]
             priority = faker.random_element(
@@ -134,7 +134,7 @@ class UpdateTestCase(UpdateModel):
     test_name: Optional[str] = None
     test_description: Optional[str] = None
     test_goal: Optional[str] = None
-    extra_rules: Optional[str] = None
+    extra_rules: Optional[List[str]] = None
     url_route: Optional[str] = None
     allowed_domains: Optional[List[str]] = None
     priority: Optional[TestCasePriority] = None
@@ -156,7 +156,7 @@ class UpdateTestCase(UpdateModel):
             test_name = faker.user_name()
             test_description = faker.paragraph()
             test_goal = faker.paragraph()
-            extra_rules = faker.sentence()
+            extra_rules = [faker.sentence() for _ in range(faker.random_int(min=1, max=3))]
             url_route = faker.url()
             allowed_domains = [faker.url() for _ in range(3)]
             priority = faker.random_element(
@@ -207,7 +207,7 @@ class ResponseTestCase(BaseModel):
     test_name: str
     test_description: str
     test_goal: str
-    extra_rules: str
+    extra_rules: List[str]
     url_route: str
     allowed_domains: List[str]
     priority: TestCasePriority
@@ -239,7 +239,7 @@ class ResponseTestCase(BaseModel):
             test_name = faker.user_name()
             test_description = faker.paragraph()
             test_goal = faker.paragraph()
-            extra_rules = faker.sentence()
+            extra_rules = [faker.sentence() for _ in range(faker.random_int(min=1, max=3))]
             url_route = faker.url()
             allowed_domains = [faker.url() for _ in range(3)]
             priority = faker.random_element(
