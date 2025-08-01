@@ -182,9 +182,9 @@ const TestCases: React.FC = () => {
       case 'failed':
         return <XCircle className="w-4 h-4 text-red-500" />;
       case 'pending':
-        return <Clock className="w-4 h-4 text-blue-500" />;
+        return <Clock className="w-4 h-4 text-amber-500" />;
       default:
-        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
+        return <AlertCircle className="w-4 h-4 text-amber-500" />;
     }
   };
 
@@ -198,6 +198,20 @@ const TestCases: React.FC = () => {
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'low':
         return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'passed':
+      case 'finished':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'failed':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'pending':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -236,7 +250,7 @@ const TestCases: React.FC = () => {
           className="mt-4 sm:mt-0 inline-flex items-center px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
         >
           <Plus className="w-5 h-5 mr-2" />
-          Create Test Case
+          Create test case
         </Link>
       </div>
 
@@ -370,7 +384,7 @@ const TestCases: React.FC = () => {
               className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
-              Try Again
+              Try again
             </button>
           </div>
         ) : !testCases || testCases.length === 0 ? (
@@ -383,7 +397,7 @@ const TestCases: React.FC = () => {
               className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Create Test Case
+              Create test case
             </Link>
           </div>
         ) : (
@@ -402,12 +416,16 @@ const TestCases: React.FC = () => {
                   <div className="flex items-center space-x-3 mb-2">
                     <h3 className="text-lg font-semibold text-gray-800">{testCase.title}</h3>
                     <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">{testCase.code}</span>
-                    <span className={`text-xs font-medium px-2 py-1 rounded-lg border ${getPriorityColor(testCase.priority)}`}>
-                      {testCase.priority}
+                    <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full border ${getPriorityColor(testCase.priority)}`}>
+                      {testCase.priority.charAt(0).toUpperCase() + testCase.priority.slice(1)}
+                    </span>
+                    <span className={`inline-flex items-center space-x-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${getStatusColor(testCase.status)}`}>
+                      {getStatusIcon(testCase.status)}
+                      <span>{testCase.status.charAt(0).toUpperCase() + testCase.status.slice(1)}</span>
                     </span>
                   </div>
                   
-                  <p className="text-gray-600 mb-4">{testCase.goal}</p>
+                  <p className="text-gray-600 mb-4">{testCase.description}</p>
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-500">
                     <div className="flex items-center space-x-1">
@@ -424,41 +442,27 @@ const TestCases: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-1">
                       <span className="text-gray-400">Category:</span>
-                      <span className="text-gray-600 font-medium">{testCase.category}</span>
+                      <span className="text-gray-600 font-medium">{testCase.category.charAt(0).toUpperCase() + testCase.category.slice(1)}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3 ml-4">
-                  <div className="flex items-center space-x-2">
-                    {getStatusIcon(testCase.status)}
-                    <span className={`text-sm font-medium ${
-                      testCase.status === 'passed' ? 'text-emerald-600' :
-                      testCase.status === 'failed' ? 'text-red-600' :
-                      testCase.status === 'pending' ? 'text-blue-600' :
-                      'text-yellow-600'
-                    }`}>
-                      {testCase.status.charAt(0).toUpperCase() + testCase.status.slice(1)}
-                    </span>
-                  </div>
+                <div className="flex items-center space-x-2 ml-4">
+                  <Link
+                    to={`/test-details/${testCase.id}`}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                  >
+                    <FileText className="w-4 h-4 mr-1" />
+                    View details
+                  </Link>
                   
-                  <div className="flex items-center space-x-2">
-                    <Link
-                      to={`/test-details/${testCase.id}`}
-                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
-                    >
-                      <FileText className="w-4 h-4 mr-1" />
-                      View Details
-                    </Link>
-                    
-                    <Link
-                      to={`/history/${testCase.id}`}
-                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
-                    >
-                      <Play className="w-4 h-4 mr-1" />
-                      Run Test
-                    </Link>
-                  </div>
+                  <Link
+                    to={`/runs/${testCase.id}`}
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                  >
+                    <Play className="w-4 h-4 mr-1" />
+                    Run test
+                  </Link>
                 </div>
               </div>
             </div>

@@ -42,7 +42,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigation = [
     { name: 'Test cases', href: '/', icon: FileText },
     { name: 'Create test', href: '/create', icon: Upload },
-    { name: 'Test runs', href: '/history', icon: History },
+    { name: 'Test runs', href: '/runs', icon: History },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
@@ -53,7 +53,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path === '/' && location.pathname.startsWith('/test-details/')) return true;
     
     // Handle test run detail pages - show Test runs as active  
-    if (path === '/history' && location.pathname.startsWith('/history/')) return true;
+    if (path === '/runs' && location.pathname.startsWith('/runs/')) return true;
     
     return location.pathname === path;
   };

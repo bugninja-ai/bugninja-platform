@@ -14,9 +14,11 @@ import {
   Loader2,
   RefreshCw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ArrowUp,
+  ArrowDown,
+  X
 } from 'lucide-react';
-import { TestRun } from '../types';
 import { CustomDropdown } from '../components/CustomDropdown';
 import { useTestRuns } from '../hooks/useTestRuns';
 
@@ -132,9 +134,11 @@ const Pagination: React.FC<PaginationProps> = ({
   );
 };
 
-const TestHistory: React.FC = () => {
+const TestRuns: React.FC = () => {
   // Dropdown states
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [testCaseDropdownOpen, setTestCaseDropdownOpen] = useState(false);
+  const [browserDropdownOpen, setBrowserDropdownOpen] = useState(false);
 
   // Use the test runs hook
   const {
@@ -151,33 +155,110 @@ const TestHistory: React.FC = () => {
     setPage,
     setSearch,
     setStatus,
+    setSortOrder,
+    setTestCaseId,
     filters
   } = useTestRuns({
-    pageSize: 15
+    pageSize: 10
   });
 
-  // testRuns are already filtered by the hook
-  const filteredRuns = testRuns || [];
+  // Browser filtering state
+  const [selectedBrowserId, setSelectedBrowserId] = useState<string | undefined>();
+
+  // Apply client-side browser filtering (since backend doesn't support it)
+  const filteredRuns = (testRuns || []).filter(run => {
+    if (!selectedBrowserId) return true;
+    const browserConfig = run.browser_config || run.browserConfig;
+    return browserConfig?.id === selectedBrowserId;
+  });
+
+  // Calculate pagination for filtered results when browser filtering is applied
+  const isBrowserFiltered = selectedBrowserId !== undefined;
+  const currentPageSize = pageSize;
+  const filteredTotalCount = filteredRuns.length;
+  const filteredTotalPages = Math.ceil(filteredTotalCount / currentPageSize);
+  const filteredCurrentPage = isBrowserFiltered ? 1 : page; // Reset to page 1 when filtering
+  const filteredHasNext = isBrowserFiltered ? filteredCurrentPage < filteredTotalPages : hasNext;
+  const filteredHasPrevious = isBrowserFiltered ? filteredCurrentPage > 1 : hasPrevious;
+
+  // Use filtered pagination values when browser filtering is active
+  const effectivePage = isBrowserFiltered ? filteredCurrentPage : page;
+  const effectiveTotalPages = isBrowserFiltered ? filteredTotalPages : totalPages;
+  const effectiveHasNext = isBrowserFiltered ? filteredHasNext : hasNext;
+  const effectiveHasPrevious = isBrowserFiltered ? filteredHasPrevious : hasPrevious;
+
+  // Apply pagination to filtered results when browser filtering is active
+  const paginatedFilteredRuns = isBrowserFiltered 
+    ? filteredRuns.slice((filteredCurrentPage - 1) * currentPageSize, filteredCurrentPage * currentPageSize)
+    : filteredRuns;
+
+  // Generate dropdown options from current data
+  const testCaseOptions = React.useMemo(() => {
+    if (!testRuns) return [];
+    const testCaseMap = new Map<string, string>();
+    testRuns.forEach(run => {
+      const testCaseId = run.test_case?.id || run.testCase?.id;
+      const testCaseName = run.test_case?.test_name || run.testCase?.title;
+      if (testCaseId && testCaseName) {
+        testCaseMap.set(testCaseId, testCaseName);
+      }
+    });
+    return Array.from(testCaseMap.entries()).map(([id, name]) => ({ id, name }));
+  }, [testRuns]);
+
+  const browserOptions = React.useMemo(() => {
+    if (!testRuns) return [];
+    const browserConfigMap = new Map<string, string>();
+    testRuns.forEach(run => {
+      const browserConfig = run.browser_config || run.browserConfig;
+      if (browserConfig) {
+        const browserId = browserConfig.id;
+        const userAgent = browserConfig.browser_config?.user_agent || browserConfig.userAgent;
+        const viewport = browserConfig.browser_config?.viewport || browserConfig.viewport;
+        let browserName = 'Unknown Browser';
+        
+        if (userAgent) {
+          if (userAgent.includes('Chrome')) browserName = 'Chrome';
+          else if (userAgent.includes('Firefox')) browserName = 'Firefox';
+          else if (userAgent.includes('Safari')) browserName = 'Safari';
+          else if (userAgent.includes('Edge')) browserName = 'Edge';
+        }
+        
+        if (viewport) {
+          browserName += ` (${viewport.width}x${viewport.height})`;
+        }
+        
+        if (browserId) {
+          browserConfigMap.set(browserId, browserName);
+        }
+      }
+    });
+    return Array.from(browserConfigMap.entries()).map(([id, name]) => ({ id, name }));
+  }, [testRuns]);
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'passed':
+    switch (status.toLowerCase()) {
+      case 'finished':
         return <CheckCircle className="w-4 h-4 text-emerald-500" />;
       case 'failed':
         return <XCircle className="w-4 h-4 text-red-500" />;
+      case 'pending':
+        return <Clock className="w-4 h-4 text-amber-500" />;
       default:
-        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
+        return <AlertCircle className="w-4 h-4 text-amber-500" />;
     }
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'passed':
-        return 'text-emerald-600 bg-emerald-50 border-emerald-200';
+    switch (status.toLowerCase()) {
+      case 'finished':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'failed':
-        return 'text-red-600 bg-red-50 border-red-200';
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'pending':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
       default:
-        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -192,19 +273,58 @@ const TestHistory: React.FC = () => {
   };
 
   const getBrowserInfo = (run: any) => {
-    // For API data, we'll get browser info from the run itself
+    // Extract browser info from browser_config
+    const browserConfig = run.browser_config?.browser_config;
+    const userAgent = browserConfig?.user_agent || '';
+    const viewport = browserConfig?.viewport || { width: 0, height: 0 };
+    
+    // Determine browser name from user agent
+    let browserName = 'Unknown Browser';
+    if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) {
+      browserName = 'Safari';
+    } else if (userAgent.includes('Chrome')) {
+      browserName = 'Chrome';
+    } else if (userAgent.includes('Firefox')) {
+      browserName = 'Firefox';
+    } else if (userAgent.includes('Edge')) {
+      browserName = 'Edge';
+    }
+    
+    const resolution = viewport.width > 0 && viewport.height > 0 
+      ? `${viewport.width}x${viewport.height}` 
+      : 'Unknown resolution';
+    
     return {
-      name: run.browser || 'Unknown Browser',
-      resolution: run.resolution || 'Unknown resolution'
+      name: browserName,
+      resolution: resolution
     };
   };
 
   const statusOptions = [
     { value: 'all', label: 'All statuses' },
-    { value: 'passed', label: 'Passed' },
-    { value: 'failed', label: 'Failed' },
-    { value: 'pending', label: 'Pending' },
+    { value: 'FINISHED', label: 'Finished' },
+    { value: 'FAILED', label: 'Failed' },
+    { value: 'PENDING', label: 'Pending' },
   ];
+
+  // Format options for dropdowns
+  const testCaseDropdownOptions = [
+    { value: 'all', label: 'All test cases' },
+    ...testCaseOptions.map(testCase => ({
+      value: testCase.id,
+      label: testCase.name
+    }))
+  ];
+
+  const browserDropdownOptions = [
+    { value: 'all', label: 'All browsers' },
+    ...browserOptions.map(browserConfig => ({
+      value: browserConfig.id,
+      label: browserConfig.name
+    }))
+  ];
+
+
 
 
 
@@ -217,7 +337,11 @@ const TestHistory: React.FC = () => {
           <p className="mt-1 text-gray-600">View and analyze past test run results</p>
         </div>
         <div className="mt-4 sm:mt-0 text-sm text-gray-500">
-          Showing {((page - 1) * pageSize) + 1}-{Math.min(page * pageSize, totalCount)} of {totalCount} test runs
+          {isBrowserFiltered ? (
+            `Showing ${paginatedFilteredRuns.length} of ${filteredTotalCount} filtered test runs`
+          ) : (
+            `Showing ${((page - 1) * pageSize) + 1}-${Math.min(page * pageSize, totalCount)} of ${totalCount} test runs`
+          )}
         </div>
       </div>
 
@@ -227,14 +351,18 @@ const TestHistory: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total runs</p>
-              <p className="text-3xl font-bold text-gray-800">{totalCount}</p>
+              <p className="text-3xl font-bold text-gray-800">
+                {isBrowserFiltered ? filteredTotalCount : totalCount}
+              </p>
             </div>
             <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
               <Play className="w-6 h-6 text-indigo-600" />
             </div>
           </div>
           <div className="mt-4 flex items-center text-sm">
-            <span className="text-indigo-600 font-medium">Last 30 days</span>
+            <span className="text-indigo-600 font-medium">
+              {isBrowserFiltered ? 'Filtered results' : 'Last 30 days'}
+            </span>
           </div>
         </div>
 
@@ -243,9 +371,12 @@ const TestHistory: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Success rate</p>
               <p className="text-3xl font-bold text-emerald-600">
-                {testRuns && testRuns.length > 0 
-                  ? Math.round((testRuns.filter(r => r.status === 'passed').length / testRuns.length) * 100)
-                  : 0}%
+                {(() => {
+                  const runsToCheck = isBrowserFiltered ? filteredRuns : testRuns;
+                  return runsToCheck && runsToCheck.length > 0 
+                    ? Math.round((runsToCheck.filter(r => r.current_state === 'FINISHED').length / runsToCheck.length) * 100)
+                    : 0;
+                })()}%
               </p>
             </div>
             <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
@@ -263,9 +394,12 @@ const TestHistory: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Avg duration</p>
               <p className="text-3xl font-bold text-blue-600">
-                {testRuns && testRuns.length > 0 
-                  ? formatDuration(testRuns.reduce((acc: number, run: any) => acc + (run.duration || 0), 0) / testRuns.length)
-                  : '0s'}
+                {(() => {
+                  const runsToCheck = isBrowserFiltered ? filteredRuns : testRuns;
+                  return runsToCheck && runsToCheck.length > 0 
+                    ? formatDuration(runsToCheck.reduce((acc: number, run: any) => acc + (run.duration || 0), 0) / runsToCheck.length)
+                    : '0s';
+                })()}
               </p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -282,7 +416,7 @@ const TestHistory: React.FC = () => {
       <div className="bg-white rounded-lg p-6 border border-gray-200">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
           <div className="flex items-center space-x-2">
-            <Filter className="w-5 h-5 text-gray-500" />
+            <Filter className="w-5 h-5 text-gray-400" />
             <span className="font-medium text-gray-800">Filter test runs</span>
           </div>
           
@@ -299,6 +433,42 @@ const TestHistory: React.FC = () => {
               />
             </div>
 
+            {/* Sort by Date Toggle */}
+            <button
+              onClick={() => setSortOrder(filters.sortOrder === 'desc' ? 'asc' : 'desc')}
+              className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              title={`Sort by date ${filters.sortOrder === 'desc' ? 'ascending' : 'descending'}`}
+            >
+              <Calendar className="w-4 h-4 text-gray-400" />
+              {filters.sortOrder === 'desc' ? (
+                <ArrowDown className="w-3 h-3 ml-1 text-gray-500" />
+              ) : (
+                <ArrowUp className="w-3 h-3 ml-1 text-gray-500" />
+              )}
+            </button>
+
+            {/* Test Case Filter */}
+            <CustomDropdown
+              options={testCaseDropdownOptions}
+              value={filters.testCaseId || 'all'}
+              onChange={(value) => setTestCaseId(value === 'all' ? undefined : value)}
+              isOpen={testCaseDropdownOpen}
+              setIsOpen={setTestCaseDropdownOpen}
+              placeholder="All test cases"
+              dropdownClassName="!left-0 !right-auto w-72"
+            />
+
+            {/* Browser/Viewport Filter */}
+            <CustomDropdown
+              options={browserDropdownOptions}
+              value={selectedBrowserId || 'all'}
+              onChange={(value) => setSelectedBrowserId(value === 'all' ? undefined : value)}
+              isOpen={browserDropdownOpen}
+              setIsOpen={setBrowserDropdownOpen}
+              placeholder="All browsers"
+              dropdownClassName="!left-0 !right-auto w-56"
+            />
+
             {/* Status Filter */}
             <CustomDropdown
               options={statusOptions}
@@ -308,6 +478,22 @@ const TestHistory: React.FC = () => {
               setIsOpen={setStatusDropdownOpen}
               placeholder="All statuses"
             />
+
+            {/* Remove All Filters Button */}
+            {(filters.search || filters.status || filters.testCaseId || selectedBrowserId) && (
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setStatus(undefined);
+                  setTestCaseId(undefined);
+                  setSelectedBrowserId(undefined);
+                }}
+                className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                title="Clear all filters"
+              >
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -321,7 +507,7 @@ const TestHistory: React.FC = () => {
           </div>
         ) : testRunsError ? (
           <div className="bg-white rounded-lg p-8 border border-gray-200 text-center">
-            <AlertCircle className="w-8 h-8 mx-auto mb-4 text-red-500" />
+            <AlertCircle className="w-8 h-8 mx-auto mb-4 text-gray-400" />
             <p className="text-red-600 mb-4">{testRunsError}</p>
             <button
               onClick={() => refetch()}
@@ -331,7 +517,7 @@ const TestHistory: React.FC = () => {
               Try Again
             </button>
           </div>
-        ) : filteredRuns.length === 0 ? (
+        ) : paginatedFilteredRuns.length === 0 ? (
           <div className="bg-white rounded-lg p-12 border border-gray-200 text-center">
             <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
               <Clock className="w-8 h-8 text-gray-400" />
@@ -347,13 +533,30 @@ const TestHistory: React.FC = () => {
           </div>
         ) : (
           <>
-            {filteredRuns.map((run: any) => {
+            {paginatedFilteredRuns.map((run: any) => {
               const browserInfo = getBrowserInfo(run);
               const startedAt = new Date(run.started_at || run.startedAt || run.created_at);
-              const duration = run.duration || 0;
+              
+              // Calculate duration from start/finish times if available
+              let duration = run.duration || 0;
+              if (run.finished_at && run.started_at && duration === 0) {
+                duration = (new Date(run.finished_at).getTime() - new Date(run.started_at).getTime()) / 1000;
+              }
+              
               const passedSteps = run.passed_steps || run.passedSteps || 0;
               const failedSteps = run.failed_steps || run.failedSteps || 0;
               const totalSteps = run.total_steps || run.totalSteps || passedSteps + failedSteps;
+              
+              // Map backend status to frontend status
+              const statusMap: { [key: string]: string } = {
+                'PASSED': 'finished',
+                'FAILED': 'failed',
+                'PENDING': 'pending',
+                'RUNNING': 'pending',
+                'FINISHED': 'finished',
+                'ERROR': 'failed'
+              };
+              const mappedStatus = statusMap[run.current_state] || 'pending';
               
               return (
                 <div key={run.id} className="bg-white rounded-lg p-6 border border-gray-200 hover:border-gray-300 transition-colors">
@@ -361,14 +564,14 @@ const TestHistory: React.FC = () => {
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
                         <h3 className="text-lg font-semibold text-gray-800">
-                          {run.test_case?.test_name || run.testCase?.title || 'Unknown Test Case'}
+                          {run.test_case?.test_name || run.testCase?.title || `Test Run - ${run.id?.slice(-8)}`}
                         </h3>
                         <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">
-                          {run.test_case?.id?.slice(-8) || run.id?.slice(-8) || 'N/A'}
+                          {run.id || 'N/A'}
                         </span>
-                        <span className={`inline-flex items-center text-xs font-medium px-2 py-1 rounded-lg border ${getStatusColor(run.status)}`}>
-                          {getStatusIcon(run.status)}
-                          <span className="ml-1">{run.status?.charAt(0).toUpperCase() + run.status?.slice(1) || 'Unknown'}</span>
+                        <span className={`inline-flex items-center space-x-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${getStatusColor(mappedStatus)}`}>
+                          {getStatusIcon(mappedStatus)}
+                          <span>{mappedStatus?.charAt(0).toUpperCase() + mappedStatus?.slice(1)}</span>
                         </span>
                       </div>
                       
@@ -409,14 +612,14 @@ const TestHistory: React.FC = () => {
                         )}
                         <div className="flex items-center space-x-1">
                           <span className="text-gray-400">Environment:</span>
-                          <span className="text-gray-600 font-medium">{run.environment || 'Production'}</span>
+                          <span className="text-gray-600 font-medium">{run.origin === 'CI/CD' ? 'Production' : 'Development'}</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-3 ml-4">
                       <Link
-                        to={`/history/${run.id}`}
+                        to={`/runs/${run.id}`}
                         className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
                       >
                         <Eye className="w-4 h-4 mr-1" />
@@ -430,11 +633,11 @@ const TestHistory: React.FC = () => {
 
             {/* Pagination */}
             <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              onPageChange={setPage}
-              hasNext={hasNext}
-              hasPrevious={hasPrevious}
+              currentPage={effectivePage}
+              totalPages={effectiveTotalPages}
+              onPageChange={isBrowserFiltered ? () => {} : setPage} // Disable pagination when browser filtering
+              hasNext={effectiveHasNext}
+              hasPrevious={effectiveHasPrevious}
             />
           </>
         )}
@@ -443,4 +646,4 @@ const TestHistory: React.FC = () => {
   );
 };
 
-export default TestHistory; 
+export default TestRuns; 

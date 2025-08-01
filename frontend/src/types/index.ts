@@ -225,7 +225,11 @@ export interface BackendTestCase {
   test_name: string;
   test_description: string;
   test_goal: string;
-  extra_rules: string;
+  extra_rules: string[] | {
+    id: string;
+    rule_number: number;
+    description: string;
+  }[];
   url_routes: string;
   allowed_domains: string[];
   priority: 'low' | 'medium' | 'high' | 'critical';

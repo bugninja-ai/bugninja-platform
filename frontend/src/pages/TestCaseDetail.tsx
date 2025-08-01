@@ -23,10 +23,13 @@ import {
   Trash2,
   History,
   Play,
+  PlaySquare,
+  User,
+  Computer,
   Loader2,
   RefreshCw
 } from 'lucide-react';
-import { FrontendTestCase, TestCategory } from '../types';
+import { FrontendTestCase, TestCategory, TestPriority } from '../types';
 import { TestCaseService } from '../services/testCaseService';
 import { CustomDropdown } from '../components/CustomDropdown';
 import { BASE_DOMAIN } from '../services/api';
@@ -53,6 +56,7 @@ const TestCaseDetail: React.FC = () => {
   const [userAgentDropdowns, setUserAgentDropdowns] = useState<Record<string, boolean>>({});
   const [viewportDropdowns, setViewportDropdowns] = useState<Record<string, boolean>>({});
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [priorityDropdownOpen, setPriorityDropdownOpen] = useState(false);
   
   // Editable values
   const [editableTestCase, setEditableTestCase] = useState<FrontendTestCase | null>(null);
@@ -99,6 +103,14 @@ const TestCaseDetail: React.FC = () => {
     { value: 'security', label: 'Security' },
     { value: 'ui', label: 'UI' },
     { value: 'api', label: 'API' }
+  ];
+
+  // Priority options for dropdown
+  const priorityOptions = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'critical', label: 'Critical' },
   ];
 
   const loadTestCase = async (testCaseId: string) => {
@@ -190,6 +202,7 @@ const TestCaseDetail: React.FC = () => {
       setTestCase(editableTestCase);
       setEditingBasicInfo(false);
       setCategoryDropdownOpen(false);
+      setPriorityDropdownOpen(false);
     } catch (error) {
       console.error('Failed to save basic information:', error);
     }
@@ -199,6 +212,7 @@ const TestCaseDetail: React.FC = () => {
     setEditableTestCase({ ...testCase! });
     setEditingBasicInfo(false);
     setCategoryDropdownOpen(false);
+    setPriorityDropdownOpen(false);
   };
 
   const handleEditRules = () => {
@@ -302,6 +316,20 @@ const TestCaseDetail: React.FC = () => {
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'passed':
+      case 'finished':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'failed':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'pending':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     const normalizedStatus = status.toLowerCase();
     switch (normalizedStatus) {
@@ -311,9 +339,9 @@ const TestCaseDetail: React.FC = () => {
       case 'failed':
         return <X className="w-4 h-4 text-red-500" />;
       case 'pending':
-        return <Clock className="w-4 h-4 text-yellow-500" />;
+        return <Clock className="w-4 h-4 text-amber-500" />;
       default:
-        return <Clock className="w-4 h-4 text-yellow-500" />;
+        return <Clock className="w-4 h-4 text-amber-500" />;
     }
   };
 
@@ -341,13 +369,13 @@ const TestCaseDetail: React.FC = () => {
               className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
-              Try Again
+              Try again
             </button>
             <Link
               to="/"
               className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
             >
-              Back to Test Cases
+              Back to test cases
             </Link>
           </div>
         </div>
@@ -366,7 +394,7 @@ const TestCaseDetail: React.FC = () => {
             to="/"
             className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
           >
-            Back to Test Cases
+            Back to test cases
           </Link>
         </div>
       </div>
@@ -381,29 +409,23 @@ const TestCaseDetail: React.FC = () => {
           <div className="flex items-center space-x-3 mb-2">
             <h1 className="text-3xl font-bold text-gray-800">{testCase.title}</h1>
             <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">{testCase.code}</span>
-            <span className={`text-xs font-medium px-2 py-1 rounded-lg border ${getPriorityColor(testCase.priority)}`}>
-              {testCase.priority}
+            <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full border ${getPriorityColor(testCase.priority)}`}>
+              {testCase.priority.charAt(0).toUpperCase() + testCase.priority.slice(1)}
             </span>
-            <div className="flex items-center space-x-1">
+            <span className={`inline-flex items-center space-x-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${getStatusColor(testCase.status)}`}>
               {getStatusIcon(testCase.status)}
-              <span className={`text-sm font-medium ${
-                testCase.status === 'passed' ? 'text-emerald-600' :
-                testCase.status === 'failed' ? 'text-red-600' :
-                'text-yellow-600'
-              }`}>
-                {testCase.status.charAt(0).toUpperCase() + testCase.status.slice(1)}
-              </span>
-            </div>
+              <span>{testCase.status.charAt(0).toUpperCase() + testCase.status.slice(1)}</span>
+            </span>
           </div>
           <p className="text-gray-600 mb-4">{testCase.description}</p>
         </div>
 
         <Link
           to="/"
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+          className="inline-flex items-center px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Test Cases
+          Back to test cases
         </Link>
       </div>
 
@@ -419,14 +441,14 @@ const TestCaseDetail: React.FC = () => {
               <>
                 <button
                   onClick={handleSaveGoal}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
                 >
                   <Save className="w-4 h-4 mr-1" />
                   Save
                 </button>
                 <button
                   onClick={handleCancelGoal}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   <X className="w-4 h-4 mr-1" />
                   Cancel
@@ -457,7 +479,7 @@ const TestCaseDetail: React.FC = () => {
       </div>
 
       {/* Basic Information */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200" style={{ position: 'relative', zIndex: editingBasicInfo && categoryDropdownOpen ? 1000 : 'auto' }}>
+      <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200" style={{ position: 'relative', zIndex: editingBasicInfo && (categoryDropdownOpen || priorityDropdownOpen) ? 1000 : 'auto' }}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-800">Basic information</h2>
           <div className="flex items-center space-x-2">
@@ -465,14 +487,14 @@ const TestCaseDetail: React.FC = () => {
               <>
                 <button
                   onClick={handleSaveBasicInfo}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
                 >
                   <Save className="w-4 h-4 mr-1" />
                   Save
                 </button>
                 <button
                   onClick={handleCancelBasicInfo}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   <X className="w-4 h-4 mr-1" />
                   Cancel
@@ -525,6 +547,25 @@ const TestCaseDetail: React.FC = () => {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+            {editingBasicInfo ? (
+              <CustomDropdown
+                options={priorityOptions}
+                value={editableTestCase?.priority || ''}
+                onChange={(value) => setEditableTestCase(prev => prev ? { ...prev, priority: value as TestPriority } : null)}
+                isOpen={priorityDropdownOpen}
+                setIsOpen={setPriorityDropdownOpen}
+                placeholder="Select Priority"
+                fullWidth={true}
+              />
+            ) : (
+              <div className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 capitalize">
+                {testCase.priority}
+              </div>
+            )}
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Created</label>
             <div className="flex items-center space-x-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-800">
               <Calendar className="w-4 h-4 text-gray-400" />
@@ -558,14 +599,14 @@ const TestCaseDetail: React.FC = () => {
               <>
                 <button
                   onClick={handleSaveConfig}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
                 >
                   <Save className="w-4 h-4 mr-1" />
                   Save
                 </button>
                 <button
                   onClick={handleCancelConfig}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   <X className="w-4 h-4 mr-1" />
                   Cancel
@@ -620,10 +661,10 @@ const TestCaseDetail: React.FC = () => {
                         });
                       }
                     }}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
                   >
                     <Plus className="w-4 h-4 mr-1" />
-                    Add Domain
+                    Add domain
                   </button>
               )}
             </div>
@@ -699,21 +740,21 @@ const TestCaseDetail: React.FC = () => {
                         });
                       }
                     }}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
                   >
                     <Plus className="w-4 h-4 mr-1" />
-                    Add Rule
+                    Add rule
                   </button>
                   <button
                     onClick={handleSaveRules}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
                   >
                     <Save className="w-4 h-4 mr-1" />
                     Save
                   </button>
                   <button
                     onClick={handleCancelRules}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                   >
                     <X className="w-4 h-4 mr-1" />
                     Cancel
@@ -818,18 +859,18 @@ const TestCaseDetail: React.FC = () => {
                   className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
                 >
                   <Plus className="w-4 h-4 mr-1" />
-                  Add Config
+                  Add config
                 </button>
                 <button
                   onClick={handleSaveBrowsers}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
                 >
                   <Save className="w-4 h-4 mr-1" />
                   Save
                 </button>
                 <button
                   onClick={handleCancelBrowsers}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   <X className="w-4 h-4 mr-1" />
                   Cancel
@@ -853,7 +894,7 @@ const TestCaseDetail: React.FC = () => {
               <div key={config.id} className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-2">
-                    <Monitor className="w-5 h-5 text-gray-600" />
+                    <Monitor className="w-5 h-5 text-gray-400" />
                     <input
                       type="text"
                       value={config.name}
@@ -1086,7 +1127,7 @@ const TestCaseDetail: React.FC = () => {
             testCase.browserConfigs.map((config) => (
             <div key={config.id} className="border border-gray-200 rounded-lg p-4">
               <div className="flex items-center space-x-2 mb-3">
-                <Monitor className="w-5 h-5 text-gray-600" />
+                <Monitor className="w-5 h-5 text-gray-400" />
                 <h3 className="font-medium text-gray-800">{config.name}</h3>
               </div>
               
@@ -1128,7 +1169,7 @@ const TestCaseDetail: React.FC = () => {
         <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
-            <Shield className="w-5 h-5 text-gray-600" />
+            <Shield className="w-5 h-5 text-green-600" />
             <h2 className="text-lg font-semibold text-gray-800">Secrets</h2>
             </div>
             <div className="flex items-center space-x-2">
@@ -1148,21 +1189,21 @@ const TestCaseDetail: React.FC = () => {
                         });
                       }
                     }}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
                   >
                     <Plus className="w-4 h-4 mr-1" />
-                    Add Secret
+                    Add secret
                   </button>
                   <button
                     onClick={handleSaveSecrets}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
                   >
                     <Save className="w-4 h-4 mr-1" />
                     Save
                   </button>
                   <button
                     onClick={handleCancelSecrets}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                   >
                     <X className="w-4 h-4 mr-1" />
                     Cancel
@@ -1290,15 +1331,15 @@ const TestCaseDetail: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-800">Recent test runs</h2>
           <Link
-            to={`/history?testCase=${testCase.id}`}
-            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+            to={`/runs?testCase=${testCase.id}`}
+            className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
           >
             <History className="w-4 h-4 mr-1" />
-            View All Runs
+            View all runs
           </Link>
         </div>
         
-        <div className="space-y-3">
+        <div className="space-y-4">
           {testRunsLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-indigo-600 mr-2" />
@@ -1317,88 +1358,96 @@ const TestCaseDetail: React.FC = () => {
               const runType = run.run_type || run.runType;
               const origin = run.origin;
               const browserConfig = run.browser_config || run.browserConfig;
+
+
               
               return (
-                <div key={run.id} className="flex items-start space-x-4 p-4 bg-gray-50 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-                  {/* GIF Display */}
-                  {runGif && (
-                    <div className="flex-shrink-0">
-                      <img 
-                        src={runGif} 
-                        alt="Test run animation"
-                        className="w-24 h-16 object-cover rounded-lg border border-gray-300"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  )}
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                          {status === 'FINISHED' ? (
-                            <CheckCircle className="w-5 h-5 text-emerald-500" />
-                          ) : status === 'FAILED' ? (
-                            <X className="w-5 h-5 text-red-500" />
-                          ) : (
-                            <Clock className="w-5 h-5 text-yellow-500" />
-                          )}
-                          <span className={`text-sm font-medium capitalize ${
-                            status === 'FINISHED' ? 'text-emerald-600' :
-                            status === 'FAILED' ? 'text-red-600' :
-                            'text-yellow-600'
-                          }`}>
-                            {status.toLowerCase()}
+                <div key={run.id} className="relative group bg-white rounded-lg p-6 border border-gray-200">
+                  <div className="flex items-start space-x-4">
+                    {/* GIF Display */}
+                    {runGif && (
+                      <div className="flex-shrink-0">
+                        <div className="relative overflow-hidden rounded-xl border-2 border-gray-200 group-hover:border-gray-300 transition-colors">
+                          <img 
+                            src={runGif} 
+                            alt="Test run animation"
+                            className="w-28 h-20 object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex-1 min-w-0">
+                      {/* Header with Status Badge */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <span className={`inline-flex items-center space-x-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${getStatusColor(status.toLowerCase())}`}>
+                            {getStatusIcon(status.toLowerCase())}
+                            <span>{status}</span>
                           </span>
+                          
+                          {totalSteps > 0 && (
+                            <div className="flex items-center space-x-1 text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded-lg">
+                              <span className="font-medium">{passedSteps}</span>
+                              <span className="text-gray-400">/</span>
+                              <span>{totalSteps}</span>
+                              <span className="text-xs text-gray-500 ml-1">steps</span>
+                            </div>
+                          )}
                         </div>
                         
-                        {totalSteps > 0 && (
-                          <div className="text-sm text-gray-600">
-                            {passedSteps}/{totalSteps} steps passed
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center space-x-1 text-sm text-gray-500">
-                          <Calendar className="w-4 h-4" />
-                          <span>{startedAt.toLocaleDateString()}</span>
+                        <Link
+                          to={`/runs/${run.id}`}
+                          className="inline-flex items-center px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-all duration-200"
+                        >
+                          <Eye className="w-4 h-4 mr-1.5" />
+                          View details
+                        </Link>
+                      </div>
+                      
+                      {/* Details Row */}
+                      <div className="flex items-center flex-wrap gap-x-6 gap-y-2">
+                        <div className="flex items-center space-x-2 text-sm">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-600">{startedAt.toLocaleDateString()} {startedAt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                         </div>
                         
                         {duration > 0 && (
-                          <div className="flex items-center space-x-1 text-sm text-gray-500">
-                            <Clock className="w-4 h-4" />
-                            <span>{duration.toFixed(1)}s</span>
+                          <div className="flex items-center space-x-2 text-sm">
+                            <Clock className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-600">{duration.toFixed(1)}s</span>
                           </div>
                         )}
-                        
+
                         {runType && (
-                          <div className="text-sm text-gray-500">
-                            <span className="font-medium">Type:</span> {runType}
+                          <div className="flex items-center space-x-1.5 text-sm">
+                            <PlaySquare className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-600">{runType}</span>
                           </div>
                         )}
                         
                         {origin && (
-                          <div className="text-sm text-gray-500">
-                            <span className="font-medium">Origin:</span> {origin}
+                          <div className="flex items-center space-x-1.5 text-sm">
+                            {origin.toLowerCase().includes('user') ? (
+                              <User className="w-4 h-4 text-gray-400" />
+                            ) : (
+                              <Computer className="w-4 h-4 text-gray-400" />
+                            )}
+                            <span className="text-gray-600">{origin}</span>
                           </div>
                         )}
                         
                         {browserConfig?.browser_config?.viewport && (
-                          <div className="flex items-center space-x-1 text-sm text-gray-500">
-                            <Monitor className="w-4 h-4" />
-                            <span>{browserConfig.browser_config.viewport.width}×{browserConfig.browser_config.viewport.height}</span>
+                          <div className="flex items-center space-x-1.5 text-sm">
+                            <Monitor className="w-4 h-4 text-gray-400" />
+                            <span className="text-gray-600">{browserConfig.browser_config.viewport.width}×{browserConfig.browser_config.viewport.height}</span>
                           </div>
                         )}
                       </div>
-                      
-                      <Link
-                        to={`/history/${run.id}`}
-                        className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        View Details
-                      </Link>
                     </div>
                   </div>
                 </div>
@@ -1414,11 +1463,11 @@ const TestCaseDetail: React.FC = () => {
               <h3 className="text-lg font-medium text-gray-800 mb-2">No test runs yet</h3>
               <p className="text-gray-600 mb-4">This test case hasn't been executed yet.</p>
               <Link
-                to={`/history/${testCase.id}/run`}
+                to={`/runs/${testCase.id}/run`}
                 className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
               >
                 <Play className="w-4 h-4 mr-2" />
-                Run Test Now
+                Run test now
               </Link>
             </div>
           )}

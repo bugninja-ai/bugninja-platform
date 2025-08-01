@@ -20,6 +20,7 @@ It creates a complete hierarchy of entities with proper relationships:
 
 import os
 import shutil
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List
 
 from rich import print as rich_print
@@ -457,43 +458,63 @@ def create_varied_cost_data() -> List[Dict[str, Any]]:
 
 
 def create_varied_run_data() -> List[Dict[str, Any]]:
-    """Create varied test run data."""
+    """Create varied test run data with realistic durations."""
+    base_time = datetime.now(timezone.utc) - timedelta(days=7)  # Start a week ago
+    
     return [
         {
             "run_type": RunType.AGENTIC,
             "origin": RunOrigin.USER,
             "repair_was_needed": False,
             "current_state": RunState.FINISHED,
+            "started_at": base_time,
+            "finished_at": base_time + timedelta(minutes=2, seconds=30),
+            "duration_seconds": 150,
         },
         {
             "run_type": RunType.REPLAY,
             "origin": RunOrigin.CICD,
             "repair_was_needed": True,
             "current_state": RunState.FAILED,
+            "started_at": base_time + timedelta(hours=3),
+            "finished_at": base_time + timedelta(hours=3, minutes=1, seconds=45),
+            "duration_seconds": 105,
         },
         {
             "run_type": RunType.REPLAY_WITH_HEALING,
             "origin": RunOrigin.USER,
             "repair_was_needed": True,
             "current_state": RunState.FINISHED,
+            "started_at": base_time + timedelta(hours=6),
+            "finished_at": base_time + timedelta(hours=6, minutes=3, seconds=20),
+            "duration_seconds": 200,
         },
         {
             "run_type": RunType.AGENTIC,
             "origin": RunOrigin.CICD,
             "repair_was_needed": False,
             "current_state": RunState.PENDING,
+            "started_at": base_time + timedelta(hours=12),
+            "finished_at": None,  # Pending runs don't have finish time
+            "duration_seconds": 0,
         },
         {
             "run_type": RunType.REPLAY,
             "origin": RunOrigin.USER,
             "repair_was_needed": False,
             "current_state": RunState.FAILED,
+            "started_at": base_time + timedelta(hours=18),
+            "finished_at": base_time + timedelta(hours=18, seconds=45),
+            "duration_seconds": 45,
         },
         {
             "run_type": RunType.REPLAY_WITH_HEALING,
             "origin": RunOrigin.CICD,
             "repair_was_needed": True,
             "current_state": RunState.PENDING,
+            "started_at": base_time + timedelta(days=1),
+            "finished_at": None,  # Pending runs don't have finish time
+            "duration_seconds": 0,
         },
     ]
 
@@ -990,6 +1011,9 @@ def upload_realistic_data() -> None:
     with QuinoContextManager() as db:
         try:
             rich_print("Starting realistic data upload...")
+            
+            # Set up content folders for images and GIFs
+            setup_content_folders()
 
             # Check if there are existing projects
             existing_projects = ProjectRepo.get_all(db)
@@ -1408,9 +1432,25 @@ def upload_realistic_data() -> None:
                             run_gif=gif_path,
                         ),
                     )
+                    
+                    # Update the test run with realistic timestamps
+                    # Set the started_at time to a realistic past time
+                    test_run.started_at = run_data["started_at"]
+                    
+                    # Set finished_at for completed runs
+                    if run_data["finished_at"] is not None:
+                        test_run.finished_at = run_data["finished_at"]
+                    
+                    db.add(test_run)
                     test_runs.append(test_run)
+                    
+                    duration_info = ""
+                    if run_data["finished_at"]:
+                        duration = (run_data["finished_at"] - run_data["started_at"]).total_seconds()
+                        duration_info = f", {duration:.0f}s"
+                    
                     rich_print(
-                        f"✓ Created test run: {test_run.id} ({run_data['run_type']}, {run_data['origin']})"
+                        f"✓ Created test run: {test_run.id} ({run_data['run_type']}, {run_data['origin']}{duration_info})"
                     )
 
                 db.commit()
@@ -1462,9 +1502,19 @@ def upload_realistic_data() -> None:
                         ]
                     ]
 
+                    # Calculate timing for history elements within the test run duration
+                    run_start = test_run.started_at
+                    run_end = test_run.finished_at or run_start + timedelta(minutes=1)  # Default 1 min for pending runs
+                    total_duration = (run_end - run_start).total_seconds()
+                    action_interval = total_duration / max(len(traversal_actions), 1)
+
                     for i, action in enumerate(traversal_actions):
                         # Vary the history element state
                         state = history_states[(test_run_idx + i) % len(history_states)]
+
+                        # Calculate realistic timing for this action
+                        action_start = run_start + timedelta(seconds=i * action_interval)
+                        action_end = action_start + timedelta(seconds=min(action_interval * 0.8, 30))  # Cap at 30 seconds per action
 
                         # Get the history element ID and corresponding image path
                         history_element_id = history_element_ids[history_element_id_index]
@@ -1473,7 +1523,7 @@ def upload_realistic_data() -> None:
                             f"content/run_he_screenshots/{history_element_id}.jpg",
                         )
 
-                        HistoryElementRepo.create(
+                        history_element = HistoryElementRepo.create(
                             db,
                             CreateHistoryElement(
                                 test_run_id=test_run.id,
@@ -1482,6 +1532,13 @@ def upload_realistic_data() -> None:
                                 screenshot=screenshot_path,
                             ),
                         )
+                        
+                        # Update with realistic timestamps
+                        history_element.action_started_at = action_start
+                        if test_run.finished_at:  # Only set finish time for completed runs
+                            history_element.action_finished_at = action_end
+                        
+                        db.add(history_element)
                         history_count += 1
                         history_element_id_index += 1
 

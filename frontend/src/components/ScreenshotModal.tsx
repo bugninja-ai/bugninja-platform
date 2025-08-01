@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Globe, Edit, Lock, MousePointer, Clock, XCircle, User, Search, Play } from 'lucide-react';
+import { BASE_DOMAIN } from '../services/api';
 
 interface ScreenshotModalProps {
   isOpen: boolean;
@@ -11,9 +12,9 @@ interface ScreenshotModalProps {
     url?: string;
     xpath?: string;
     inputText?: string;
-    secretUsed?: string;
     status: 'passed' | 'failed';
     icon?: string;
+    isSecret?: boolean;
   };
 }
 
@@ -94,7 +95,7 @@ const ScreenshotModal: React.FC<ScreenshotModalProps> = ({
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="max-w-4xl max-h-full">
             <img
-              src="/sample_image.png"
+              src={`${BASE_DOMAIN}/${screenshot}`}
               alt="Screenshot"
               className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border border-white/20"
               style={{ maxHeight: 'calc(100vh - 4rem)' }}
@@ -156,26 +157,20 @@ const ScreenshotModal: React.FC<ScreenshotModalProps> = ({
             {actionData.inputText && (
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Input Text</label>
-                <div className="text-sm text-gray-800 bg-white px-3 py-2 rounded border">
-                  {actionData.inputText}
+                <div className="text-sm text-gray-800 bg-white px-3 py-2 rounded border flex items-center space-x-2">
+                  {actionData.isSecret && <Lock className="w-4 h-4 text-gray-600" />}
+                  <span>{actionData.inputText}</span>
                 </div>
               </div>
             )}
             
-            {actionData.secretUsed && (
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Secret Used</label>
-                <div className="text-sm text-gray-800 font-mono bg-white px-3 py-2 rounded border">
-                  {actionData.secretUsed}
-                </div>
-              </div>
-            )}
+
           </div>
           
           {/* Screenshot info */}
           <div className="mt-6 pt-6 border-t border-gray-200">
             <h4 className="font-medium text-gray-700 mb-2">Screenshot</h4>
-            <p className="text-sm text-gray-600">{screenshot}</p>
+            <p className="text-sm text-gray-600 break-all font-mono leading-relaxed">{screenshot}</p>
           </div>
         </div>
       </div>

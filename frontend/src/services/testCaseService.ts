@@ -43,14 +43,41 @@ export class TestCaseService {
       'api': 'api'
     };
 
-    // Transform extra_rules string into ExtraRule array
-    const extraRules = backendTestCase.extra_rules 
-      ? backendTestCase.extra_rules.split('\n').filter(rule => rule.trim()).map((rule, index) => ({
-          id: `rule-${backendTestCase.id}-${index + 1}`,
-          ruleNumber: index + 1,
-          description: rule.trim()
-        }))
-      : [];
+    // Transform extra_rules array into ExtraRule array
+    
+    let extraRules: ExtraRule[] = [];
+    
+    if (backendTestCase.extra_rules) {
+      if (Array.isArray(backendTestCase.extra_rules)) {
+        // Check if array contains strings or objects
+        const firstItem = backendTestCase.extra_rules[0];
+        if (typeof firstItem === 'string') {
+          // Handle array of strings
+          extraRules = backendTestCase.extra_rules.map((rule, index) => ({
+            id: `rule-${backendTestCase.id}-${index + 1}`,
+            ruleNumber: index + 1,
+            description: rule
+          }));
+        } else if (typeof firstItem === 'object' && firstItem !== null) {
+          // Handle array of rule objects
+          extraRules = backendTestCase.extra_rules.map((rule, index) => ({
+            id: rule.id || `rule-${backendTestCase.id}-${index + 1}`,
+            ruleNumber: rule.rule_number || index + 1,
+            description: rule.description || ''
+          }));
+        }
+      } else if (typeof backendTestCase.extra_rules === 'string') {
+        // Handle legacy string format (split by newlines)
+        extraRules = backendTestCase.extra_rules
+          .split('\n')
+          .filter(rule => rule.trim())
+          .map((rule, index) => ({
+            id: `rule-${backendTestCase.id}-${index + 1}`,
+            ruleNumber: index + 1,
+            description: rule.trim()
+          }));
+      }
+    }
 
     // Transform backend browser configs to frontend format
     // Note: All data except 'name' comes directly from backend
@@ -179,14 +206,18 @@ export class TestCaseService {
     test_name: string;
     test_description: string;
     test_goal: string;
-    extra_rules: string;
+    extra_rules: ExtraRule[];
     url_route: string;
     allowed_domains: string[];
     priority: TestPriority;
     category?: string;
   }): Promise<FrontendTestCase> {
     try {
-      const response = await apiClient.post<BackendTestCase>(this.ENDPOINTS.TEST_CASES, testCase);
+      const payload = {
+        ...testCase,
+        extra_rules: testCase.extra_rules.map(r => r.description).join('\n')
+      };
+      const response = await apiClient.post<BackendTestCase>(this.ENDPOINTS.TEST_CASES, payload);
       return this.transformTestCase(response.data);
     } catch (error: any) {
       const apiError: ApiError = {
@@ -205,14 +236,29 @@ export class TestCaseService {
     test_name: string;
     test_description: string;
     test_goal: string;
-    extra_rules: string;
+    extra_rules: ExtraRule[];
     url_route: string;
     allowed_domains: string[];
     priority: TestPriority;
     category: string;
   }>): Promise<FrontendTestCase> {
     try {
-      const response = await apiClient.put<BackendTestCase>(`${this.ENDPOINTS.TEST_CASES}${id}`, testCase);
+      const payload: Partial<{
+        test_name: string;
+        test_description: string;
+        test_goal: string;
+        extra_rules: string; // Changed to string for backend
+        url_route: string;
+        allowed_domains: string[];
+        priority: TestPriority;
+        category: string;
+      }> = { ...testCase };
+
+      if (testCase.extra_rules) {
+        payload.extra_rules = testCase.extra_rules.map(r => r.description).join('\n');
+      }
+
+      const response = await apiClient.put<BackendTestCase>(`${this.ENDPOINTS.TEST_CASES}${id}`, payload);
       return this.transformTestCase(response.data);
     } catch (error: any) {
       const apiError: ApiError = {
@@ -307,13 +353,32 @@ export class TestCaseService {
   }
 
   /**
+   * Fetch a single test run by ID
+   */
+  static async getTestRun(testRunId: string): Promise<any> {
+    try {
+      const response = await apiClient.get<any>(`/test-runs/${testRunId}`);
+      return response.data;
+    } catch (error: any) {
+      const apiError: ApiError = {
+        message: error.response?.data?.detail || error.message || 'Failed to fetch test run',
+        status: error.response?.status,
+        code: error.code,
+      };
+      throw apiError;
+    }
+  }
+
+  /**
    * Fetch all test runs across all test cases with pagination
    */
   static async getAllTestRuns(params?: {
     page?: number;
     page_size?: number;
     sort_order?: 'asc' | 'desc';
-    test_traversal_id?: string;
+    test_case_id?: string;
+    search?: string;
+    status?: string;
   }): Promise<{
     items: any[];
     total_count: number;
@@ -329,7 +394,9 @@ export class TestCaseService {
       if (params?.page) queryParams.append('page', params.page.toString());
       if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
       if (params?.sort_order) queryParams.append('sort_order', params.sort_order);
-      if (params?.test_traversal_id) queryParams.append('test_traversal_id', params.test_traversal_id);
+      if (params?.test_case_id) queryParams.append('test_case_id', params.test_case_id);
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.status) queryParams.append('status', params.status);
 
       const url = `${this.ENDPOINTS.ALL_TEST_RUNS}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       

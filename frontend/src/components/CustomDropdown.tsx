@@ -57,7 +57,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
         aria-expanded={isOpen}
         aria-label={placeholder}
       >
-        <span className="text-gray-800 truncate">{selectedOption?.label || placeholder}</span>
+        <span className="text-gray-800 whitespace-nowrap overflow-hidden text-ellipsis">{selectedOption?.label || placeholder}</span>
         <ChevronDown 
           className={`w-4 h-4 text-gray-400 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} 
         />
@@ -87,7 +87,7 @@ export const CustomDropdown: React.FC<CustomDropdownProps> = ({
               role="option"
               aria-selected={option.value === value}
             >
-              <span className="truncate">{option.label}</span>
+              <span className="whitespace-nowrap">{option.label}</span>
             </button>
           ))}
         </div>

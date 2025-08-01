@@ -20,8 +20,10 @@ from app.schemas.communication.test_run import (
     ExtendedResponseBrainState,
     ExtendedResponseHistoryElement,
     ExtendedResponseTestRun,
+    PaginatedResponseExtendedTestRun,
 )
 from app.schemas.crud.browser_config import ResponseBrowserConfig
+
 from app.schemas.crud.test_run import CreateTestRun, ResponseTestRun, UpdateTestRun
 
 
@@ -96,10 +98,12 @@ class TestRunRepo:
         page: int = 1,
         page_size: int = 10,
         sort_order: str = "desc",
-        test_traversal_id: Optional[str] = None,
+        test_case_id: Optional[str] = None,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
     ) -> Sequence[TestRun]:
         """
-        Retrieve all test runs with pagination, sorting, and optional test traversal filtering.
+        Retrieve all test runs with pagination, sorting, and filtering.
 
         Args:
             db: Database session
@@ -107,6 +111,8 @@ class TestRunRepo:
             page_size: Number of records per page (default: 10)
             sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
             test_traversal_id: Optional test traversal ID to filter by (default: None - returns all test runs)
+            search: Optional search term to filter by test case name or description (default: None)
+            status: Optional status to filter by - "pending", "passed", "failed" (default: None)
 
         Returns:
             Sequence[TestRun]: List of test runs sorted by start date (started_at)
@@ -114,13 +120,35 @@ class TestRunRepo:
         # Calculate skip based on page and page_size
         skip = (page - 1) * page_size
 
-        # Build the base query
-        if test_traversal_id:
-            # Filter by test traversal ID
-            base_statement = select(TestRun).where(TestRun.test_traversal_id == test_traversal_id)
+        # Build the base query with joins for search and test_case_id filtering
+        if search or test_case_id:
+            # Join with TestTraversal and TestCase for search and test case filtering
+            base_statement = select(TestRun).join(TestTraversal).join(TestCase)
         else:
-            # No filtering - get all test runs
             base_statement = select(TestRun)
+
+        # Apply filters
+        filters = []
+
+        if test_case_id:
+            filters.append(TestCase.id == test_case_id)
+
+        if search:
+            # Search in test case name and description
+            search_term = f"%{search}%"
+            search_filter = TestCase.test_name.ilike(search_term) | TestCase.test_description.ilike(
+                search_term
+            )
+            filters.append(search_filter)
+
+        if status:
+            # Frontend now sends exact backend values (PENDING, FINISHED, FAILED)
+            if status in [RunState.PENDING, RunState.FINISHED, RunState.FAILED]:
+                filters.append(TestRun.current_state == status)
+
+        # Apply all filters
+        if filters:
+            base_statement = base_statement.where(*filters)
 
         # Add sorting and pagination
         if sort_order.lower() == "asc":
@@ -399,23 +427,55 @@ class TestRunRepo:
         return len(db.exec(statement).all())
 
     @staticmethod
-    def count_with_filter(db: Session, test_traversal_id: Optional[str] = None) -> int:
+    def count_with_filter(
+        db: Session,
+        test_case_id: Optional[str] = None,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> int:
         """
-        Get the total number of test runs with optional test traversal filtering.
+        Get the total number of test runs with filtering.
 
         Args:
             db: Database session
             test_traversal_id: Optional test traversal ID to filter by (default: None - counts all test runs)
+            search: Optional search term to filter by test case name or description (default: None)
+            status: Optional status to filter by - "pending", "passed", "failed" (default: None)
 
         Returns:
-            int: Total number of test runs matching the filter
+            int: Total number of test runs matching the filters
         """
-        if test_traversal_id:
-            statement = select(TestRun.id).where(TestRun.test_traversal_id == test_traversal_id)
+        # Build the base query with joins for search and test_case_id filtering
+        if search or test_case_id:
+            # Join with TestTraversal and TestCase for search and test case filtering
+            base_statement = select(TestRun.id).join(TestTraversal).join(TestCase)
         else:
-            statement = select(TestRun.id)
+            base_statement = select(TestRun.id)
 
-        return len(db.exec(statement).all())
+        # Apply filters
+        filters = []
+
+        if test_case_id:
+            filters.append(TestCase.id == test_case_id)
+
+        if search:
+            # Search in test case name and description
+            search_term = f"%{search}%"
+            search_filter = TestCase.test_name.ilike(search_term) | TestCase.test_description.ilike(
+                search_term
+            )
+            filters.append(search_filter)
+
+        if status:
+            # Frontend now sends exact backend values (PENDING, FINISHED, FAILED)
+            if status in [RunState.PENDING, RunState.FINISHED, RunState.FAILED]:
+                filters.append(TestRun.current_state == status)
+
+        # Apply all filters
+        if filters:
+            base_statement = base_statement.where(*filters)
+
+        return len(db.exec(base_statement).all())
 
     @staticmethod
     def delete_by_test_traversal(db: Session, test_traversal_id: str) -> int:
@@ -463,7 +523,7 @@ class TestRunRepo:
     @staticmethod
     def get_extended_by_id(db: Session, test_run_id: str) -> Optional[ExtendedResponseTestRun]:
         """
-        Retrieve an extended test run response with nested browser config and history data.
+        Retrieve an extended test run response with nested browser config, test case, and history data.
 
         Args:
             db: Database session
@@ -495,6 +555,33 @@ class TestRunRepo:
             updated_at=browser_config.updated_at,
         )
 
+        # Get test case information through test traversal
+        test_case_statement = (
+            select(TestCase)
+            .join(TestTraversal, TestCase.id == TestTraversal.test_case_id)
+            .where(TestTraversal.id == test_run.test_traversal_id)
+        )
+        test_case = db.exec(test_case_statement).first()
+
+        # Convert test case to dict to avoid circular import
+        response_test_case = None
+        if test_case:
+            response_test_case = {
+                "id": test_case.id,
+                "project_id": test_case.project_id,
+                "document_id": test_case.document_id,
+                "created_at": test_case.created_at.isoformat() if test_case.created_at else None,
+                "updated_at": test_case.updated_at.isoformat() if test_case.updated_at else None,
+                "test_name": test_case.test_name,
+                "test_description": test_case.test_description,
+                "test_goal": test_case.test_goal,
+                "extra_rules": test_case.extra_rules or [],
+                "url_route": test_case.url_route,
+                "allowed_domains": test_case.allowed_domains or [],
+                "priority": test_case.priority.value if test_case.priority else None,
+                "category": test_case.category,
+            }
+
         # Get extended brain states for this test run
         repo_instance = TestRunRepo()
         extended_brain_states = repo_instance.get_extended_brain_states_by_test_traversal_id(
@@ -513,6 +600,7 @@ class TestRunRepo:
             finished_at=test_run.finished_at,
             run_gif=test_run.run_gif,
             browser_config=response_browser_config,
+            test_case=response_test_case,
             brain_states=extended_brain_states,
         )
 
@@ -522,10 +610,12 @@ class TestRunRepo:
         page: int = 1,
         page_size: int = 10,
         sort_order: str = "desc",
-        test_traversal_id: Optional[str] = None,
+        test_case_id: Optional[str] = None,
+        search: Optional[str] = None,
+        status: Optional[str] = None,
     ) -> List[ExtendedResponseTestRun]:
         """
-        Retrieve all test runs with extended responses, pagination, sorting, and optional test traversal filtering.
+        Retrieve all test runs with extended responses, pagination, sorting, and filtering.
 
         Args:
             db: Database session
@@ -533,6 +623,8 @@ class TestRunRepo:
             page_size: Number of records per page (default: 10)
             sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
             test_traversal_id: Optional test traversal ID to filter by (default: None - returns all test runs)
+            search: Optional search term to filter by test case name or description (default: None)
+            status: Optional status to filter by - "pending", "passed", "failed" (default: None)
 
         Returns:
             List[ExtendedResponseTestRun]: List of extended test runs sorted by creation date
@@ -543,7 +635,9 @@ class TestRunRepo:
             page=page,
             page_size=page_size,
             sort_order=sort_order,
-            test_traversal_id=test_traversal_id,
+            test_case_id=test_case_id,
+            search=search,
+            status=status,
         )
 
         # Convert to extended responses

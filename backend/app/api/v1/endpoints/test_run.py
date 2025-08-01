@@ -1,6 +1,7 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status
 from sqlmodel import Session
 
 from app.api.v1.endpoints.utils import COMMON_ERROR_RESPONSES, create_success_response
@@ -25,7 +26,7 @@ test_runs_router = APIRouter(prefix="/test-runs", tags=["Test Runs"])
     response_model=ResponseTestRun,
     summary="Create Test Run",
     description="Create a new test run with the provided data",
-    status_code=status.HTTP_201_CREATED,
+    status_code=http_status.HTTP_201_CREATED,
     responses={
         201: create_success_response("Test run created successfully", ResponseTestRun),
         **COMMON_ERROR_RESPONSES,
@@ -48,7 +49,7 @@ async def create_test_run(
         )
         if not test_traversal:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail=f"Test traversal with id {test_run_data.test_traversal_id} not found",
             )
 
@@ -70,7 +71,7 @@ async def create_test_run(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create test run: {str(e)}",
         )
 
@@ -91,59 +92,57 @@ async def get_all_test_runs(
     page: int = 1,
     page_size: int = 10,
     sort_order: str = "desc",
-    test_traversal_id: Optional[str] = None,
+    test_case_id: Optional[str] = None,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
     db_session: Session = Depends(get_db),
 ) -> PaginatedResponseExtendedTestRun:
     """
-    Retrieve all test runs with pagination, sorting, and test traversal filtering.
+    Retrieve all test runs with pagination, sorting, and filtering.
 
     This endpoint returns a paginated list of extended test runs in the system,
     sorted by start date (started_at). The most recent test runs are returned first by default.
     Each test run includes associated browser configurations and execution history.
-    Optionally filter by test traversal ID to get only test runs for a specific test traversal.
+    Supports filtering by test traversal ID, search terms, and status.
 
     Args:
         page: Page number (1-based, default: 1)
         page_size: Number of records per page (default: 10, max: 100)
         sort_order: Sort order - "asc" for oldest first, "desc" for newest first (default: "desc")
-        test_traversal_id: Optional test traversal ID to filter by (default: None - returns all test runs)
+        test_case_id: Optional test case ID to filter by (default: None - returns all test runs)
+        search: Optional search term to filter test runs by test case name or description (default: None)
+        status: Optional status to filter by - "pending", "passed", "failed" (default: None - returns all statuses)
         db_session: Database session
 
     Returns:
         PaginatedResponseExtendedTestRun: Paginated list of extended test runs with metadata
     """
     try:
+        # Rename status parameter to avoid conflict with FastAPI status module
+        status_filter = status
+
         # Validate sort order
         if sort_order.lower() not in ["asc", "desc"]:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="sort_order must be either 'asc' or 'desc'",
             )
 
         # Validate page_size
         if page_size <= 0 or page_size > 100:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="page_size must be between 1 and 100",
             )
 
         # Validate page
         if page <= 0:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="page must be 1 or greater",
             )
 
-        # Handle test_traversal_id filtering
-        if test_traversal_id:
-            test_traversal = TestTraversalRepo.get_by_id(
-                db=db_session, test_traversal_id=test_traversal_id
-            )
-            if not test_traversal:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Test traversal with id {test_traversal_id} not found",
-                )
+        # test_case_id filtering is handled in the repository layer
 
         # Get extended test runs with sorting, pagination, and filtering
         extended_test_runs = TestRunRepo.get_all_extended_with_sorting_and_filter(
@@ -151,12 +150,17 @@ async def get_all_test_runs(
             page=page,
             page_size=page_size,
             sort_order=sort_order,
-            test_traversal_id=test_traversal_id,
+            test_case_id=test_case_id,
+            search=search,
+            status=status_filter,
         )
 
         # Get total count for pagination metadata
         total_count = TestRunRepo.count_with_filter(
-            db=db_session, test_traversal_id=test_traversal_id
+            db=db_session,
+            test_case_id=test_case_id,
+            search=search,
+            status=status_filter,
         )
 
         # Calculate pagination metadata
@@ -178,7 +182,7 @@ async def get_all_test_runs(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve test runs: {str(e)}",
         )
 
@@ -211,7 +215,7 @@ async def get_test_run_by_id(
 
         if not extended_test_run:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail=f"Test run with id {test_run_id} not found",
             )
 
@@ -220,7 +224,7 @@ async def get_test_run_by_id(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve test run: {str(e)}",
         )
 
@@ -253,7 +257,7 @@ async def update_test_run(
 
         if not updated_test_run:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail=f"Test run with id {test_run_id} not found",
             )
 
@@ -274,7 +278,7 @@ async def update_test_run(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update test run: {str(e)}",
         )
 
@@ -304,7 +308,7 @@ async def delete_test_run(
 
         if not test_run:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail=f"Test run with id {test_run_id} not found",
             )
 
@@ -313,7 +317,7 @@ async def delete_test_run(
 
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete test run with id {test_run_id}",
             )
 
@@ -334,7 +338,7 @@ async def delete_test_run(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete test run: {str(e)}",
         )
 
@@ -379,21 +383,21 @@ async def get_test_runs_by_project(
         # Validate sort order
         if sort_order.lower() not in ["asc", "desc"]:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="sort_order must be either 'asc' or 'desc'",
             )
 
         # Validate page_size
         if page_size <= 0 or page_size > 100:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="page_size must be between 1 and 100",
             )
 
         # Validate page
         if page <= 0:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail="page must be 1 or greater",
             )
 
@@ -403,7 +407,7 @@ async def get_test_runs_by_project(
         project = ProjectRepo.get_by_id(db=db_session, project_id=project_id)
         if not project:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail=f"Project with id {project_id} not found",
             )
 
@@ -438,6 +442,6 @@ async def get_test_runs_by_project(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve test runs: {str(e)}",
         )

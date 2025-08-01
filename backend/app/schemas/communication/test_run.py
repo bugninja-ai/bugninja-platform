@@ -129,7 +129,7 @@ class ExtendedResponseBrainState(BaseModel):
 
 
 class ExtendedResponseTestRun(BaseModel):
-    """Extended response schema for test run with brain states."""
+    """Extended response schema for test run with brain states and test case information."""
 
     id: str
     test_traversal_id: str
@@ -142,6 +142,7 @@ class ExtendedResponseTestRun(BaseModel):
     finished_at: Optional[datetime]
     run_gif: str
     browser_config: Optional[ResponseBrowserConfig]
+    test_case: Optional[Dict[str, Any]]  # Using Dict to avoid circular import
     brain_states: List[ExtendedResponseBrainState]
 
     class Config:
@@ -184,6 +185,7 @@ class ExtendedResponseTestRun(BaseModel):
             finished_at=datetime.now(timezone.utc),
             run_gif="sample_run.gif",
             browser_config=ResponseBrowserConfig.sample_factory_build(),
+            test_case=None,  # Will be populated with real test case data
             brain_states=brain_states,
         )
 

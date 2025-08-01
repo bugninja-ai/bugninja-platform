@@ -8,7 +8,7 @@ export interface UseTestRunsParams {
   search?: string;
   status?: string;
   sortOrder?: 'asc' | 'desc';
-  testTraversalId?: string;
+  testCaseId?: string;
 }
 
 export interface UseTestRunsResult extends ApiState<any[]> {
@@ -27,14 +27,14 @@ export interface UseTestRunsResult extends ApiState<any[]> {
   setSearch: (search: string) => void;
   setStatus: (status: string | undefined) => void;
   setSortOrder: (sortOrder: 'asc' | 'desc') => void;
-  setTestTraversalId: (id: string | undefined) => void;
+  setTestCaseId: (id: string | undefined) => void;
   
   // Current filters
   filters: {
     search: string;
     status?: string;
     sortOrder: 'asc' | 'desc';
-    testTraversalId?: string;
+    testCaseId?: string;
   };
 }
 
@@ -57,7 +57,7 @@ export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResul
   const [search, setSearchState] = useState(initialParams?.search || '');
   const [status, setStatusState] = useState<string | undefined>(initialParams?.status);
   const [sortOrder, setSortOrderState] = useState<'asc' | 'desc'>(initialParams?.sortOrder || 'desc');
-  const [testTraversalId, setTestTraversalIdState] = useState<string | undefined>(initialParams?.testTraversalId);
+  const [testCaseId, setTestCaseIdState] = useState<string | undefined>(initialParams?.testCaseId);
 
   const fetchTestRuns = useCallback(async () => {
     try {
@@ -67,7 +67,9 @@ export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResul
         page,
         page_size: pageSize,
         sort_order: sortOrder,
-        test_traversal_id: testTraversalId,
+        test_case_id: testCaseId,
+        search: search || undefined,
+        status: status || undefined,
       });
       
       setState(prev => ({ 
@@ -85,6 +87,14 @@ export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResul
       
     } catch (error) {
       const apiError = error as ApiError;
+      
+      // If we get a 404 for test case not found, clear the filter and retry
+      if (apiError.status === 404 && testCaseId && apiError.message?.includes('not found')) {
+        console.warn('Test case not found, clearing filter and retrying...');
+        setTestCaseIdState(undefined);
+        return; // This will trigger a re-fetch with the cleared filter
+      }
+      
       setState(prev => ({ 
         ...prev, 
         loading: false, 
@@ -92,7 +102,7 @@ export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResul
       }));
       console.error('Failed to fetch test runs:', apiError);
     }
-  }, [page, pageSize, sortOrder, testTraversalId]);
+  }, [page, pageSize, sortOrder, testCaseId, search, status]);
 
   const refetch = useCallback(async () => {
     await fetchTestRuns();
@@ -123,8 +133,8 @@ export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResul
     setPageState(1); // Reset to first page when sorting
   }, []);
 
-  const setTestTraversalId = useCallback((newId: string | undefined) => {
-    setTestTraversalIdState(newId);
+  const setTestCaseId = useCallback((newId: string | undefined) => {
+    setTestCaseIdState(newId);
     setPageState(1); // Reset to first page when filtering
   }, []);
 
@@ -133,26 +143,10 @@ export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResul
     fetchTestRuns();
   }, [fetchTestRuns]);
 
-  // Client-side filtering for search and status since backend might not support all filters
-  const filteredData = state.data?.filter(testRun => {
-    if (search) {
-      const searchLower = search.toLowerCase();
-      const matchesSearch = 
-        (testRun.test_case?.test_name?.toLowerCase().includes(searchLower)) ||
-        (testRun.test_case?.test_description?.toLowerCase().includes(searchLower)) ||
-        (testRun.id?.toLowerCase().includes(searchLower));
-      if (!matchesSearch) return false;
-    }
-    
-    if (status && status !== 'all' && testRun.status !== status) {
-      return false;
-    }
-    
-    return true;
-  }) || null;
+  // No client-side filtering needed - all filtering is handled by the backend
 
   return {
-    data: filteredData,
+    data: state.data,
     loading: state.loading,
     error: state.error,
     totalCount,
@@ -167,12 +161,12 @@ export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResul
     setSearch,
     setStatus,
     setSortOrder,
-    setTestTraversalId,
+    setTestCaseId,
     filters: {
       search,
       status,
       sortOrder,
-      testTraversalId,
+      testCaseId,
     },
   };
 }; 
