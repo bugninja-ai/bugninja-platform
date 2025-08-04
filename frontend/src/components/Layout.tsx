@@ -15,9 +15,11 @@ import {
   FolderOpen,
   Loader2,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  FolderPlus
 } from 'lucide-react';
 import { useProjects } from '../hooks/useProjects';
+import { ProjectCreationModal } from './ProjectCreationModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -27,6 +29,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  const [createProjectModalOpen, setCreateProjectModalOpen] = useState(false);
+  const [createProjectLoading, setCreateProjectLoading] = useState(false);
   const location = useLocation();
 
   // Use real backend data for projects
@@ -36,8 +40,24 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     error: projectsError,
     selectedProject,
     setSelectedProject,
-    refetch: refetchProjects
+    refetch: refetchProjects,
+    createProject
   } = useProjects();
+
+  // Handle project creation
+  const handleCreateProject = async (projectData: { name: string; default_start_url: string }) => {
+    try {
+      setCreateProjectLoading(true);
+      await createProject(projectData);
+      setCreateProjectModalOpen(false);
+    } catch (error) {
+      console.error('Failed to create project:', error);
+      // Error handling is done in the modal component
+      throw error;
+    } finally {
+      setCreateProjectLoading(false);
+    }
+  };
 
   const navigation = [
     { name: 'Test cases', href: '/', icon: FileText },
@@ -116,25 +136,63 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </button>
                 </div>
               ) : projects && projects.length > 0 ? (
-                projects.map((project) => (
+                <>
+                  {/* Create New Project Option */}
                   <button
-                    key={project.id}
                     type="button"
                     onClick={() => {
-                      setSelectedProject(project);
+                      setCreateProjectModalOpen(true);
                       setProjectDropdownOpen(false);
                     }}
-                    className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
-                      project.id === selectedProject?.id ? 'bg-indigo-50' : ''
-                    }`}
+                    className="w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors border-b border-gray-200"
                   >
-                    <span className="font-medium text-gray-600 truncate">{project.name}</span>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                        <FolderPlus className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <span className="font-medium text-indigo-600">Create New Project</span>
+                    </div>
                   </button>
-                ))
+                  
+                  {/* Existing Projects */}
+                  {projects.map((project) => (
+                    <button
+                      key={project.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedProject(project);
+                        setProjectDropdownOpen(false);
+                      }}
+                      className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
+                        project.id === selectedProject?.id ? 'bg-indigo-50' : ''
+                      }`}
+                    >
+                      <span className="font-medium text-gray-600 truncate">{project.name}</span>
+                    </button>
+                  ))}
+                </>
               ) : (
-                <div className="px-4 py-3 text-gray-500 text-center">
-                  No projects found
-                </div>
+                <>
+                  {/* Create New Project Option - when no projects exist */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateProjectModalOpen(true);
+                      setProjectDropdownOpen(false);
+                    }}
+                    className="w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                        <FolderPlus className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <span className="font-medium text-indigo-600">Create Your First Project</span>
+                    </div>
+                  </button>
+                  <div className="px-4 py-3 text-gray-500 text-center text-sm">
+                    No projects found
+                  </div>
+                </>
               )}
             </div>
           </>
@@ -291,6 +349,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {children}
         </main>
       </div>
+      
+      {/* Project Creation Modal */}
+      <ProjectCreationModal
+        isOpen={createProjectModalOpen}
+        onClose={() => setCreateProjectModalOpen(false)}
+        onCreateProject={handleCreateProject}
+        loading={createProjectLoading}
+      />
     </div>
   );
 };

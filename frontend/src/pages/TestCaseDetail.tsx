@@ -12,7 +12,6 @@ import {
   Clock,
   Calendar,
   Target,
-  Shield,
   Monitor,
   MapPin,
   AlertCircle,
@@ -66,6 +65,24 @@ const TestCaseDetail: React.FC = () => {
       loadTestCase(id);
     }
   }, [id]);
+
+  // Helper function to extract browser type from user agent
+  const getBrowserType = (userAgent: string): string => {
+    // First check if it matches any common user agent
+    const commonAgent = commonUserAgents.find(ua => ua.value === userAgent);
+    if (commonAgent && commonAgent.value !== 'custom') {
+      return commonAgent.label;
+    }
+    
+    // Fallback: parse the user agent string
+    if (userAgent.includes('Edg/')) return 'Edge';
+    if (userAgent.includes('Firefox/')) return 'Firefox';
+    if (userAgent.includes('Chrome/')) return 'Chrome';
+    if (userAgent.includes('Safari/') && !userAgent.includes('Chrome/')) return 'Safari';
+    if (userAgent.includes('Opera/') || userAgent.includes('OPR/')) return 'Opera';
+    
+    return 'Unknown Browser';
+  };
 
   // Common user agents for dropdown
   const commonUserAgents = [
@@ -1133,9 +1150,9 @@ const TestCaseDetail: React.FC = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">User agent</label>
-                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded text-gray-700 text-xs break-all">
-                    {config.userAgent}
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Browser type</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded text-gray-700">
+                    {getBrowserType(config.userAgent)}
                   </div>
                 </div>
                 
@@ -1169,7 +1186,6 @@ const TestCaseDetail: React.FC = () => {
         <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
-            <Shield className="w-5 h-5 text-green-600" />
             <h2 className="text-lg font-semibold text-gray-800">Secrets</h2>
             </div>
             <div className="flex items-center space-x-2">

@@ -6,6 +6,7 @@ export interface UseProjectsResult extends ApiState<Project[]> {
   refetch: () => Promise<void>;
   selectedProject: Project | null;
   setSelectedProject: (project: Project | null) => void;
+  createProject: (projectData: { name: string; default_start_url: string }) => Promise<Project>;
 }
 
 export const useProjects = (): UseProjectsResult => {
@@ -51,6 +52,24 @@ export const useProjects = (): UseProjectsResult => {
     await fetchProjects();
   };
 
+  const createProject = async (projectData: { name: string; default_start_url: string }): Promise<Project> => {
+    try {
+      const newProject = await ProjectService.createProject(projectData);
+      
+      // Refetch projects to get the updated list
+      await fetchProjects();
+      
+      // Auto-select the newly created project
+      setSelectedProject(newProject);
+      
+      return newProject;
+    } catch (error) {
+      const apiError = error as ApiError;
+      console.error('Failed to create project:', apiError);
+      throw apiError;
+    }
+  };
+
   // Initial fetch on mount
   useEffect(() => {
     fetchProjects();
@@ -81,5 +100,6 @@ export const useProjects = (): UseProjectsResult => {
     refetch,
     selectedProject,
     setSelectedProject,
+    createProject,
   };
 }; 

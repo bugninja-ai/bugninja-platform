@@ -140,7 +140,7 @@ export interface CreateTestCaseRequest {
 export interface Project {
   id: string;
   name: string;
-  description: string;
+  default_start_url: string;
   created_at: string; // ISO date string from backend
   updated_at: string; // ISO date string from backend
 }

@@ -121,6 +121,17 @@ BROWSER_CONFIG_TEMPLATES = {
     },
 }
 
+# Browser types based on Playwright configuration
+BROWSER_TYPES = [
+    "Chromium",
+    "Firefox",
+    "Webkit",
+    "Mobile Chrome",
+    "Mobile Safari",
+    "Google Chrome",
+    "Microsoft Edge",
+]
+
 # Color scheme options
 COLOR_SCHEMES = ["light", "dark"]
 

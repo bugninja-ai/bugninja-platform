@@ -81,7 +81,8 @@ export class TestCaseService {
 
     // Transform backend browser configs to frontend format
     // Note: All data except 'name' comes directly from backend
-    const browserConfigs: BrowserConfig[] = backendTestCase.browser_configs.map((backendConfig, index) => ({
+    // Handle both GET response (has browser_configs) and CREATE response (doesn't have it)
+    const browserConfigs: BrowserConfig[] = (backendTestCase.browser_configs || []).map((backendConfig, index) => ({
       id: backendConfig.id, // ✅ Real backend data
       name: `Browser Config ${index + 1}`, // ⚠️ Generated (backend doesn't provide names)
       userAgent: backendConfig.browser_config.user_agent, // ✅ Real backend data
@@ -96,11 +97,12 @@ export class TestCaseService {
     }));
 
     // Transform backend secrets to frontend format
-    const secrets: TestSecret[] = backendTestCase.secrets?.map(secret => ({
+    // Handle both GET response (has secrets) and CREATE response (doesn't have it)
+    const secrets: TestSecret[] = (backendTestCase.secrets || []).map(secret => ({
       id: secret.id,
       secretName: secret.secret_name,
       value: secret.secret_value
-    })) || [];
+    }));
 
     return {
       id: backendTestCase.id,
@@ -198,27 +200,37 @@ export class TestCaseService {
   }
 
   /**
-   * Create a new test case
+   * Create a new test case with full payload support
    */
   static async createTestCase(testCase: {
     project_id: string;
-    document_id?: string;
+    document_id?: string | null;
     test_name: string;
     test_description: string;
     test_goal: string;
-    extra_rules: ExtraRule[];
+    extra_rules: string[];
     url_route: string;
     allowed_domains: string[];
     priority: TestPriority;
     category?: string;
+    new_browser_configs?: Array<{
+      test_case_id: string;
+      browser_config: any;
+    }>;
+    existing_browser_config_ids?: string[];
+    new_secret_values?: Array<{
+      test_case_id: string;
+      secret_name: string;
+      secret_value: string;
+    }>;
+    existing_secret_value_ids?: string[];
   }): Promise<FrontendTestCase> {
     try {
-      const payload = {
-        ...testCase,
-        extra_rules: testCase.extra_rules.map(r => r.description).join('\n')
-      };
-      const response = await apiClient.post<BackendTestCase>(this.ENDPOINTS.TEST_CASES, payload);
-      return this.transformTestCase(response.data);
+      // Send the payload directly as the backend expects it
+      const response = await apiClient.post<any>(this.ENDPOINTS.TEST_CASES, testCase);
+      // Handle the CreateTestCaseResponse format that includes test_case field
+      const testCaseData = response.data.test_case || response.data;
+      return this.transformTestCase(testCaseData);
     } catch (error: any) {
       const apiError: ApiError = {
         message: error.response?.data?.detail || error.message || 'Failed to create test case',

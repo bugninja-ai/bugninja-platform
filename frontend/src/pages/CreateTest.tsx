@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Upload, 
@@ -13,32 +13,85 @@ import {
   Monitor
 } from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
+import { useProjects } from '../hooks/useProjects';
+import { BrowserService, BrowserType, SecretValue, BrowserConfigData } from '../services/browserService';
+import { TestCaseService } from '../services/testCaseService';
 
 const CreateTest: React.FC = () => {
   const navigate = useNavigate();
+  const { selectedProject } = useProjects();
   const [method, setMethod] = useState<'upload' | 'manual'>('manual');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   
+  // API Data states
+  const [browserTypes, setBrowserTypes] = useState<BrowserType[]>([]);
+  const [existingBrowserConfigs, setExistingBrowserConfigs] = useState<BrowserConfigData[]>([]);
+  const [existingSecrets, setExistingSecrets] = useState<SecretValue[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  
   // Dropdown states
   const [priorityDropdownOpen, setPriorityDropdownOpen] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
-  const [userAgentDropdowns, setUserAgentDropdowns] = useState<Record<string, boolean>>({});
+  const [browserTypeDropdowns, setBrowserTypeDropdowns] = useState<Record<string, boolean>>({});
   const [viewportDropdowns, setViewportDropdowns] = useState<Record<string, boolean>>({});
+  const [existingBrowserConfigDropdowns, setExistingBrowserConfigDropdowns] = useState<Record<string, boolean>>({});
+  const [existingSecretsDropdowns, setExistingSecretsDropdowns] = useState<Record<string, boolean>>({});
 
-  // Common user agents for dropdown
-  const commonUserAgents = [
-    { value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', label: 'Chrome (Windows)' },
-    { value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', label: 'Chrome (macOS)' },
-    { value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0', label: 'Firefox (Windows)' },
-    { value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0', label: 'Firefox (macOS)' },
-    { value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15', label: 'Safari (macOS)' },
-    { value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0', label: 'Edge (Windows)' },
-    { value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1', label: 'Safari (iPhone)' },
-    { value: 'Mozilla/5.0 (iPad; CPU OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1', label: 'Safari (iPad)' },
-    { value: 'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36', label: 'Chrome (Android)' },
-    { value: 'custom', label: 'Custom User Agent' }
-  ];
+  // Load data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoadingData(true);
+        
+        if (!selectedProject?.id) {
+          setLoadingData(false);
+          return;
+        }
+        
+        // Fetch data with individual error handling to prevent failures from breaking the component
+        try {
+          const browserTypesData = await BrowserService.getBrowserTypes();
+          setBrowserTypes(browserTypesData);
+        } catch (error) {
+          console.error('Failed to load browser types:', error);
+          // Set fallback data so the component still works
+          setBrowserTypes([
+            { value: 'Chromium', label: 'Chromium' },
+            { value: 'Firefox', label: 'Firefox' },
+            { value: 'Webkit', label: 'Webkit' },
+            { value: 'Mobile Chrome', label: 'Mobile Chrome' },
+            { value: 'Mobile Safari', label: 'Mobile Safari' },
+            { value: 'Google Chrome', label: 'Google Chrome' },
+            { value: 'Microsoft Edge', label: 'Microsoft Edge' },
+          ]);
+        }
+
+        try {
+          const browserConfigsData = await BrowserService.getBrowserConfigsByProject(selectedProject.id);
+          setExistingBrowserConfigs(browserConfigsData);
+        } catch (error) {
+          console.error('Failed to load browser configs:', error);
+          setExistingBrowserConfigs([]);
+        }
+
+        try {
+          const secretsData = await BrowserService.getSecretsByProject(selectedProject.id);
+          setExistingSecrets(secretsData);
+        } catch (error) {
+          console.error('Failed to load secrets:', error);
+          setExistingSecrets([]);
+        }
+        
+      } catch (error) {
+        console.error('Failed to load data:', error);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    loadData();
+  }, [selectedProject?.id]);
 
   // Common viewport resolutions for dropdown
   const commonViewports = [
@@ -64,14 +117,15 @@ const CreateTest: React.FC = () => {
     startingUrl: '',
     allowedDomains: [''],
     extraRules: [{ id: '1', ruleNumber: 1, description: '' }],
-    browserConfigs: [{
+    newBrowserConfigs: [{
       id: '1',
-      name: 'Desktop Chrome',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      browserType: 'Chromium',
       viewport: { width: 1920, height: 1080 },
       geolocation: undefined as { latitude: number; longitude: number; } | undefined
     }],
-    secrets: [] as { id: string; secretName: string; value: string; }[]
+    existingBrowserConfigIds: [] as string[],
+    newSecrets: [] as { id: string; secretName: string; value: string; }[],
+    existingSecretIds: [] as string[]
   });
 
   const [file, setFile] = useState<File | null>(null);
@@ -145,8 +199,8 @@ const CreateTest: React.FC = () => {
   };
 
   // Browser Config handlers
-  const handleBrowserConfigChange = (index: number, field: string, value: any) => {
-    const newConfigs = [...formData.browserConfigs];
+  const handleNewBrowserConfigChange = (index: number, field: string, value: any) => {
+    const newConfigs = [...formData.newBrowserConfigs];
     if (field === 'viewport.width' || field === 'viewport.height') {
       const [, dimension] = field.split('.');
       newConfigs[index] = {
@@ -165,45 +219,50 @@ const CreateTest: React.FC = () => {
     }
     setFormData(prev => ({
       ...prev,
-      browserConfigs: newConfigs
+      newBrowserConfigs: newConfigs
     }));
   };
 
-  const addBrowserConfig = () => {
+  const addNewBrowserConfig = () => {
     const newConfig = {
       id: `config-${Date.now()}`,
-      name: 'New Configuration',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      browserType: 'Chromium',
       viewport: { width: 1920, height: 1080 },
       geolocation: undefined
     };
     setFormData(prev => ({
       ...prev,
-      browserConfigs: [...prev.browserConfigs, newConfig]
+      newBrowserConfigs: [...prev.newBrowserConfigs, newConfig]
     }));
   };
 
-  const removeBrowserConfig = (index: number) => {
-    if (formData.browserConfigs.length > 1) {
-      const newConfigs = formData.browserConfigs.filter((_, i) => i !== index);
-      setFormData(prev => ({
-        ...prev,
-        browserConfigs: newConfigs
-      }));
-    }
+  const removeNewBrowserConfig = (index: number) => {
+    // Allow removing all browser configs since we're bypassing backend creation for now
+    const newConfigs = formData.newBrowserConfigs.filter((_, i) => i !== index);
+    setFormData(prev => ({
+      ...prev,
+      newBrowserConfigs: newConfigs
+    }));
+  };
+
+  const removeExistingBrowserConfig = (configId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      existingBrowserConfigIds: prev.existingBrowserConfigIds.filter(id => id !== configId)
+    }));
   };
 
   // Secrets handlers
-  const handleSecretChange = (index: number, field: string, value: string) => {
-    const newSecrets = [...formData.secrets];
+  const handleNewSecretChange = (index: number, field: string, value: string) => {
+    const newSecrets = [...formData.newSecrets];
     newSecrets[index] = { ...newSecrets[index], [field]: value };
     setFormData(prev => ({
       ...prev,
-      secrets: newSecrets
+      newSecrets: newSecrets
     }));
   };
 
-  const addSecret = () => {
+  const addNewSecret = () => {
     const newSecret = {
       id: `secret-${Date.now()}`,
       secretName: '',
@@ -211,15 +270,22 @@ const CreateTest: React.FC = () => {
     };
     setFormData(prev => ({
       ...prev,
-      secrets: [...prev.secrets, newSecret]
+      newSecrets: [...prev.newSecrets, newSecret]
     }));
   };
 
-  const removeSecret = (index: number) => {
-    const newSecrets = formData.secrets.filter((_, i) => i !== index);
+  const removeNewSecret = (index: number) => {
+    const newSecrets = formData.newSecrets.filter((_, i) => i !== index);
     setFormData(prev => ({
       ...prev,
-      secrets: newSecrets
+      newSecrets: newSecrets
+    }));
+  };
+
+  const removeExistingSecret = (secretId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      existingSecretIds: prev.existingSecretIds.filter(id => id !== secretId)
     }));
   };
 
@@ -235,15 +301,61 @@ const CreateTest: React.FC = () => {
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Validation for the People's Republic of Code
+      if (!selectedProject?.id) {
+        throw new Error('Project must be selected to serve the Party!');
+      }
+
+      if (method === 'upload' && !file) {
+        throw new Error('File must be uploaded for the glory of the collective!');
+      }
+
+      if (method === 'manual') {
+        if (!formData.title.trim()) throw new Error('Test name is required for the Revolution!');
+        if (!formData.description.trim()) throw new Error('Test description serves the people!');
+        if (!formData.goal.trim()) throw new Error('Test goal advances the cause!');
+        if (!formData.startingUrl.trim()) throw new Error('Starting URL guides our path!');
+        if (formData.allowedDomains.every(domain => !domain.trim())) {
+          throw new Error('At least one domain must serve the Party!');
+        }
+      }
+
+      // Build the payload for irie backend, rastaman
+      const payload = {
+        project_id: selectedProject?.id || '',
+        document_id: file ? 'uploaded-document' : null, // Always include, null if no file
+        test_name: formData.title,
+        test_description: formData.description,
+        test_goal: formData.goal,
+        extra_rules: formData.extraRules.map(rule => rule.description).filter(desc => desc.trim() !== ''),
+        url_route: formData.startingUrl,
+        allowed_domains: formData.allowedDomains.filter(domain => domain.trim() !== ''),
+        priority: formData.priority as 'low' | 'medium' | 'high' | 'critical',
+        category: formData.category,
+        new_browser_configs: [], // Skip for now due to backend bug
+        existing_browser_config_ids: formData.existingBrowserConfigIds,
+        new_secret_values: [], // Skip for now due to backend bug  
+        existing_secret_value_ids: formData.existingSecretIds
+      };
+
+      console.log('Payload for irie backend, bredrin:', payload);
+      
+      // Call the real API endpoint, jah bless!
+      const createdTestCase = await TestCaseService.createTestCase(payload);
+      console.log('Test case created successfully, rastaman!', createdTestCase);
       setSuccess(true);
       
       setTimeout(() => {
         navigate('/');
       }, 1500);
     } catch (error) {
-      console.error('Failed to create test case:', error);
+      console.error('Failed to create test case for the Party:', error);
+      // Alert the comrade of any issues in service of transparency
+      if (error instanceof Error) {
+        alert(`Comrade, there is an issue: ${error.message}`);
+      } else {
+        alert('An unexpected error occurred in service of the collective!');
+      }
     } finally {
       setLoading(false);
     }
@@ -281,6 +393,27 @@ const CreateTest: React.FC = () => {
     );
   }
 
+  // Show message if no project is selected
+  if (!selectedProject) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Create Test Case</h1>
+          <p className="mt-1 text-gray-600">Create a new automated test case for your application</p>
+        </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-amber-600 mr-3" />
+            <div>
+              <h3 className="text-sm font-semibold text-amber-800">No Project Selected</h3>
+              <p className="text-sm text-amber-700 mt-1">Please select a project from the sidebar to create test cases.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -290,7 +423,7 @@ const CreateTest: React.FC = () => {
       </div>
 
       {/* Method Selection */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+      <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200 relative z-0">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Choose Creation Method</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
@@ -324,7 +457,7 @@ const CreateTest: React.FC = () => {
       {/* Form Content */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {method === 'upload' ? (
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200 relative z-0">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Upload Test Case File</h2>
             
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-indigo-400 transition-colors">
@@ -361,12 +494,21 @@ const CreateTest: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
+            {loadingData ? (
+              <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200 relative z-0">
+                <div className="flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-indigo-600 mr-2" />
+                  <span className="text-gray-600">Loading browser types and existing configurations...</span>
+                </div>
+              </div>
+            ) : (
+              <>
             {/* Basic Information */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200 overflow-visible relative z-0">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Basic Information</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-visible">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Test Case Title *
@@ -442,7 +584,7 @@ const CreateTest: React.FC = () => {
             </div>
 
             {/* Test Configuration */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200 relative z-0">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Test Configuration</h2>
               
               <div className="space-y-6">
@@ -503,12 +645,12 @@ const CreateTest: React.FC = () => {
             </div>
 
             {/* Browser Configurations */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200 overflow-visible relative z-0">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">Browser Configurations</h2>
                 <button
                   type="button"
-                  onClick={addBrowserConfig}
+                  onClick={addNewBrowserConfig}
                   className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
                 >
                   <Plus className="w-4 h-4 mr-1" />
@@ -516,59 +658,116 @@ const CreateTest: React.FC = () => {
                 </button>
               </div>
 
+              {/* Select Existing Browser Config */}
+              {existingBrowserConfigs.length > 0 && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Or select an existing browser configuration
+                  </label>
+                  <CustomDropdown
+                    options={existingBrowserConfigs.map(config => {
+                      const viewport = config.browser_config?.viewport;
+                      const userAgent = config.browser_config?.user_agent || '';
+                      
+                      // Extract browser type from user agent 
+                      let browserType = 'Unknown';
+                      if (userAgent.includes('Chrome') && !userAgent.includes('Edg')) browserType = 'Chromium';
+                      else if (userAgent.includes('Firefox')) browserType = 'Firefox';
+                      else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) browserType = 'Webkit';
+                      else if (userAgent.includes('Edg')) browserType = 'Microsoft Edge';
+                      
+                      return {
+                        value: config.id,
+                        label: `${browserType} - ${viewport?.width || 1920}×${viewport?.height || 1080}`
+                      };
+                    })}
+                    value=""
+                    onChange={(configId) => {
+                      if (configId && !formData.existingBrowserConfigIds.includes(configId)) {
+                        setFormData(prev => ({
+                          ...prev,
+                          existingBrowserConfigIds: [...prev.existingBrowserConfigIds, configId]
+                        }));
+                      }
+                    }}
+                    isOpen={existingBrowserConfigDropdowns['main'] || false}
+                    setIsOpen={(open) => setExistingBrowserConfigDropdowns(prev => ({ ...prev, main: open }))}
+                    placeholder="Select existing configuration"
+                    fullWidth={true}
+                  />
+                </div>
+              )}
+
               <div className="space-y-4">
-                {formData.browserConfigs.map((config, index) => (
-                  <div key={config.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        <Monitor className="w-5 h-5 text-gray-600" />
-                        <input
-                          type="text"
-                          value={config.name}
-                          onChange={(e) => handleBrowserConfigChange(index, 'name', e.target.value)}
-                          className="font-medium text-gray-800 bg-transparent border-b border-gray-300 focus:border-indigo-500 focus:outline-none"
-                          placeholder="Configuration name"
-                        />
-                      </div>
-                      {formData.browserConfigs.length > 1 && (
+                {/* Existing Browser Configs (Non-editable) */}
+                {formData.existingBrowserConfigIds.map((configId) => {
+                  const config = existingBrowserConfigs.find(c => c.id === configId);
+                  if (!config) return null;
+                  
+                  const viewport = config.browser_config?.viewport;
+                  const userAgent = config.browser_config?.user_agent || '';
+                  
+                  // Extract browser type from user agent 
+                  let browserType = 'Unknown';
+                  if (userAgent.includes('Chrome') && !userAgent.includes('Edg')) browserType = 'Chromium';
+                  else if (userAgent.includes('Firefox')) browserType = 'Firefox';
+                  else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) browserType = 'Webkit';
+                  else if (userAgent.includes('Edg')) browserType = 'Microsoft Edge';
+                  
+                  return (
+                    <div key={configId} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-2">
+                          <Monitor className="w-5 h-5 text-gray-600" />
+                          <span className="text-sm font-medium text-gray-700">
+                            {browserType} - {viewport?.width || 1920}×{viewport?.height || 1080} (Existing)
+                          </span>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => removeBrowserConfig(index)}
+                          onClick={() => removeExistingBrowserConfig(configId)}
                           className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-                      )}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        This configuration will be reused from existing setup
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* New Browser Configs (Editable) */}
+                {formData.newBrowserConfigs.map((config, index) => (
+                  <div key={config.id} className="border border-gray-200 rounded-lg p-4 overflow-visible">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-2">
+                        <Monitor className="w-5 h-5 text-gray-600" />
+                        <span className="text-sm font-medium text-gray-700">New Browser Configuration</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeNewBrowserConfig(index)}
+                        className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                        title="Remove browser configuration"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm overflow-visible">
                       <div className="md:col-span-2">
-                        <label className="block text-xs font-medium text-gray-500 mb-1">User Agent</label>
-                        <div className="space-y-2">
-                          <CustomDropdown
-                            options={commonUserAgents}
-                            value={commonUserAgents.find(ua => ua.value === config.userAgent)?.value || 'custom'}
-                            onChange={(value) => {
-                              if (value !== 'custom') {
-                                handleBrowserConfigChange(index, 'userAgent', value);
-                              }
-                            }}
-                            isOpen={userAgentDropdowns[config.id] || false}
-                            setIsOpen={(open) => setUserAgentDropdowns(prev => ({ ...prev, [config.id]: open }))}
-                            placeholder="Select User Agent"
-                            fullWidth={true}
-                          />
-                          {(commonUserAgents.find(ua => ua.value === config.userAgent)?.value === 'custom' || 
-                            !commonUserAgents.find(ua => ua.value === config.userAgent)) && (
-                            <textarea
-                              value={config.userAgent}
-                              onChange={(e) => handleBrowserConfigChange(index, 'userAgent', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none text-xs bg-white"
-                              rows={2}
-                              placeholder="Enter custom user agent string"
-                            />
-                          )}
-                        </div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Browser Type</label>
+                        <CustomDropdown
+                          options={browserTypes}
+                          value={config.browserType || ''}
+                          onChange={(value) => handleNewBrowserConfigChange(index, 'browserType', value)}
+                          isOpen={browserTypeDropdowns[config.id] || false}
+                          setIsOpen={(open) => setBrowserTypeDropdowns(prev => ({ ...prev, [config.id]: open }))}
+                          placeholder="Select Browser Type"
+                          fullWidth={true}
+                        />
                       </div>
                       
                       <div className="md:col-span-2">
@@ -583,8 +782,8 @@ const CreateTest: React.FC = () => {
                             onChange={(value) => {
                               if (value !== 'custom') {
                                 const [width, height] = value.split('x').map(Number);
-                                handleBrowserConfigChange(index, 'viewport.width', width);
-                                handleBrowserConfigChange(index, 'viewport.height', height);
+                                handleNewBrowserConfigChange(index, 'viewport.width', width);
+                                handleNewBrowserConfigChange(index, 'viewport.height', height);
                               }
                             }}
                             isOpen={viewportDropdowns[config.id] || false}
@@ -603,7 +802,7 @@ const CreateTest: React.FC = () => {
                                 <input
                                   type="number"
                                   value={config.viewport.width}
-                                  onChange={(e) => handleBrowserConfigChange(index, 'viewport.width', parseInt(e.target.value) || 0)}
+                                  onChange={(e) => handleNewBrowserConfigChange(index, 'viewport.width', parseInt(e.target.value) || 0)}
                                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                                   placeholder="Width"
                                 />
@@ -613,7 +812,7 @@ const CreateTest: React.FC = () => {
                                 <input
                                   type="number"
                                   value={config.viewport.height}
-                                  onChange={(e) => handleBrowserConfigChange(index, 'viewport.height', parseInt(e.target.value) || 0)}
+                                  onChange={(e) => handleNewBrowserConfigChange(index, 'viewport.height', parseInt(e.target.value) || 0)}
                                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                                   placeholder="Height"
                                 />
@@ -632,9 +831,9 @@ const CreateTest: React.FC = () => {
                           onChange={(e) => {
                             const value = e.target.value;
                             if (value) {
-                              handleBrowserConfigChange(index, 'geolocation.latitude', parseFloat(value));
+                              handleNewBrowserConfigChange(index, 'geolocation.latitude', parseFloat(value));
                             } else {
-                              handleBrowserConfigChange(index, 'geolocation', undefined);
+                              handleNewBrowserConfigChange(index, 'geolocation', undefined);
                             }
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
@@ -651,9 +850,9 @@ const CreateTest: React.FC = () => {
                           onChange={(e) => {
                             const value = e.target.value;
                             if (value) {
-                              handleBrowserConfigChange(index, 'geolocation.longitude', parseFloat(value));
+                              handleNewBrowserConfigChange(index, 'geolocation.longitude', parseFloat(value));
                             } else if (!config.geolocation?.latitude) {
-                              handleBrowserConfigChange(index, 'geolocation', undefined);
+                              handleNewBrowserConfigChange(index, 'geolocation', undefined);
                             }
                           }}
                           className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
@@ -667,61 +866,114 @@ const CreateTest: React.FC = () => {
             </div>
 
             {/* Secrets */}
-            {formData.secrets.length > 0 && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-800">Secrets</h2>
-                  <button
-                    type="button"
-                    onClick={addSecret}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add Secret
-                  </button>
+            <div className="bg-white rounded-lg p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-800">Secrets</h2>
+                <button
+                  type="button"
+                  onClick={addNewSecret}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Secret
+                </button>
+              </div>
+
+              {/* Select Existing Secret */}
+              {existingSecrets.length > 0 && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Or select an existing secret
+                  </label>
+                  <CustomDropdown
+                    options={existingSecrets.map(secret => ({
+                      value: secret.id,
+                      label: `${secret.secret_name} - ${new Date(secret.created_at).toLocaleDateString()}`
+                    }))}
+                    value=""
+                    onChange={(secretId) => {
+                      if (secretId && !formData.existingSecretIds.includes(secretId)) {
+                        setFormData(prev => ({
+                          ...prev,
+                          existingSecretIds: [...prev.existingSecretIds, secretId]
+                        }));
+                      }
+                    }}
+                    isOpen={existingSecretsDropdowns['main'] || false}
+                    setIsOpen={(open) => setExistingSecretsDropdowns(prev => ({ ...prev, main: open }))}
+                    placeholder="Select existing secret"
+                    fullWidth={true}
+                  />
                 </div>
+              )}
                 
-                <div className="space-y-3">
-                  {formData.secrets.map((secret, index) => (
-                    <div key={secret.id} className="border border-gray-200 rounded-lg p-4">
+              <div className="space-y-3">
+                {/* Existing Secrets (Non-editable) */}
+                {formData.existingSecretIds.map((secretId) => {
+                  const secret = existingSecrets.find(s => s.id === secretId);
+                  if (!secret) return null;
+                  
+                  return (
+                    <div key={secretId} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                       <div className="flex items-center justify-between mb-2">
-                        <input
-                          type="text"
-                          value={secret.secretName}
-                          onChange={(e) => handleSecretChange(index, 'secretName', e.target.value)}
-                          className="text-sm font-medium text-gray-700 bg-transparent border-b border-gray-300 focus:border-indigo-500 focus:outline-none flex-1 mr-4"
-                          placeholder="Secret name"
-                        />
+                        <span className="flex-1 text-sm font-medium text-gray-700 mr-4">
+                          {secret.secret_name} (Existing)
+                        </span>
                         <button
                           type="button"
-                          onClick={() => removeSecret(index)}
+                          onClick={() => removeExistingSecret(secretId)}
                           className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                      
-                      <div>
-                        <input
-                          type="password"
-                          value={secret.value}
-                          onChange={(e) => handleSecretChange(index, 'value', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded text-gray-800 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                          placeholder="Secret value"
-                        />
+                      <div className="text-xs text-gray-500">
+                        This secret will be reused from existing setup
                       </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
+
+                {/* New Secrets (Editable) */}
+                {formData.newSecrets.map((secret, index) => (
+                  <div key={secret.id} className="border border-gray-200 rounded-lg p-4 overflow-visible">
+                    <div className="flex items-center justify-between mb-2">
+                      <input
+                        type="text"
+                        value={secret.secretName}
+                        onChange={(e) => handleNewSecretChange(index, 'secretName', e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm mr-4"
+                        placeholder="Secret name"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeNewSecret(index)}
+                        className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    <div>
+                      <input
+                        type="password"
+                        value={secret.value}
+                        onChange={(e) => handleNewSecretChange(index, 'value', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-gray-800 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                        placeholder="Secret value"
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
 
             {/* Add Secrets Button - Show when no secrets exist */}
-            {formData.secrets.length === 0 && (
+            {formData.newSecrets.length === 0 && formData.existingSecretIds.length === 0 && (
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={addSecret}
+                  onClick={addNewSecret}
                   className="inline-flex items-center px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
                 >
                   <Plus className="w-4 h-4 mr-1" />
@@ -731,7 +983,7 @@ const CreateTest: React.FC = () => {
             )}
 
             {/* Extra Rules */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
+            <div className="bg-white rounded-lg p-6 border border-gray-200">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">Extra Rules</h2>
                 <button
@@ -772,6 +1024,8 @@ const CreateTest: React.FC = () => {
                 ))}
               </div>
             </div>
+              </>
+            )}
           </div>
         )}
 

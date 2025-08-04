@@ -6,7 +6,7 @@ It creates a complete hierarchy of entities with proper relationships:
 - 1 Project (IMDB & Amazon Testing)
 - 1 Document
 - 2 Test Cases (IMDB movie search, Amazon product purchase)
-- 3 Browser Configs (Chrome, Firefox, Safari)
+- 3 Browser Configs (Chromium, Firefox, Webkit)
 - 6 Secret Values (credentials, API keys)
 - 6 Test Traversals (2×3 cross product)
 - 30-36 Brain States (5-6 per traversal)
@@ -171,10 +171,10 @@ def generate_unique_ids(count: int) -> List[str]:
 
 
 def create_realistic_browser_configs() -> List[Dict[str, Any]]:
-    """Create realistic browser configurations matching the sample JSON format."""
+    """Create realistic browser configurations using standardized Playwright browser types."""
     return [
         {
-            "name": "Chrome Desktop",
+            "name": "Chromium",
             "browser_config": {
                 "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "viewport": {"width": 1280, "height": 960},
@@ -205,7 +205,7 @@ def create_realistic_browser_configs() -> List[Dict[str, Any]]:
             },
         },
         {
-            "name": "Firefox Desktop",
+            "name": "Firefox",
             "browser_config": {
                 "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0",
                 "viewport": {"width": 1280, "height": 960},
@@ -236,7 +236,7 @@ def create_realistic_browser_configs() -> List[Dict[str, Any]]:
             },
         },
         {
-            "name": "Safari Desktop",
+            "name": "Webkit",
             "browser_config": {
                 "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
                 "viewport": {"width": 1280, "height": 960},
@@ -460,7 +460,7 @@ def create_varied_cost_data() -> List[Dict[str, Any]]:
 def create_varied_run_data() -> List[Dict[str, Any]]:
     """Create varied test run data with realistic durations."""
     base_time = datetime.now(timezone.utc) - timedelta(days=7)  # Start a week ago
-    
+
     return [
         {
             "run_type": RunType.AGENTIC,
@@ -1011,7 +1011,7 @@ def upload_realistic_data() -> None:
     with QuinoContextManager() as db:
         try:
             rich_print("Starting realistic data upload...")
-            
+
             # Set up content folders for images and GIFs
             setup_content_folders()
 
@@ -1142,12 +1142,12 @@ def upload_realistic_data() -> None:
                 browser_config_data = create_realistic_browser_configs()
                 for i, config in enumerate(browser_config_data):
                     # Assign browser configs to specific test cases
-                    # Chrome for IMDB, Firefox for Amazon, Safari for Netflix/GitHub
-                    if i == 0:  # Chrome
+                    # Chromium for IMDB, Firefox for Amazon, Webkit for Netflix/GitHub
+                    if i == 0:  # Chromium
                         test_case_id = imdb_test_case.id
                     elif i == 1:  # Firefox
                         test_case_id = amazon_test_case.id
-                    else:  # Safari
+                    else:  # Webkit
                         test_case_id = netflix_test_case.id
 
                     browser_config = BrowserConfigRepo.create(
@@ -1432,23 +1432,25 @@ def upload_realistic_data() -> None:
                             run_gif=gif_path,
                         ),
                     )
-                    
+
                     # Update the test run with realistic timestamps
                     # Set the started_at time to a realistic past time
                     test_run.started_at = run_data["started_at"]
-                    
+
                     # Set finished_at for completed runs
                     if run_data["finished_at"] is not None:
                         test_run.finished_at = run_data["finished_at"]
-                    
+
                     db.add(test_run)
                     test_runs.append(test_run)
-                    
+
                     duration_info = ""
                     if run_data["finished_at"]:
-                        duration = (run_data["finished_at"] - run_data["started_at"]).total_seconds()
+                        duration = (
+                            run_data["finished_at"] - run_data["started_at"]
+                        ).total_seconds()
                         duration_info = f", {duration:.0f}s"
-                    
+
                     rich_print(
                         f"✓ Created test run: {test_run.id} ({run_data['run_type']}, {run_data['origin']}{duration_info})"
                     )
@@ -1504,7 +1506,9 @@ def upload_realistic_data() -> None:
 
                     # Calculate timing for history elements within the test run duration
                     run_start = test_run.started_at
-                    run_end = test_run.finished_at or run_start + timedelta(minutes=1)  # Default 1 min for pending runs
+                    run_end = test_run.finished_at or run_start + timedelta(
+                        minutes=1
+                    )  # Default 1 min for pending runs
                     total_duration = (run_end - run_start).total_seconds()
                     action_interval = total_duration / max(len(traversal_actions), 1)
 
@@ -1514,7 +1518,9 @@ def upload_realistic_data() -> None:
 
                         # Calculate realistic timing for this action
                         action_start = run_start + timedelta(seconds=i * action_interval)
-                        action_end = action_start + timedelta(seconds=min(action_interval * 0.8, 30))  # Cap at 30 seconds per action
+                        action_end = action_start + timedelta(
+                            seconds=min(action_interval * 0.8, 30)
+                        )  # Cap at 30 seconds per action
 
                         # Get the history element ID and corresponding image path
                         history_element_id = history_element_ids[history_element_id_index]
@@ -1532,12 +1538,12 @@ def upload_realistic_data() -> None:
                                 screenshot=screenshot_path,
                             ),
                         )
-                        
+
                         # Update with realistic timestamps
                         history_element.action_started_at = action_start
                         if test_run.finished_at:  # Only set finish time for completed runs
                             history_element.action_finished_at = action_end
-                        
+
                         db.add(history_element)
                         history_count += 1
                         history_element_id_index += 1
@@ -1552,7 +1558,7 @@ def upload_realistic_data() -> None:
                 rich_print(f"   • 1 Project: {project.name}")
                 rich_print(f"   • 1 Document: {document.name}")
                 rich_print("   • 4 Test Cases (IMDB, Amazon, Netflix, GitHub)")
-                rich_print("   • 3 Browser Configs (Chrome, Firefox, Safari)")
+                rich_print("   • 3 Browser Configs (Chromium, Firefox, Webkit)")
                 rich_print("   • 6 Secret Values (API keys, credentials)")
                 rich_print("   • 12 Test Traversals")
                 rich_print(f"   • {len(brain_states)} Brain States")
