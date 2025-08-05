@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
 import { useTestRuns } from '../hooks/useTestRuns';
+import { useProjects } from '../hooks/useProjects';
 
 // Pagination Component
 interface PaginationProps {
@@ -135,6 +136,9 @@ const Pagination: React.FC<PaginationProps> = ({
 };
 
 const TestRuns: React.FC = () => {
+  // Get selected project
+  const { selectedProject } = useProjects();
+  
   // Dropdown states
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [testCaseDropdownOpen, setTestCaseDropdownOpen] = useState(false);
@@ -159,6 +163,7 @@ const TestRuns: React.FC = () => {
     setTestCaseId,
     filters
   } = useTestRuns({
+    projectId: selectedProject?.id,
     pageSize: 10
   });
 

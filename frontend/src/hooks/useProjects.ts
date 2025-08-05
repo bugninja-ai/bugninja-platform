@@ -31,11 +31,6 @@ export const useProjects = (): UseProjectsResult => {
         loading: false, 
         error: null 
       }));
-
-      // Set the first project as selected if no project is selected and projects exist
-      if (!selectedProject && response.items.length > 0) {
-        setSelectedProject(response.items[0]);
-      }
       
     } catch (error) {
       const apiError = error as ApiError;
@@ -77,6 +72,7 @@ export const useProjects = (): UseProjectsResult => {
 
   // Save selected project to localStorage for persistence
   useEffect(() => {
+    console.log('useProjects: selectedProject changed to:', selectedProject?.name, selectedProject?.id);
     if (selectedProject) {
       localStorage.setItem('selectedProjectId', selectedProject.id);
     }
@@ -84,14 +80,26 @@ export const useProjects = (): UseProjectsResult => {
 
   // Restore selected project from localStorage on mount
   useEffect(() => {
+    if (!state.data || state.data.length === 0) return;
+    
     const savedProjectId = localStorage.getItem('selectedProjectId');
-    if (savedProjectId && state.data) {
+    
+    if (savedProjectId) {
       const savedProject = state.data.find(p => p.id === savedProjectId);
       if (savedProject) {
         setSelectedProject(savedProject);
+        return;
+      } else {
+        // Clear invalid project ID from localStorage
+        localStorage.removeItem('selectedProjectId');
       }
     }
-  }, [state.data]);
+    
+    // If no saved project or invalid saved project, select first available
+    if (!selectedProject && state.data.length > 0) {
+      setSelectedProject(state.data[0]);
+    }
+  }, [state.data, selectedProject]);
 
   return {
     data: state.data,
@@ -102,4 +110,4 @@ export const useProjects = (): UseProjectsResult => {
     setSelectedProject,
     createProject,
   };
-}; 
+};

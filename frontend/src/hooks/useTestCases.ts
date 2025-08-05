@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { FrontendTestCase, ApiState, ApiError, TestPriority, TestCategory } from '../types';
 import { TestCaseService } from '../services/testCaseService';
 
@@ -39,28 +39,41 @@ export interface UseTestCasesResult extends ApiState<FrontendTestCase[]> {
   };
 }
 
-export const useTestCases = (initialParams?: UseTestCasesParams): UseTestCasesResult => {
+export const useTestCases = (params?: UseTestCasesParams): UseTestCasesResult => {
   const [state, setState] = useState<ApiState<FrontendTestCase[]>>({
     data: null,
     loading: true,
     error: null,
   });
 
+  // Make projectId reactive
+  const projectId = params?.projectId;
+
   // Pagination state
-  const [page, setPageState] = useState(initialParams?.page || 1);
-  const [pageSize, setPageSizeState] = useState(initialParams?.pageSize || 15);
+  const [page, setPageState] = useState(params?.page || 1);
+  const [pageSize, setPageSizeState] = useState(params?.pageSize || 15);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrevious, setHasPrevious] = useState(false);
 
   // Filter state
-  const [search, setSearchState] = useState(initialParams?.search || '');
-  const [priority, setPriorityState] = useState<TestPriority | undefined>(initialParams?.priority);
-  const [category, setCategoryState] = useState<TestCategory | undefined>(initialParams?.category);
-  const [sortOrder, setSortOrderState] = useState<'asc' | 'desc'>(initialParams?.sortOrder || 'desc');
+  const [search, setSearchState] = useState(params?.search || '');
+  const [priority, setPriorityState] = useState<TestPriority | undefined>(params?.priority);
+  const [category, setCategoryState] = useState<TestCategory | undefined>(params?.category);
+  const [sortOrder, setSortOrderState] = useState<'asc' | 'desc'>(params?.sortOrder || 'desc');
 
   const fetchTestCases = useCallback(async () => {
+    if (!projectId) {
+      setState(prev => ({ 
+        ...prev, 
+        data: null, 
+        loading: false, 
+        error: null 
+      }));
+      return;
+    }
+
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       
@@ -68,7 +81,7 @@ export const useTestCases = (initialParams?: UseTestCasesParams): UseTestCasesRe
         page,
         page_size: pageSize,
         sort_order: sortOrder,
-        project_id: initialParams?.projectId,
+        project_id: projectId,
         search: search || undefined,
       });
       
@@ -87,14 +100,27 @@ export const useTestCases = (initialParams?: UseTestCasesParams): UseTestCasesRe
       
     } catch (error) {
       const apiError = error as ApiError;
+      
+      // If project not found, it might be deleted - clear localStorage and reset
+      if (apiError.status === 404 && projectId && apiError.message?.includes('not found')) {
+        localStorage.removeItem('selectedProjectId');
+        // Don't show error for invalid project - let useProjects handle it
+        setState(prev => ({ 
+          ...prev, 
+          loading: false, 
+          error: null,
+          data: []
+        }));
+        return;
+      }
+      
       setState(prev => ({ 
         ...prev, 
         loading: false, 
         error: apiError.message 
       }));
-      console.error('Failed to fetch test cases:', apiError);
     }
-  }, [page, pageSize, sortOrder, initialParams?.projectId, search]);
+  }, [page, pageSize, sortOrder, projectId, search]);
 
   const refetch = useCallback(async () => {
     await fetchTestCases();
@@ -132,10 +158,10 @@ export const useTestCases = (initialParams?: UseTestCasesParams): UseTestCasesRe
 
   // Fetch data when dependencies change
   useEffect(() => {
-    if (initialParams?.projectId) {
+    if (projectId) {
       fetchTestCases();
     }
-  }, [fetchTestCases, initialParams?.projectId]);
+  }, [fetchTestCases, projectId]);
 
   // Client-side filtering for priority and category (since backend might not support all filters)
   const filteredData = state.data?.filter(testCase => {

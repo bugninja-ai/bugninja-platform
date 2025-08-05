@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { createPortal } from 'react-dom';
 import { 
   FileText, 
   Upload, 
@@ -43,6 +42,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     refetch: refetchProjects,
     createProject
   } = useProjects();
+
+  // Store previous project ID to detect changes and force page refresh
+  const [prevProjectId, setPrevProjectId] = React.useState<string | undefined>(selectedProject?.id);
+
+  // Force page refresh when project changes
+  React.useEffect(() => {
+    if (selectedProject?.id && prevProjectId && selectedProject.id !== prevProjectId) {
+      console.log('Layout: Project changed from', prevProjectId, 'to', selectedProject.id, '- refreshing page');
+      window.location.reload();
+    }
+    setPrevProjectId(selectedProject?.id);
+  }, [selectedProject?.id, prevProjectId]);
 
   // Handle project creation
   const handleCreateProject = async (projectData: { name: string; default_start_url: string }) => {
@@ -137,29 +148,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </div>
               ) : projects && projects.length > 0 ? (
                 <>
-                  {/* Create New Project Option */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCreateProjectModalOpen(true);
-                      setProjectDropdownOpen(false);
-                    }}
-                    className="w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors border-b border-gray-200"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                        <FolderPlus className="w-4 h-4 text-indigo-600" />
-                      </div>
-                      <span className="font-medium text-indigo-600">Create New Project</span>
-                    </div>
-                  </button>
-                  
                   {/* Existing Projects */}
                   {projects.map((project) => (
                     <button
                       key={project.id}
                       type="button"
                       onClick={() => {
+                        console.log('Layout: Selecting project:', project.name, project.id);
                         setSelectedProject(project);
                         setProjectDropdownOpen(false);
                       }}
@@ -170,27 +165,47 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <span className="font-medium text-gray-600 truncate">{project.name}</span>
                     </button>
                   ))}
+                  
+                  {/* Separator */}
+                  <div className="px-4 py-3">
+                    <div className="border-t border-gray-200"></div>
+                  </div>
+                  
+                  {/* Create New Project Button - Primary style at bottom */}
+                  <div className="px-4 pb-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreateProjectModalOpen(true);
+                        setProjectDropdownOpen(false);
+                      }}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                      <span>Create New Project</span>
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
-                  {/* Create New Project Option - when no projects exist */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCreateProjectModalOpen(true);
-                      setProjectDropdownOpen(false);
-                    }}
-                    className="w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                        <FolderPlus className="w-4 h-4 text-indigo-600" />
-                      </div>
-                      <span className="font-medium text-indigo-600">Create Your First Project</span>
-                    </div>
-                  </button>
+                  {/* No projects message */}
                   <div className="px-4 py-3 text-gray-500 text-center text-sm">
                     No projects found
+                  </div>
+                  
+                  {/* Create First Project Button - Primary style */}
+                  <div className="px-4 pb-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCreateProjectModalOpen(true);
+                        setProjectDropdownOpen(false);
+                      }}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                      <span>Create Your First Project</span>
+                    </button>
                   </div>
                 </>
               )}

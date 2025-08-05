@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ApiState, ApiError } from '../types';
 import { TestCaseService } from '../services/testCaseService';
 
@@ -8,6 +8,7 @@ export interface UseTestRunsParams {
   search?: string;
   status?: string;
   sortOrder?: 'asc' | 'desc';
+  projectId?: string;
   testCaseId?: string;
 }
 
@@ -38,28 +39,41 @@ export interface UseTestRunsResult extends ApiState<any[]> {
   };
 }
 
-export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResult => {
+export const useTestRuns = (params?: UseTestRunsParams): UseTestRunsResult => {
   const [state, setState] = useState<ApiState<any[]>>({
     data: null,
     loading: true,
     error: null,
   });
 
+  // Make projectId reactive
+  const projectId = params?.projectId;
+
   // Pagination state
-  const [page, setPageState] = useState(initialParams?.page || 1);
-  const [pageSize, setPageSizeState] = useState(initialParams?.pageSize || 15);
+  const [page, setPageState] = useState(params?.page || 1);
+  const [pageSize, setPageSizeState] = useState(params?.pageSize || 15);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrevious, setHasPrevious] = useState(false);
 
   // Filter state
-  const [search, setSearchState] = useState(initialParams?.search || '');
-  const [status, setStatusState] = useState<string | undefined>(initialParams?.status);
-  const [sortOrder, setSortOrderState] = useState<'asc' | 'desc'>(initialParams?.sortOrder || 'desc');
-  const [testCaseId, setTestCaseIdState] = useState<string | undefined>(initialParams?.testCaseId);
+  const [search, setSearchState] = useState(params?.search || '');
+  const [status, setStatusState] = useState<string | undefined>(params?.status);
+  const [sortOrder, setSortOrderState] = useState<'asc' | 'desc'>(params?.sortOrder || 'desc');
+  const [testCaseId, setTestCaseIdState] = useState<string | undefined>(params?.testCaseId);
 
   const fetchTestRuns = useCallback(async () => {
+    if (!projectId) {
+      setState(prev => ({ 
+        ...prev, 
+        data: null, 
+        loading: false, 
+        error: null 
+      }));
+      return;
+    }
+
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       
@@ -67,6 +81,7 @@ export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResul
         page,
         page_size: pageSize,
         sort_order: sortOrder,
+        project_id: projectId,
         test_case_id: testCaseId,
         search: search || undefined,
         status: status || undefined,
@@ -88,9 +103,21 @@ export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResul
     } catch (error) {
       const apiError = error as ApiError;
       
+      // If project not found, it might be deleted - clear localStorage and reset
+      if (apiError.status === 404 && projectId && apiError.message?.includes('Project') && apiError.message?.includes('not found')) {
+        localStorage.removeItem('selectedProjectId');
+        // Don't show error for invalid project - let useProjects handle it
+        setState(prev => ({ 
+          ...prev, 
+          loading: false, 
+          error: null,
+          data: []
+        }));
+        return;
+      }
+      
       // If we get a 404 for test case not found, clear the filter and retry
       if (apiError.status === 404 && testCaseId && apiError.message?.includes('not found')) {
-        console.warn('Test case not found, clearing filter and retrying...');
         setTestCaseIdState(undefined);
         return; // This will trigger a re-fetch with the cleared filter
       }
@@ -100,9 +127,8 @@ export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResul
         loading: false, 
         error: apiError.message 
       }));
-      console.error('Failed to fetch test runs:', apiError);
     }
-  }, [page, pageSize, sortOrder, testCaseId, search, status]);
+  }, [page, pageSize, sortOrder, projectId, testCaseId, search, status]);
 
   const refetch = useCallback(async () => {
     await fetchTestRuns();
@@ -140,8 +166,10 @@ export const useTestRuns = (initialParams?: UseTestRunsParams): UseTestRunsResul
 
   // Fetch data when dependencies change
   useEffect(() => {
-    fetchTestRuns();
-  }, [fetchTestRuns]);
+    if (projectId) {
+      fetchTestRuns();
+    }
+  }, [fetchTestRuns, projectId]);
 
   // No client-side filtering needed - all filtering is handled by the backend
 

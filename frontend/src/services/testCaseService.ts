@@ -388,6 +388,7 @@ export class TestCaseService {
     page?: number;
     page_size?: number;
     sort_order?: 'asc' | 'desc';
+    project_id?: string;
     test_case_id?: string;
     search?: string;
     status?: string;
@@ -406,6 +407,7 @@ export class TestCaseService {
       if (params?.page) queryParams.append('page', params.page.toString());
       if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
       if (params?.sort_order) queryParams.append('sort_order', params.sort_order);
+      if (params?.project_id) queryParams.append('project_id', params.project_id);
       if (params?.test_case_id) queryParams.append('test_case_id', params.test_case_id);
       if (params?.search) queryParams.append('search', params.search);
       if (params?.status) queryParams.append('status', params.status);

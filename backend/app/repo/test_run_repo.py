@@ -98,6 +98,7 @@ class TestRunRepo:
         page: int = 1,
         page_size: int = 10,
         sort_order: str = "desc",
+        project_id: Optional[str] = None,
         test_case_id: Optional[str] = None,
         search: Optional[str] = None,
         status: Optional[str] = None,
@@ -110,7 +111,8 @@ class TestRunRepo:
             page: Page number (1-based, default: 1)
             page_size: Number of records per page (default: 10)
             sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
-            test_traversal_id: Optional test traversal ID to filter by (default: None - returns all test runs)
+            project_id: Optional project ID to filter by (default: None - returns all test runs)
+            test_case_id: Optional test case ID to filter by (default: None - returns all test runs)
             search: Optional search term to filter by test case name or description (default: None)
             status: Optional status to filter by - "pending", "passed", "failed" (default: None)
 
@@ -120,15 +122,18 @@ class TestRunRepo:
         # Calculate skip based on page and page_size
         skip = (page - 1) * page_size
 
-        # Build the base query with joins for search and test_case_id filtering
-        if search or test_case_id:
-            # Join with TestTraversal and TestCase for search and test case filtering
+        # Build the base query with joins for search, test_case_id, and project_id filtering
+        if search or test_case_id or project_id:
+            # Join with TestTraversal and TestCase for search, test case, and project filtering
             base_statement = select(TestRun).join(TestTraversal).join(TestCase)
         else:
             base_statement = select(TestRun)
 
         # Apply filters
         filters = []
+
+        if project_id:
+            filters.append(TestCase.project_id == project_id)
 
         if test_case_id:
             filters.append(TestCase.id == test_case_id)
@@ -429,6 +434,7 @@ class TestRunRepo:
     @staticmethod
     def count_with_filter(
         db: Session,
+        project_id: Optional[str] = None,
         test_case_id: Optional[str] = None,
         search: Optional[str] = None,
         status: Optional[str] = None,
@@ -438,22 +444,26 @@ class TestRunRepo:
 
         Args:
             db: Database session
-            test_traversal_id: Optional test traversal ID to filter by (default: None - counts all test runs)
+            project_id: Optional project ID to filter by (default: None - counts all test runs)
+            test_case_id: Optional test case ID to filter by (default: None - counts all test runs)
             search: Optional search term to filter by test case name or description (default: None)
             status: Optional status to filter by - "pending", "passed", "failed" (default: None)
 
         Returns:
             int: Total number of test runs matching the filters
         """
-        # Build the base query with joins for search and test_case_id filtering
-        if search or test_case_id:
-            # Join with TestTraversal and TestCase for search and test case filtering
+        # Build the base query with joins for search, test_case_id, and project_id filtering
+        if search or test_case_id or project_id:
+            # Join with TestTraversal and TestCase for search, test case, and project filtering
             base_statement = select(TestRun.id).join(TestTraversal).join(TestCase)
         else:
             base_statement = select(TestRun.id)
 
         # Apply filters
         filters = []
+
+        if project_id:
+            filters.append(TestCase.project_id == project_id)
 
         if test_case_id:
             filters.append(TestCase.id == test_case_id)
@@ -610,6 +620,7 @@ class TestRunRepo:
         page: int = 1,
         page_size: int = 10,
         sort_order: str = "desc",
+        project_id: Optional[str] = None,
         test_case_id: Optional[str] = None,
         search: Optional[str] = None,
         status: Optional[str] = None,
@@ -622,7 +633,8 @@ class TestRunRepo:
             page: Page number (1-based, default: 1)
             page_size: Number of records per page (default: 10)
             sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
-            test_traversal_id: Optional test traversal ID to filter by (default: None - returns all test runs)
+            project_id: Optional project ID to filter by (default: None - returns all test runs)
+            test_case_id: Optional test case ID to filter by (default: None - returns all test runs)
             search: Optional search term to filter by test case name or description (default: None)
             status: Optional status to filter by - "pending", "passed", "failed" (default: None)
 
@@ -635,6 +647,7 @@ class TestRunRepo:
             page=page,
             page_size=page_size,
             sort_order=sort_order,
+            project_id=project_id,
             test_case_id=test_case_id,
             search=search,
             status=status,
