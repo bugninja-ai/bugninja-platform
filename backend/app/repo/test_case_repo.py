@@ -26,7 +26,7 @@ from app.repo.project_repo import ProjectRepo
 from app.repo.secret_value_repo import SecretValueRepo
 from app.repo.test_traversal_repo import TestTraversalRepo
 from app.schemas.communication.test_case import ExtendedResponseTestcase
-from app.schemas.crud.browser_config import ResponseBrowserConfig
+from app.schemas.crud.browser_config import BrowserConfigData, ResponseBrowserConfig
 from app.schemas.crud.document import ResponseDocument
 from app.schemas.crud.secret_value import ResponseSecretValue
 from app.schemas.crud.test_case import (
@@ -417,7 +417,7 @@ class TestCaseRepo:
             response_browser_config = ResponseBrowserConfig(
                 id=browser_config.id,
                 project_id=browser_config.project_id,
-                browser_config=browser_config.browser_config,
+                browser_config=BrowserConfigData.model_validate(browser_config.browser_config),
                 created_at=browser_config.created_at,
                 updated_at=browser_config.updated_at,
             )
@@ -804,10 +804,11 @@ class TestCaseRepo:
             # Lazy import to avoid circular dependency
             from app.repo.browser_config_repo import BrowserConfigRepo
 
-            created_browser_configs = []
+            created_browser_configs: List[BrowserConfig] = []
             if test_case_data.new_browser_configs:
                 for browser_config_data in test_case_data.new_browser_configs:
                     # Ensure project_id matches
+                    # TODO! this is a major problem here
                     browser_config_data.project_id = test_case_data.project_id
                     browser_config = BrowserConfigRepo.create(db, browser_config_data)
                     created_browser_configs.append(browser_config)
@@ -819,7 +820,7 @@ class TestCaseRepo:
                 )
 
             # Create new secret values
-            created_secret_values = []
+            created_secret_values: List[SecretValue] = []
             if test_case_data.new_secret_values:
                 for secret_value_data in test_case_data.new_secret_values:
                     # Ensure project_id matches
@@ -862,7 +863,7 @@ class TestCaseRepo:
                 ResponseBrowserConfig(
                     id=bc.id,
                     project_id=bc.project_id,
-                    browser_config=bc.browser_config,
+                    browser_config=BrowserConfigData.model_validate(bc.browser_config),
                     created_at=bc.created_at,
                     updated_at=bc.updated_at,
                 )
@@ -873,7 +874,7 @@ class TestCaseRepo:
                 ResponseBrowserConfig(
                     id=bc.id,
                     project_id=bc.project_id,
-                    browser_config=bc.browser_config,
+                    browser_config=BrowserConfigData.model_validate(bc.browser_config),
                     created_at=bc.created_at,
                     updated_at=bc.updated_at,
                 )

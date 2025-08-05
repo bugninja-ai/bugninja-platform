@@ -8,6 +8,7 @@ from app.db.base import get_db
 from app.repo.browser_config_repo import BrowserConfigRepo
 from app.repo.test_case_repo import TestCaseRepo
 from app.schemas.crud.browser_config import (
+    BrowserConfigData,
     BulkCreateBrowserConfigRequest,
     BulkCreateBrowserConfigResponse,
     BulkUpdateBrowserConfigRequest,
@@ -62,7 +63,7 @@ async def create_browser_config_and_traversal(
             project_id=created_browser_config.project_id,
             created_at=created_browser_config.created_at,
             updated_at=created_browser_config.updated_at,
-            browser_config=created_browser_config.browser_config,
+            browser_config=BrowserConfigData.model_validate(created_browser_config.browser_config),
         )
     except HTTPException:
         raise
@@ -119,7 +120,7 @@ async def bulk_create_browser_configs(
                 project_id=bc.project_id,
                 created_at=bc.created_at,
                 updated_at=bc.updated_at,
-                browser_config=bc.browser_config,
+                browser_config=BrowserConfigData.model_validate(bc.browser_config),
             )
             for bc in created_browser_configs
         ]
@@ -188,7 +189,7 @@ async def bulk_update_browser_configs(
                 project_id=bc.project_id,
                 created_at=bc.created_at,
                 updated_at=bc.updated_at,
-                browser_config=bc.browser_config,
+                browser_config=BrowserConfigData.model_validate(bc.browser_config),
             )
             for bc in updated_browser_configs
         ]
@@ -250,7 +251,7 @@ async def get_browser_config_by_id(
             project_id=browser_config.project_id,
             created_at=browser_config.created_at,
             updated_at=browser_config.updated_at,
-            browser_config=browser_config.browser_config,
+            browser_config=BrowserConfigData.model_validate(browser_config.browser_config),
         )
     except HTTPException:
         raise
@@ -321,7 +322,7 @@ async def get_browser_configs_by_project(
                 project_id=bc.project_id,
                 created_at=bc.created_at,
                 updated_at=bc.updated_at,
-                browser_config=bc.browser_config,
+                browser_config=BrowserConfigData.model_validate(bc.browser_config),
             )
             for bc in browser_configs
         ]
@@ -379,7 +380,7 @@ async def delete_browser_config(
             project_id=browser_config.project_id,
             created_at=browser_config.created_at,
             updated_at=browser_config.updated_at,
-            browser_config=browser_config.browser_config,
+            browser_config=BrowserConfigData.model_validate(browser_config.browser_config),
         )
     except HTTPException:
         raise

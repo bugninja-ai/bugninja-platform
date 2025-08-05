@@ -5,16 +5,73 @@ This module defines Pydantic models for BrowserConfig entity CRUD operations.
 Browser configurations store browser-specific settings and parameters for test execution.
 """
 
+import enum
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from cuid2 import Cuid as CUID
 from polyfactory.factories.pydantic_factory import ModelFactory
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from rich import print as rich_print
 
 from app.schemas.crud.base import CreationModel, UpdateModel, faker
 from app.schemas.crud.utils import generate_browser_config_data
+
+
+class BrowserNameEnum(str, enum.Enum):
+    CHROME = "chrome"
+    FIREFOX = "firefox"
+    WEBKIT = "webkit"
+
+
+class BrowserChannelEnum(str, enum.Enum):
+    CHROMIUM = "chromium"
+    CHROMIUM_HEADLESS_SHELL = "chromium-headless-shell"
+    CHROMIUM_TIP_OF_TREE_HEADLESS_SHELL = "chromium-tip-of-tree-headless-shell"
+    CHROME = "chrome"
+    CHROME_BETA = "chrome-beta"
+    MSEDGE = "msedge"
+    MSEDGE_BETA = "msedge-beta"
+    MSEDGE_DEV = "msedge-dev"
+    BIDI_CHROMIUM = "bidi-chromium"
+    FIREFOX = "firefox"
+    WEBKIT = "webkit"
+
+
+class ViewportData(BaseModel):
+    width: int
+    height: int
+
+
+class GeolocationData(BaseModel):
+    latitude: float
+    longitude: float
+
+
+class BrowserConfigData(BaseModel):
+    user_agent: str
+    viewport: ViewportData
+    channel: str
+    browser_name: BrowserNameEnum
+
+    device_scale_factor: Optional[float]
+    color_scheme: Optional[Literal["light", "dark"]]
+    accept_downloads: Optional[bool]
+    proxy: Optional[bool]
+    client_certificates: Optional[List[str]]
+    extra_http_headers: Optional[Dict[str, str]]
+    http_credentials: Optional[Dict[str, str]]
+    java_script_enabled: Optional[bool]
+    geolocation: Optional[GeolocationData]
+    timeout: Optional[float]
+    headers: Optional[Dict[str, str]]
+    allowed_domains: Optional[List[str]]
+
+    model_config = ConfigDict(
+        extra="ignore",
+        from_attributes=True,
+        populate_by_name=True,
+    )
 
 
 class CreateBrowserConfig(CreationModel):
@@ -31,7 +88,7 @@ class CreateBrowserConfig(CreationModel):
     """
 
     test_case_id: str
-    browser_config: Dict[str, Any]
+    browser_config: BrowserConfigData
 
     @classmethod
     def sample_factory_build(cls, test_case_id: str = CUID().generate()) -> "CreateBrowserConfig":
@@ -70,7 +127,7 @@ class UpdateBrowserConfig(UpdateModel):
     """
 
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    browser_config: Optional[Dict[str, Any]] = None
+    browser_config: BrowserConfigData
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateBrowserConfig":
@@ -111,7 +168,7 @@ class ResponseBrowserConfig(BaseModel):
     project_id: str
     created_at: datetime
     updated_at: datetime
-    browser_config: Dict[str, Any]
+    browser_config: BrowserConfigData
 
     @classmethod
     def sample_factory_build(
@@ -234,7 +291,7 @@ class UpdateBrowserConfigWithId(BaseModel):
 
     id: str
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    browser_config: Optional[Dict[str, Any]] = None
+    browser_config: BrowserConfigData
 
     @classmethod
     def sample_factory_build(cls, id: str = CUID().generate()) -> "UpdateBrowserConfigWithId":

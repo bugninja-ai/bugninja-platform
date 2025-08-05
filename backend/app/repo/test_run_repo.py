@@ -22,8 +22,7 @@ from app.schemas.communication.test_run import (
     ExtendedResponseTestRun,
     PaginatedResponseExtendedTestRun,
 )
-from app.schemas.crud.browser_config import ResponseBrowserConfig
-
+from app.schemas.crud.browser_config import BrowserConfigData, ResponseBrowserConfig
 from app.schemas.crud.test_run import CreateTestRun, ResponseTestRun, UpdateTestRun
 
 
@@ -560,7 +559,7 @@ class TestRunRepo:
         response_browser_config = ResponseBrowserConfig(
             id=browser_config.id,
             project_id=browser_config.project_id,
-            browser_config=browser_config.browser_config,
+            browser_config=BrowserConfigData.model_validate(browser_config.browser_config),
             created_at=browser_config.created_at,
             updated_at=browser_config.updated_at,
         )
@@ -568,7 +567,7 @@ class TestRunRepo:
         # Get test case information through test traversal
         test_case_statement = (
             select(TestCase)
-            .join(TestTraversal, TestCase.id == TestTraversal.test_case_id)
+            .join(TestTraversal, col(TestCase.id) == col(TestTraversal.test_case_id))
             .where(TestTraversal.id == test_run.test_traversal_id)
         )
         test_case = db.exec(test_case_statement).first()
@@ -866,7 +865,7 @@ class TestRunRepo:
                 project_id=browser_config.project_id,
                 created_at=browser_config.created_at,
                 updated_at=browser_config.updated_at,
-                browser_config=browser_config.browser_config,
+                browser_config=BrowserConfigData.model_validate(browser_config.browser_config),
             )
 
             # Get extended brain states for this test run

@@ -18,7 +18,7 @@ from app.schemas.communication.test_traversal import (
     ExtendedResponseTestTraversal,
     LightResponseTestRun,
 )
-from app.schemas.crud.browser_config import ResponseBrowserConfig
+from app.schemas.crud.browser_config import BrowserConfigData, ResponseBrowserConfig
 from app.schemas.crud.test_traversal import (
     CreateTestTraversal,
     UpdateTestTraversal,
@@ -397,7 +397,7 @@ class TestTraversalRepo:
         response_browser_config = ResponseBrowserConfig(
             id=browser_config.id,
             project_id=browser_config.project_id,
-            browser_config=browser_config.browser_config,
+            browser_config=BrowserConfigData.model_validate(browser_config.browser_config),
             created_at=browser_config.created_at,
             updated_at=browser_config.updated_at,
         )

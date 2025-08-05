@@ -2,7 +2,6 @@ from typing import List
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints.utils import create_success_response
 from app.schemas.crud.constants import BROWSER_TYPES
 
 browser_types_router = APIRouter(prefix="/browser-types", tags=["Browser Types"])
