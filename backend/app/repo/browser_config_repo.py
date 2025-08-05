@@ -550,24 +550,48 @@ class BrowserConfigRepo:
 
     @staticmethod
     def bulk_update(
-        db: Session, browser_configs_data: List[UpdateBrowserConfigWithId]
-    ) -> Tuple[List[BrowserConfig], List[Dict[str, Any]]]:
+        db: Session,
+        browser_configs_data: List[UpdateBrowserConfigWithId],
+        new_browser_configs: List[CreateBrowserConfig] = [],
+        existing_browser_config_ids_to_add: List[str] = [],
+        browser_config_ids_to_unlink: List[str] = [],
+        test_case_id: Optional[str] = None,
+    ) -> Tuple[
+        List[BrowserConfig], List[BrowserConfig], List[BrowserConfig], int, List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]
+    ]:
         """
-        Update multiple browser configurations.
+        Perform bulk operations on browser configurations: update, create, link existing, and unlink.
 
         Args:
             db: Database session
             browser_configs_data: List of browser configuration update data with IDs
+            new_browser_configs: List of new browser configurations to create
+            existing_browser_config_ids_to_add: List of existing browser config IDs to link to test case
+            browser_config_ids_to_unlink: List of browser config IDs to unlink from test case
+            test_case_id: Test case ID for creating new configs, linking existing, and unlinking
 
         Returns:
             Tuple containing:
             - List of updated browser configurations
+            - List of created browser configurations
+            - List of linked existing browser configurations
+            - Number of unlinked browser configurations
             - List of failed updates with error details
+            - List of failed creations with error details
+            - List of failed link attempts with error details
         """
         updated_browser_configs = []
+        created_browser_configs = []
+        linked_browser_configs = []
         failed_updates = []
+        failed_creations = []
+        failed_links = []
+        total_unlinked = 0
 
-        # Process each browser config update
+        # Lazy import to avoid circular dependency
+        from app.repo.test_case_repo import TestCaseRepo
+
+        # 1. Handle updates to existing browser configs
         for index, browser_config_data in enumerate(browser_configs_data):
             try:
                 # Check if browser config exists
@@ -605,8 +629,93 @@ class BrowserConfigRepo:
                     }
                 )
 
-        # Commit all successful updates
-        if updated_browser_configs:
+        # 2. Handle creation of new browser configs
+        if new_browser_configs and test_case_id:
+            for index, browser_config_data in enumerate(new_browser_configs):
+                try:
+                    # Set the test case ID for the new browser config
+                    browser_config_data.test_case_id = test_case_id
+
+                    # Create the browser config
+                    new_browser_config = BrowserConfigRepo.create(db, browser_config_data)
+                    created_browser_configs.append(new_browser_config)
+
+                    # Create the association between test case and browser config
+                    # This is crucial - without this, the browser config won't appear in the test case
+                    TestCaseRepo._associate_browser_configs_with_test_case(
+                        db, test_case_id, [new_browser_config.id]
+                    )
+
+                except Exception as e:
+                    failed_creations.append(
+                        {
+                            "index": index,
+                            "error": str(e),
+                            "data": browser_config_data.model_dump(),
+                        }
+                    )
+
+        # 3. Handle linking existing browser configs to test case
+        if existing_browser_config_ids_to_add and test_case_id:
+            for index, browser_config_id in enumerate(existing_browser_config_ids_to_add):
+                try:
+                    # Get the existing browser config
+                    existing_browser_config = BrowserConfigRepo.get_by_id(db, browser_config_id)
+                    if not existing_browser_config:
+                        failed_links.append({
+                            "index": index,
+                            "error": f"Browser config with ID {browser_config_id} not found",
+                            "browser_config_id": browser_config_id,
+                        })
+                        continue
+
+                    # Create association between test case and browser config
+                    TestCaseRepo._associate_browser_configs_with_test_case(
+                        db, test_case_id, [browser_config_id]
+                    )
+
+                    # Create test traversal for this browser config and test case
+                    BrowserConfigRepo._create_test_traversal_with_specific_test_case(
+                        db, existing_browser_config, test_case_id
+                    )
+
+                    linked_browser_configs.append(existing_browser_config)
+
+                except Exception as e:
+                    failed_links.append({
+                        "index": index,
+                        "error": str(e),
+                        "browser_config_id": browser_config_id,
+                    })
+
+        # 4. Handle unlinking browser configs from test case
+        if browser_config_ids_to_unlink and test_case_id:
+            try:
+                # Use the existing method from TestCaseRepo to unlink
+                TestCaseRepo._remove_browser_config_associations(
+                    db, test_case_id, browser_config_ids_to_unlink
+                )
+                total_unlinked = len(browser_config_ids_to_unlink)
+            except Exception as e:
+                # If unlinking fails, we'll add it to failed updates
+                failed_updates.append(
+                    {
+                        "operation": "unlink",
+                        "error": str(e),
+                        "browser_config_ids": browser_config_ids_to_unlink,
+                    }
+                )
+
+        # Commit all successful operations
+        if updated_browser_configs or created_browser_configs or linked_browser_configs or total_unlinked > 0:
             db.commit()
 
-        return updated_browser_configs, failed_updates
+        return (
+            updated_browser_configs,
+            created_browser_configs,
+            linked_browser_configs,
+            total_unlinked,
+            failed_updates,
+            failed_creations,
+            failed_links,
+        )

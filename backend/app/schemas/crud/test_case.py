@@ -118,7 +118,8 @@ class UpdateTestCase(UpdateModel):
     Schema for updating an existing test case.
 
     Allows updating all test case fields except ID and relationships.
-    Automatically updates the timestamp when modified.
+    Automatically updates the timestamp when modified. Also supports
+    managing browser configuration associations.
 
     Attributes:
         test_name: Updated name for the test case
@@ -129,6 +130,12 @@ class UpdateTestCase(UpdateModel):
         allowed_domains: Updated list of allowed domains
         priority: Updated priority level of the test case
         category: Updated category for organizing test cases
+        browser_config_ids_to_add: List of existing browser config IDs to associate
+        browser_config_ids_to_remove: List of browser config IDs to disassociate
+        new_browser_configs: List of new browser configs to create and associate
+        secret_value_ids_to_add: List of existing secret value IDs to associate
+        secret_value_ids_to_remove: List of secret value IDs to disassociate
+        new_secret_values: List of new secret values to create and associate
     """
 
     test_name: Optional[str] = None
@@ -139,6 +146,16 @@ class UpdateTestCase(UpdateModel):
     allowed_domains: Optional[List[str]] = None
     priority: Optional[TestCasePriority] = None
     category: Optional[str] = None
+
+    # Browser config associations
+    browser_config_ids_to_add: Optional[List[str]] = None
+    browser_config_ids_to_remove: Optional[List[str]] = None
+    new_browser_configs: Optional[List[CreateBrowserConfig]] = None
+
+    # Secret value associations
+    secret_value_ids_to_add: Optional[List[str]] = None
+    secret_value_ids_to_remove: Optional[List[str]] = None
+    new_secret_values: Optional[List[CreateSecretValue]] = None
 
     @classmethod
     def sample_factory_build(cls) -> "UpdateTestCase":

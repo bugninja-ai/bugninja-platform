@@ -72,6 +72,7 @@ BROWSER_CONFIG_FIELDS = [
 # Browser configuration templates
 BROWSER_CONFIG_TEMPLATES = {
     "default": {
+        "browser_channel": "{browser_channel}",
         "user_agent": "{user_agent}",
         "viewport": {"width": 1920, "height": 1080},
         "device_scale_factor": 1.0,
@@ -88,6 +89,7 @@ BROWSER_CONFIG_TEMPLATES = {
         "allowed_domains": "{allowed_domains}",
     },
     "alternative": {
+        "browser_channel": "{browser_channel}",
         "user_agent": "{user_agent}",
         "viewport": {"width": 1366, "height": 768},
         "device_scale_factor": 1.25,
@@ -104,6 +106,7 @@ BROWSER_CONFIG_TEMPLATES = {
         "allowed_domains": "{allowed_domains}",
     },
     "response": {
+        "browser_channel": "{browser_channel}",
         "user_agent": "{user_agent}",
         "viewport": {"width": 1440, "height": 900},
         "device_scale_factor": 1.0,
@@ -122,7 +125,7 @@ BROWSER_CONFIG_TEMPLATES = {
 }
 
 # Browser types based on Playwright configuration
-BROWSER_TYPES = [
+BROWSER_CHANNELS = [
     "Chromium",
     "Firefox",
     "Webkit",
@@ -134,6 +137,12 @@ BROWSER_TYPES = [
 
 # Color scheme options
 COLOR_SCHEMES = ["light", "dark"]
+
+USER_AGENTS = [
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+]
 
 # Viewport sizes
 VIEWPORT_SIZES = [

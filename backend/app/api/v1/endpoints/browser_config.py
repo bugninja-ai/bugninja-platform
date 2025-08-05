@@ -161,28 +161,42 @@ async def bulk_update_browser_configs(
     db_session: Session = Depends(get_db),
 ) -> BulkUpdateBrowserConfigResponse:
     """
-    Update multiple browser configurations.
+    Perform bulk operations on browser configurations: update, create, link existing, and unlink.
 
-    This endpoint updates multiple browser configurations in a single operation.
-    The endpoint handles partial failures gracefully and returns detailed
-    information about successful and failed updates.
+    This endpoint handles multiple browser configuration operations in a single request:
+    - Update existing browser configurations
+    - Create new browser configurations and associate them with a test case
+    - Link existing browser configurations to a test case (creates test traversals)
+    - Unlink browser configurations from a test case (soft delete)
 
     Args:
-        request_data: Bulk update request containing browser config updates
+        request_data: Bulk operation request containing updates, creations, links, and unlinks
         db_session: Database session
 
     Returns:
-        BulkUpdateBrowserConfigResponse: Response with updated entities and error details
+        BulkUpdateBrowserConfigResponse: Response with updated, created, linked, and unlinked entities
     """
     try:
-        # Perform bulk update
-        updated_browser_configs, failed_updates = BrowserConfigRepo.bulk_update(
+        # Perform bulk operations
+        (
+            updated_browser_configs,
+            created_browser_configs,
+            linked_browser_configs,
+            total_unlinked,
+            failed_updates,
+            failed_creations,
+            failed_links,
+        ) = BrowserConfigRepo.bulk_update(
             db=db_session,
             browser_configs_data=request_data.browser_configs,
+            new_browser_configs=request_data.new_browser_configs,
+            existing_browser_config_ids_to_add=request_data.existing_browser_config_ids_to_add,
+            browser_config_ids_to_unlink=request_data.browser_config_ids_to_unlink,
+            test_case_id=request_data.test_case_id,
         )
 
-        # Convert to response models
-        response_browser_configs = [
+        # Convert updated browser configs to response models
+        response_updated_browser_configs = [
             ResponseBrowserConfig(
                 id=bc.id,
                 project_id=bc.project_id,
@@ -193,10 +207,41 @@ async def bulk_update_browser_configs(
             for bc in updated_browser_configs
         ]
 
+        # Convert created browser configs to response models
+        response_created_browser_configs = [
+            ResponseBrowserConfig(
+                id=bc.id,
+                project_id=bc.project_id,
+                created_at=bc.created_at,
+                updated_at=bc.updated_at,
+                browser_config=bc.browser_config,
+            )
+            for bc in created_browser_configs
+        ]
+
+        # Convert linked browser configs to response models
+        response_linked_browser_configs = [
+            ResponseBrowserConfig(
+                id=bc.id,
+                project_id=bc.project_id,
+                created_at=bc.created_at,
+                updated_at=bc.updated_at,
+                browser_config=bc.browser_config,
+            )
+            for bc in linked_browser_configs
+        ]
+
         return BulkUpdateBrowserConfigResponse(
-            updated_browser_configs=response_browser_configs,
+            updated_browser_configs=response_updated_browser_configs,
+            created_browser_configs=response_created_browser_configs,
+            linked_browser_configs=response_linked_browser_configs,
             total_updated=len(updated_browser_configs),
+            total_created=len(created_browser_configs),
+            total_linked=len(linked_browser_configs),
+            total_unlinked=total_unlinked,
             failed_updates=failed_updates,
+            failed_creations=failed_creations,
+            failed_links=failed_links,
         )
 
     except HTTPException:

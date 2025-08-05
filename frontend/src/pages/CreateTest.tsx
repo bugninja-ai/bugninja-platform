@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { CustomDropdown } from '../components/CustomDropdown';
 import { useProjects } from '../hooks/useProjects';
-import { BrowserService, BrowserType, SecretValue, BrowserConfigData } from '../services/browserService';
+import { BrowserService, BrowserType, SecretValue, BrowserConfigData, BrowserConfigOptions } from '../services/browserService';
 import { TestCaseService } from '../services/testCaseService';
 
 const CreateTest: React.FC = () => {
@@ -25,7 +25,7 @@ const CreateTest: React.FC = () => {
   const [success, setSuccess] = useState(false);
   
   // API Data states
-  const [browserTypes, setBrowserTypes] = useState<BrowserType[]>([]);
+  const [browserConfigOptions, setBrowserConfigOptions] = useState<BrowserConfigOptions | null>(null);
   const [existingBrowserConfigs, setExistingBrowserConfigs] = useState<BrowserConfigData[]>([]);
   const [existingSecrets, setExistingSecrets] = useState<SecretValue[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -33,7 +33,8 @@ const CreateTest: React.FC = () => {
   // Dropdown states
   const [priorityDropdownOpen, setPriorityDropdownOpen] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
-  const [browserTypeDropdowns, setBrowserTypeDropdowns] = useState<Record<string, boolean>>({});
+  const [browserChannelDropdowns, setBrowserChannelDropdowns] = useState<Record<string, boolean>>({});
+  const [userAgentDropdowns, setUserAgentDropdowns] = useState<Record<string, boolean>>({});
   const [viewportDropdowns, setViewportDropdowns] = useState<Record<string, boolean>>({});
   const [existingBrowserConfigDropdowns, setExistingBrowserConfigDropdowns] = useState<Record<string, boolean>>({});
   const [existingSecretsDropdowns, setExistingSecretsDropdowns] = useState<Record<string, boolean>>({});
@@ -49,22 +50,13 @@ const CreateTest: React.FC = () => {
           return;
         }
         
-        // Fetch data with individual error handling to prevent failures from breaking the component
+        // Fetch browser configuration options from backend constants
         try {
-          const browserTypesData = await BrowserService.getBrowserTypes();
-          setBrowserTypes(browserTypesData);
+          const configOptions = await BrowserService.getBrowserConfigOptions();
+          setBrowserConfigOptions(configOptions);
         } catch (error) {
-          console.error('Failed to load browser types:', error);
-          // Set fallback data so the component still works
-          setBrowserTypes([
-            { value: 'Chromium', label: 'Chromium' },
-            { value: 'Firefox', label: 'Firefox' },
-            { value: 'Webkit', label: 'Webkit' },
-            { value: 'Mobile Chrome', label: 'Mobile Chrome' },
-            { value: 'Mobile Safari', label: 'Mobile Safari' },
-            { value: 'Google Chrome', label: 'Google Chrome' },
-            { value: 'Microsoft Edge', label: 'Microsoft Edge' },
-          ]);
+          console.error('Failed to load browser configuration options:', error);
+          setBrowserConfigOptions(null);
         }
 
         try {
@@ -93,19 +85,7 @@ const CreateTest: React.FC = () => {
     loadData();
   }, [selectedProject?.id]);
 
-  // Common viewport resolutions for dropdown
-  const commonViewports = [
-    { value: '1920x1080', label: '1920 × 1080 (Full HD)' },
-    { value: '1366x768', label: '1366 × 768 (HD)' },
-    { value: '1440x900', label: '1440 × 900 (MacBook Air)' },
-    { value: '1280x720', label: '1280 × 720 (HD)' },
-    { value: '1024x768', label: '1024 × 768 (iPad)' },
-    { value: '768x1024', label: '768 × 1024 (iPad Portrait)' },
-    { value: '375x667', label: '375 × 667 (iPhone)' },
-    { value: '414x896', label: '414 × 896 (iPhone Plus)' },
-    { value: '360x640', label: '360 × 640 (Android)' },
-    { value: 'custom', label: 'Custom Resolution' }
-  ];
+
   
   // Form data
   const [formData, setFormData] = useState({
@@ -119,8 +99,9 @@ const CreateTest: React.FC = () => {
     extraRules: [{ id: '1', ruleNumber: 1, description: '' }],
     newBrowserConfigs: [{
       id: '1',
-      browserType: 'Chromium',
-      viewport: { width: 1920, height: 1080 },
+      browserChannel: '',
+      userAgent: '',
+      viewportSize: { width: 1920, height: 1080 },
       geolocation: undefined as { latitude: number; longitude: number; } | undefined
     }],
     existingBrowserConfigIds: [] as string[],
@@ -201,11 +182,11 @@ const CreateTest: React.FC = () => {
   // Browser Config handlers
   const handleNewBrowserConfigChange = (index: number, field: string, value: any) => {
     const newConfigs = [...formData.newBrowserConfigs];
-    if (field === 'viewport.width' || field === 'viewport.height') {
+    if (field === 'viewportSize.width' || field === 'viewportSize.height') {
       const [, dimension] = field.split('.');
       newConfigs[index] = {
         ...newConfigs[index],
-        viewport: { ...newConfigs[index].viewport, [dimension]: value }
+        viewportSize: { ...newConfigs[index].viewportSize, [dimension]: value }
       };
     } else if (field.startsWith('geolocation.')) {
       const [, coord] = field.split('.');
@@ -226,8 +207,9 @@ const CreateTest: React.FC = () => {
   const addNewBrowserConfig = () => {
     const newConfig = {
       id: `config-${Date.now()}`,
-      browserType: 'Chromium',
-      viewport: { width: 1920, height: 1080 },
+      browserChannel: '',
+      userAgent: '',
+      viewportSize: { width: 1920, height: 1080 },
       geolocation: undefined
     };
     setFormData(prev => ({
@@ -758,68 +740,49 @@ const CreateTest: React.FC = () => {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm overflow-visible">
                       <div className="md:col-span-2">
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Browser Type</label>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Browser Channel</label>
                         <CustomDropdown
-                          options={browserTypes}
-                          value={config.browserType || ''}
-                          onChange={(value) => handleNewBrowserConfigChange(index, 'browserType', value)}
-                          isOpen={browserTypeDropdowns[config.id] || false}
-                          setIsOpen={(open) => setBrowserTypeDropdowns(prev => ({ ...prev, [config.id]: open }))}
-                          placeholder="Select Browser Type"
+                          options={browserConfigOptions?.browser_channels.map(channel => ({ value: channel, label: channel })) || []}
+                          value={config.browserChannel || ''}
+                          onChange={(value) => handleNewBrowserConfigChange(index, 'browserChannel', value)}
+                          isOpen={browserChannelDropdowns[config.id] || false}
+                          setIsOpen={(open) => setBrowserChannelDropdowns(prev => ({ ...prev, [config.id]: open }))}
+                          placeholder="Select Browser Channel"
                           fullWidth={true}
                         />
                       </div>
                       
                       <div className="md:col-span-2">
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Viewport Resolution</label>
-                        <div className="space-y-2">
-                          <CustomDropdown
-                            options={commonViewports}
-                            value={(() => {
-                              const currentResolution = `${config.viewport.width}x${config.viewport.height}`;
-                              return commonViewports.find(vp => vp.value === currentResolution)?.value || 'custom';
-                            })()}
-                            onChange={(value) => {
-                              if (value !== 'custom') {
-                                const [width, height] = value.split('x').map(Number);
-                                handleNewBrowserConfigChange(index, 'viewport.width', width);
-                                handleNewBrowserConfigChange(index, 'viewport.height', height);
-                              }
-                            }}
-                            isOpen={viewportDropdowns[config.id] || false}
-                            setIsOpen={(open) => setViewportDropdowns(prev => ({ ...prev, [config.id]: open }))}
-                            placeholder="Select Viewport Resolution"
-                            fullWidth={true}
-                          />
-                          {(() => {
-                            const currentResolution = `${config.viewport.width}x${config.viewport.height}`;
-                            return !commonViewports.find(vp => vp.value === currentResolution) || 
-                                   commonViewports.find(vp => vp.value === currentResolution)?.value === 'custom';
-                          })() && (
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Width</label>
-                                <input
-                                  type="number"
-                                  value={config.viewport.width}
-                                  onChange={(e) => handleNewBrowserConfigChange(index, 'viewport.width', parseInt(e.target.value) || 0)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                                  placeholder="Width"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Height</label>
-                                <input
-                                  type="number"
-                                  value={config.viewport.height}
-                                  onChange={(e) => handleNewBrowserConfigChange(index, 'viewport.height', parseInt(e.target.value) || 0)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                                  placeholder="Height"
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">User Agent</label>
+                        <CustomDropdown
+                          options={browserConfigOptions?.user_agents.map(agent => ({ value: agent, label: agent.slice(0, 50) + '...' })) || []}
+                          value={config.userAgent || ''}
+                          onChange={(value) => handleNewBrowserConfigChange(index, 'userAgent', value)}
+                          isOpen={userAgentDropdowns[config.id] || false}
+                          setIsOpen={(open) => setUserAgentDropdowns(prev => ({ ...prev, [config.id]: open }))}
+                          placeholder="Select User Agent"
+                          fullWidth={true}
+                        />
+                      </div>
+                      
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Viewport Size</label>
+                        <CustomDropdown
+                          options={browserConfigOptions?.viewport_sizes.map(viewport => ({
+                            value: `${viewport.width}x${viewport.height}`,
+                            label: `${viewport.width} × ${viewport.height}`
+                          })) || []}
+                          value={`${config.viewportSize.width}x${config.viewportSize.height}`}
+                          onChange={(value) => {
+                            const [width, height] = value.split('x').map(Number);
+                            handleNewBrowserConfigChange(index, 'viewportSize.width', width);
+                            handleNewBrowserConfigChange(index, 'viewportSize.height', height);
+                          }}
+                          isOpen={viewportDropdowns[config.id] || false}
+                          setIsOpen={(open) => setViewportDropdowns(prev => ({ ...prev, [config.id]: open }))}
+                          placeholder="Select Viewport Size"
+                          fullWidth={true}
+                        />
                       </div>
                       
                       <div>

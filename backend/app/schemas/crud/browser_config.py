@@ -262,15 +262,23 @@ class UpdateBrowserConfigWithId(BaseModel):
 
 class BulkUpdateBrowserConfigRequest(BaseModel):
     """
-    Request schema for bulk browser configuration updates.
+    Request schema for bulk browser configuration operations.
 
-    Allows updating multiple browser configurations in a single request.
+    Allows updating, creating, linking existing, and unlinking browser configurations in a single request.
 
     Attributes:
         browser_configs: List of browser configuration update data with IDs
+        new_browser_configs: List of new browser configurations to create
+        existing_browser_config_ids_to_add: List of existing browser config IDs to link to test case
+        browser_config_ids_to_unlink: List of browser config IDs to unlink from test case
+        test_case_id: Test case ID for creating new configs, linking existing, and unlinking
     """
 
-    browser_configs: List[UpdateBrowserConfigWithId]
+    browser_configs: List[UpdateBrowserConfigWithId] = []
+    new_browser_configs: List[CreateBrowserConfig] = []
+    existing_browser_config_ids_to_add: List[str] = []
+    browser_config_ids_to_unlink: List[str] = []
+    test_case_id: Optional[str] = None
 
     @classmethod
     def sample_factory_build(
@@ -296,20 +304,34 @@ class BulkUpdateBrowserConfigRequest(BaseModel):
 
 class BulkUpdateBrowserConfigResponse(BaseModel):
     """
-    Response schema for bulk browser configuration updates.
+    Response schema for bulk browser configuration operations.
 
-    Contains all updated browser configurations along with detailed information
+    Contains all updated, created, linked, and unlinked browser configurations along with detailed information
     about successful and failed operations.
 
     Attributes:
         updated_browser_configs: List of successfully updated browser configurations
+        created_browser_configs: List of successfully created browser configurations
+        linked_browser_configs: List of existing browser configurations successfully linked to test case
         total_updated: Total number of browser configs successfully updated
+        total_created: Total number of browser configs successfully created
+        total_linked: Total number of existing browser configs successfully linked
+        total_unlinked: Total number of browser configs successfully unlinked
         failed_updates: List of failed update attempts with error details
+        failed_creations: List of failed creation attempts with error details
+        failed_links: List of failed link attempts with error details
     """
 
-    updated_browser_configs: List[ResponseBrowserConfig]
-    total_updated: int
-    failed_updates: List[Dict[str, Any]]
+    updated_browser_configs: List[ResponseBrowserConfig] = []
+    created_browser_configs: List[ResponseBrowserConfig] = []
+    linked_browser_configs: List[ResponseBrowserConfig] = []
+    total_updated: int = 0
+    total_created: int = 0
+    total_linked: int = 0
+    total_unlinked: int = 0
+    failed_updates: List[Dict[str, Any]] = []
+    failed_creations: List[Dict[str, Any]] = []
+    failed_links: List[Dict[str, Any]] = []
 
     @classmethod
     def sample_factory_build(

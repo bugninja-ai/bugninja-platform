@@ -6,6 +6,12 @@ export interface BrowserType {
   label: string;
 }
 
+export interface BrowserConfigOptions {
+  browser_channels: string[];
+  user_agents: string[];
+  viewport_sizes: Array<{ width: number; height: number }>;
+}
+
 export interface SecretValue {
   id: string;
   project_id: string;
@@ -21,6 +27,7 @@ export interface BrowserConfigData {
   created_at: string;
   updated_at: string;
   browser_config: {
+    browser_channel?: string;
     user_agent?: string;
     viewport?: {
       width: number;
@@ -41,24 +48,96 @@ export interface BrowserConfigData {
   };
 }
 
+export interface UpdateBrowserConfigWithId {
+  id: string;
+  browser_config: {
+    browser_channel?: string;
+    user_agent?: string;
+    viewport?: {
+      width: number;
+      height: number;
+    };
+    geolocation?: {
+      latitude: number;
+      longitude: number;
+    };
+  };
+}
+
+export interface CreateBrowserConfigRequest {
+  test_case_id: string;
+  browser_config: {
+    browser_channel?: string;
+    user_agent?: string;
+    viewport?: {
+      width: number;
+      height: number;
+    };
+    geolocation?: {
+      latitude: number;
+      longitude: number;
+    };
+  };
+}
+
+export interface BulkUpdateBrowserConfigRequest {
+  browser_configs: UpdateBrowserConfigWithId[];
+  new_browser_configs: CreateBrowserConfigRequest[];
+  existing_browser_config_ids_to_add: string[];
+  browser_config_ids_to_unlink: string[];
+  test_case_id?: string;
+}
+
+export interface BulkUpdateBrowserConfigResponse {
+  updated_browser_configs: BrowserConfigData[];
+  created_browser_configs: BrowserConfigData[];
+  linked_browser_configs: BrowserConfigData[];
+  total_updated: number;
+  total_created: number;
+  total_linked: number;
+  total_unlinked: number;
+  failed_updates: any[];
+  failed_creations: any[];
+  failed_links: any[];
+}
+
 export class BrowserService {
   private static readonly ENDPOINTS = {
     BROWSER_TYPES: '/browser-types',
     SECRET_VALUES: '/secret-values/project',
     BROWSER_CONFIGS: '/browser-configs/project',
+    BROWSER_CONFIGS_BULK: '/browser-configs/bulk',
   };
 
   /**
-   * Fetch available browser types
+   * Fetch all browser configuration options from backend constants
+   */
+  static async getBrowserConfigOptions(): Promise<BrowserConfigOptions> {
+    try {
+      const response = await apiClient.get<BrowserConfigOptions>(this.ENDPOINTS.BROWSER_TYPES);
+      return response.data;
+    } catch (error: any) {
+      const apiError: ApiError = {
+        message: error.response?.data?.detail || error.message || 'Failed to fetch browser configuration options',
+        status: error.response?.status,
+        code: error.code,
+      };
+      throw apiError;
+    }
+  }
+
+  /**
+   * Fetch available browser types (for backward compatibility)
+   * @deprecated Use getBrowserConfigOptions() instead
    */
   static async getBrowserTypes(): Promise<BrowserType[]> {
     try {
-      const response = await apiClient.get<string[]>(this.ENDPOINTS.BROWSER_TYPES);
+      const options = await this.getBrowserConfigOptions();
       
-      // Transform array of strings to options format
-      return response.data.map(type => ({
-        value: type,
-        label: type
+      // Transform browser channels to options format for backward compatibility
+      return options.browser_channels.map(channel => ({
+        value: channel,
+        label: channel
       }));
     } catch (error: any) {
       const apiError: ApiError = {
@@ -123,6 +202,26 @@ export class BrowserService {
     } catch (error: any) {
       const apiError: ApiError = {
         message: error.response?.data?.detail || error.message || 'Failed to fetch browser configurations',
+        status: error.response?.status,
+        code: error.code,
+      };
+      throw apiError;
+    }
+  }
+
+  /**
+   * Bulk update browser configurations
+   */
+  static async bulkUpdateBrowserConfigs(requestData: BulkUpdateBrowserConfigRequest): Promise<BulkUpdateBrowserConfigResponse> {
+    try {
+      const response = await apiClient.put<BulkUpdateBrowserConfigResponse>(
+        this.ENDPOINTS.BROWSER_CONFIGS_BULK, 
+        requestData
+      );
+      return response.data;
+    } catch (error: any) {
+      const apiError: ApiError = {
+        message: error.response?.data?.detail || error.message || 'Failed to update browser configurations',
         status: error.response?.status,
         code: error.code,
       };

@@ -60,6 +60,7 @@ from app.schemas.crud.secret_value import CreateSecretValue
 from app.schemas.crud.test_case import CreateTestCase
 from app.schemas.crud.test_run import CreateTestRun
 from app.schemas.crud.test_traversal import CreateTestTraversal
+from app.schemas.crud.constants import BROWSER_CHANNELS, USER_AGENTS, VIEWPORT_SIZES
 
 
 def setup_content_folders() -> None:
@@ -171,15 +172,31 @@ def generate_unique_ids(count: int) -> List[str]:
 
 
 def create_realistic_browser_configs() -> List[Dict[str, Any]]:
-    """Create realistic browser configurations using standardized Playwright browser types."""
-    return [
-        {
-            "name": "Chromium",
+    """Create realistic browser configurations using constants from constants.py for consistency."""
+    # Use the exact constants from constants.py for single source of truth
+    browser_configs = []
+
+    # Create configs using constants - only 3 configs to match VIEWPORT_SIZES length
+    for i in range(min(3, len(BROWSER_CHANNELS))):
+        browser_channel = BROWSER_CHANNELS[i]
+        user_agent = USER_AGENTS[i % len(USER_AGENTS)]  # Cycle through user agents
+        viewport = VIEWPORT_SIZES[i % len(VIEWPORT_SIZES)]  # Cycle through viewport sizes
+
+        # Different domains for each config
+        domains = [
+            ["imdb.com", "www.imdb.com"],
+            ["amazon.com", "www.amazon.com"],
+            ["netflix.com", "www.netflix.com", "github.com", "www.github.com"],
+        ]
+
+        config = {
+            "name": browser_channel,
             "browser_config": {
-                "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "viewport": {"width": 1280, "height": 960},
+                "browser_channel": browser_channel,
+                "user_agent": user_agent,
+                "viewport": viewport,
                 "device_scale_factor": None,
-                "color_scheme": "light",
+                "color_scheme": "light" if i % 2 == 0 else "dark",
                 "accept_downloads": True,
                 "proxy": True,
                 "client_certificates": [],
@@ -187,85 +204,21 @@ def create_realistic_browser_configs() -> List[Dict[str, Any]]:
                 "http_credentials": None,
                 "java_script_enabled": True,
                 "geolocation": "US",
-                "timeout": 30000.0,
+                "timeout": 30000.0 + (i * 15000),  # Vary timeout
                 "headers": {
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
                     "Accept-Language": "en-US,en;q=0.9",
                     "Accept-Encoding": "gzip, deflate, br",
                     "DNT": "1",
                     "Connection": "keep-alive",
                     "Upgrade-Insecure-Requests": "1",
-                    "Sec-Fetch-Dest": "document",
-                    "Sec-Fetch-Mode": "navigate",
-                    "Sec-Fetch-Site": "none",
-                    "Sec-Fetch-User": "?1",
-                    "Cache-Control": "max-age=0",
                 },
-                "allowed_domains": ["imdb.com", "www.imdb.com"],
+                "allowed_domains": domains[i % len(domains)],
             },
-        },
-        {
-            "name": "Firefox",
-            "browser_config": {
-                "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0",
-                "viewport": {"width": 1280, "height": 960},
-                "device_scale_factor": None,
-                "color_scheme": "dark",
-                "accept_downloads": False,
-                "proxy": True,
-                "client_certificates": [],
-                "extra_http_headers": {},
-                "http_credentials": None,
-                "java_script_enabled": True,
-                "geolocation": "US",
-                "timeout": 45000.0,
-                "headers": {
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                    "Accept-Language": "en-US,en;q=0.5",
-                    "Accept-Encoding": "gzip, deflate",
-                    "DNT": "1",
-                    "Connection": "keep-alive",
-                    "Upgrade-Insecure-Requests": "1",
-                    "Sec-Fetch-Dest": "document",
-                    "Sec-Fetch-Mode": "navigate",
-                    "Sec-Fetch-Site": "none",
-                    "Sec-Fetch-User": "?1",
-                    "Cache-Control": "max-age=0",
-                },
-                "allowed_domains": ["amazon.com", "www.amazon.com"],
-            },
-        },
-        {
-            "name": "Webkit",
-            "browser_config": {
-                "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
-                "viewport": {"width": 1280, "height": 960},
-                "device_scale_factor": None,
-                "color_scheme": "light",
-                "accept_downloads": True,
-                "proxy": True,
-                "client_certificates": [],
-                "extra_http_headers": {},
-                "http_credentials": None,
-                "java_script_enabled": False,
-                "geolocation": "US",
-                "timeout": 60000.0,
-                "headers": {
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "Accept-Language": "en-us",
-                    "Accept-Encoding": "gzip, deflate, br",
-                    "Connection": "keep-alive",
-                    "Upgrade-Insecure-Requests": "1",
-                },
-                "allowed_domains": [
-                    "netflix.com",
-                    "www.netflix.com",
-                    "github.com",
-                    "www.github.com",
-                ],
-            },
-        },
-    ]
+        }
+        browser_configs.append(config)
+
+    return browser_configs
 
 
 def create_realistic_secrets() -> List[Dict[str, str]]:

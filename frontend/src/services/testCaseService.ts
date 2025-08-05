@@ -84,7 +84,7 @@ export class TestCaseService {
     // Handle both GET response (has browser_configs) and CREATE response (doesn't have it)
     const browserConfigs: BrowserConfig[] = (backendTestCase.browser_configs || []).map((backendConfig, index) => ({
       id: backendConfig.id, // ✅ Real backend data
-      name: `Browser Config ${index + 1}`, // ⚠️ Generated (backend doesn't provide names)
+      browserChannel: backendConfig.browser_config.browser_channel || '', // ✅ Real backend data
       userAgent: backendConfig.browser_config.user_agent, // ✅ Real backend data
       viewport: {
         width: backendConfig.browser_config.viewport.width, // ✅ Real backend data
@@ -121,7 +121,7 @@ export class TestCaseService {
       totalRuns: backendTestCase.total_runs,
       passedRuns: backendTestCase.passed_runs,
       failedRuns: backendTestCase.failed_runs,
-      startingUrl: backendTestCase.url_routes,
+      startingUrl: backendTestCase.url_routes || backendTestCase.url_route || '',
       allowedDomains: backendTestCase.allowed_domains,
       extraRules,
       browserConfigs,
@@ -259,7 +259,7 @@ export class TestCaseService {
         test_name: string;
         test_description: string;
         test_goal: string;
-        extra_rules: string; // Changed to string for backend
+        extra_rules: string[]; // Backend expects array of strings
         url_route: string;
         allowed_domains: string[];
         priority: TestPriority;
@@ -267,7 +267,8 @@ export class TestCaseService {
       }> = { ...testCase };
 
       if (testCase.extra_rules) {
-        payload.extra_rules = testCase.extra_rules.map(r => r.description).join('\n');
+        // Backend expects List[str] (array of strings), not a single joined string
+        payload.extra_rules = testCase.extra_rules.map(r => r.description);
       }
 
       const response = await apiClient.put<BackendTestCase>(`${this.ENDPOINTS.TEST_CASES}${id}`, payload);

@@ -23,6 +23,8 @@ from app.db.test_traversal import TestTraversal
 # BrowserConfigRepo is imported lazily to avoid circular dependency
 from app.repo.document_repo import DocumentRepo
 from app.repo.project_repo import ProjectRepo
+from app.schemas.crud.browser_config import CreateBrowserConfig
+from app.schemas.crud.secret_value import CreateSecretValue
 from app.repo.secret_value_repo import SecretValueRepo
 from app.repo.test_traversal_repo import TestTraversalRepo
 from app.schemas.communication.test_case import ExtendedResponseTestcase
@@ -225,7 +227,29 @@ class TestCaseRepo:
         if not test_case:
             return None
 
-        for k, v in test_case_data.model_dump(exclude_unset=True, exclude_none=True).items():
+        # Extract association fields before updating basic fields
+        browser_config_ids_to_add = test_case_data.browser_config_ids_to_add
+        browser_config_ids_to_remove = test_case_data.browser_config_ids_to_remove
+        new_browser_configs = test_case_data.new_browser_configs
+        secret_value_ids_to_add = test_case_data.secret_value_ids_to_add
+        secret_value_ids_to_remove = test_case_data.secret_value_ids_to_remove
+        new_secret_values = test_case_data.new_secret_values
+
+        # Update basic test case fields (excluding association fields)
+        update_data = test_case_data.model_dump(
+            exclude_unset=True,
+            exclude_none=True,
+            exclude={
+                "browser_config_ids_to_add",
+                "browser_config_ids_to_remove",
+                "new_browser_configs",
+                "secret_value_ids_to_add",
+                "secret_value_ids_to_remove",
+                "new_secret_values",
+            },
+        )
+
+        for k, v in update_data.items():
             setattr(test_case, k, v)
 
         test_case.updated_at = datetime.now(timezone.utc)
@@ -233,6 +257,27 @@ class TestCaseRepo:
         db.add(test_case)
         db.commit()
         db.refresh(test_case)
+
+        # Handle browser config associations
+        TestCaseRepo._handle_browser_config_associations(
+            db,
+            test_case_id,
+            browser_config_ids_to_add,
+            browser_config_ids_to_remove,
+            new_browser_configs,
+            test_case.project_id,
+        )
+
+        # Handle secret value associations
+        TestCaseRepo._handle_secret_value_associations(
+            db,
+            test_case_id,
+            secret_value_ids_to_add,
+            secret_value_ids_to_remove,
+            new_secret_values,
+            test_case.project_id,
+        )
+
         return test_case
 
     @staticmethod
@@ -967,3 +1012,192 @@ class TestCaseRepo:
                 extended_test_cases.append(extended_test_case)
 
         return extended_test_cases
+
+    @staticmethod
+    def _handle_browser_config_associations(
+        db: Session,
+        test_case_id: str,
+        browser_config_ids_to_add: Optional[List[str]],
+        browser_config_ids_to_remove: Optional[List[str]],
+        new_browser_configs: Optional[List[CreateBrowserConfig]],
+        project_id: str,
+    ) -> None:
+        """
+        Handle browser configuration associations for a test case.
+
+        Args:
+            db: Database session
+            test_case_id: Test case ID to manage associations for
+            browser_config_ids_to_add: Existing browser config IDs to associate
+            browser_config_ids_to_remove: Browser config IDs to disassociate
+            new_browser_configs: New browser configs to create and associate
+            project_id: Project ID for validation
+        """
+        # Handle removing associations
+        if browser_config_ids_to_remove:
+            TestCaseRepo._remove_browser_config_associations(
+                db, test_case_id, browser_config_ids_to_remove
+            )
+
+        # Handle adding associations for existing browser configs
+        if browser_config_ids_to_add:
+            # Validate that the browser configs exist and belong to the project
+            validated_browser_configs = TestCaseRepo._validate_browser_configs(
+                db, browser_config_ids_to_add, project_id
+            )
+            # Add associations
+            TestCaseRepo._associate_browser_configs_with_test_case(
+                db, test_case_id, [bc.id for bc in validated_browser_configs]
+            )
+
+        # Handle creating new browser configs and associating them
+        if new_browser_configs:
+            from app.repo.browser_config_repo import BrowserConfigRepo
+
+            # Update the test_case_id for each new browser config
+            for browser_config_data in new_browser_configs:
+                browser_config_data.test_case_id = test_case_id
+
+            # Create the new browser configs
+            created_configs, failed_creations = BrowserConfigRepo.bulk_create_with_traversals(
+                db, new_browser_configs
+            )
+
+            # Associate the successfully created configs
+            if created_configs:
+                TestCaseRepo._associate_browser_configs_with_test_case(
+                    db, test_case_id, [bc.id for bc in created_configs]
+                )
+
+        # Commit all association changes
+        db.commit()
+
+    @staticmethod
+    def _remove_browser_config_associations(
+        db: Session, test_case_id: str, browser_config_ids: List[str]
+    ) -> None:
+        """
+        Remove associations between a test case and browser configurations.
+
+        Args:
+            db: Database session
+            test_case_id: Test case ID
+            browser_config_ids: List of browser config IDs to disassociate
+        """
+        for browser_config_id in browser_config_ids:
+            # Find and delete the association
+            association = db.exec(
+                select(TestCaseBrowserConfig).where(
+                    TestCaseBrowserConfig.test_case_id == test_case_id,
+                    TestCaseBrowserConfig.browser_config_id == browser_config_id,
+                )
+            ).first()
+
+            if association:
+                db.delete(association)
+
+    @staticmethod
+    def _handle_secret_value_associations(
+        db: Session,
+        test_case_id: str,
+        secret_value_ids_to_add: Optional[List[str]],
+        secret_value_ids_to_remove: Optional[List[str]],
+        new_secret_values: Optional[List[CreateSecretValue]],
+        project_id: str,
+    ) -> None:
+        """
+        Handle secret value associations for a test case.
+
+        Args:
+            db: Database session
+            test_case_id: Test case ID to manage associations for
+            secret_value_ids_to_add: Existing secret value IDs to associate
+            secret_value_ids_to_remove: Secret value IDs to disassociate
+            new_secret_values: New secret values to create and associate
+            project_id: Project ID for validation
+        """
+        # Handle removing associations
+        if secret_value_ids_to_remove:
+            TestCaseRepo._remove_secret_value_associations(
+                db, test_case_id, secret_value_ids_to_remove
+            )
+
+        # Handle adding associations for existing secret values
+        if secret_value_ids_to_add:
+            # Validate that the secret values exist and belong to the project
+            validated_secret_values = TestCaseRepo._validate_secret_values(
+                db, secret_value_ids_to_add, project_id
+            )
+            # Add associations
+            TestCaseRepo._associate_secret_values_with_test_case(
+                db, test_case_id, [sv.id for sv in validated_secret_values]
+            )
+
+        # Handle creating new secret values and associating them
+        if new_secret_values:
+            # Update the test_case_id for each new secret value
+            for secret_value_data in new_secret_values:
+                secret_value_data.test_case_id = test_case_id
+
+            # Create the new secret values
+            created_secrets, failed_creations = SecretValueRepo.bulk_create(db, new_secret_values)
+
+            # Associate the successfully created secrets
+            if created_secrets:
+                TestCaseRepo._associate_secret_values_with_test_case(
+                    db, test_case_id, [sv.id for sv in created_secrets]
+                )
+
+        # Commit all association changes
+        db.commit()
+
+    @staticmethod
+    def _remove_secret_value_associations(
+        db: Session, test_case_id: str, secret_value_ids: List[str]
+    ) -> None:
+        """
+        Remove associations between a test case and secret values.
+
+        Args:
+            db: Database session
+            test_case_id: Test case ID
+            secret_value_ids: List of secret value IDs to disassociate
+        """
+        for secret_value_id in secret_value_ids:
+            # Find and delete the association
+            association = db.exec(
+                select(SecretValueTestCase).where(
+                    SecretValueTestCase.test_case_id == test_case_id,
+                    SecretValueTestCase.secret_value_id == secret_value_id,
+                )
+            ).first()
+
+            if association:
+                db.delete(association)
+
+    @staticmethod
+    def _associate_secret_values_with_test_case(
+        db: Session, test_case_id: str, secret_value_ids: List[str]
+    ) -> None:
+        """
+        Associate secret values with a test case via the association table.
+
+        Args:
+            db: Database session
+            test_case_id: Test case ID to associate with
+            secret_value_ids: List of secret value IDs to associate
+        """
+        for secret_value_id in secret_value_ids:
+            # Check if association already exists
+            existing_association = db.exec(
+                select(SecretValueTestCase).where(
+                    SecretValueTestCase.test_case_id == test_case_id,
+                    SecretValueTestCase.secret_value_id == secret_value_id,
+                )
+            ).first()
+
+            if not existing_association:
+                association = SecretValueTestCase(
+                    test_case_id=test_case_id, secret_value_id=secret_value_id
+                )
+                db.add(association)

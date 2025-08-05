@@ -41,7 +41,7 @@ export interface TestStep {
 
 export interface BrowserConfig {
   id: string;
-  name: string;
+  browserChannel: string;
   userAgent: string;
   viewport: {
     width: number;
@@ -231,6 +231,7 @@ export interface BackendTestCase {
     description: string;
   }[];
   url_routes: string;
+  url_route?: string; // Used by PUT endpoint response
   allowed_domains: string[];
   priority: 'low' | 'medium' | 'high' | 'critical';
   category: string | null;
@@ -274,4 +275,5 @@ export interface FrontendTestCase {
   browserConfigs: BrowserConfig[];
   secrets: TestSecret[];
   document: BackendDocument | null;
+  existingBrowserConfigIds?: string[]; // For linking existing browser configs
 } 

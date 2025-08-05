@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   ArrowLeft, 
-  FileText,
   Globe,
-  Settings,
   Eye,
   EyeOff,
   Copy,
@@ -30,6 +28,7 @@ import {
 } from 'lucide-react';
 import { FrontendTestCase, TestCategory, TestPriority } from '../types';
 import { TestCaseService } from '../services/testCaseService';
+import { BrowserService, BrowserConfigOptions, BrowserConfigData, UpdateBrowserConfigWithId, CreateBrowserConfigRequest } from '../services/browserService';
 import { CustomDropdown } from '../components/CustomDropdown';
 import { BASE_DOMAIN } from '../services/api';
 
@@ -51,7 +50,11 @@ const TestCaseDetail: React.FC = () => {
   const [editingGoal, setEditingGoal] = useState(false);
   const [editingBasicInfo, setEditingBasicInfo] = useState(false);
   
-  // Dropdown states for browser configs
+  // Browser config data and dropdown states
+  const [browserConfigOptions, setBrowserConfigOptions] = useState<BrowserConfigOptions | null>(null);
+  const [existingBrowserConfigs, setExistingBrowserConfigs] = useState<BrowserConfigData[]>([]);
+  const [existingBrowserConfigDropdownOpen, setExistingBrowserConfigDropdownOpen] = useState(false);
+  const [browserChannelDropdowns, setBrowserChannelDropdowns] = useState<Record<string, boolean>>({});
   const [userAgentDropdowns, setUserAgentDropdowns] = useState<Record<string, boolean>>({});
   const [viewportDropdowns, setViewportDropdowns] = useState<Record<string, boolean>>({});
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
@@ -66,51 +69,28 @@ const TestCaseDetail: React.FC = () => {
     }
   }, [id]);
 
-  // Helper function to extract browser type from user agent
-  const getBrowserType = (userAgent: string): string => {
-    // First check if it matches any common user agent
-    const commonAgent = commonUserAgents.find(ua => ua.value === userAgent);
-    if (commonAgent && commonAgent.value !== 'custom') {
-      return commonAgent.label;
+  useEffect(() => {
+    loadBrowserConfigOptions();
+  }, []);
+
+  const loadBrowserConfigOptions = async () => {
+    try {
+      const options = await BrowserService.getBrowserConfigOptions();
+      setBrowserConfigOptions(options);
+    } catch (error) {
+      console.error('Failed to load browser config options:', error);
     }
-    
-    // Fallback: parse the user agent string
-    if (userAgent.includes('Edg/')) return 'Edge';
-    if (userAgent.includes('Firefox/')) return 'Firefox';
-    if (userAgent.includes('Chrome/')) return 'Chrome';
-    if (userAgent.includes('Safari/') && !userAgent.includes('Chrome/')) return 'Safari';
-    if (userAgent.includes('Opera/') || userAgent.includes('OPR/')) return 'Opera';
-    
-    return 'Unknown Browser';
   };
 
-  // Common user agents for dropdown
-  const commonUserAgents = [
-    { value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', label: 'Chrome (Windows)' },
-    { value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', label: 'Chrome (macOS)' },
-    { value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0', label: 'Firefox (Windows)' },
-    { value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0', label: 'Firefox (macOS)' },
-    { value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15', label: 'Safari (macOS)' },
-    { value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0', label: 'Edge (Windows)' },
-    { value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1', label: 'Safari (iPhone)' },
-    { value: 'Mozilla/5.0 (iPad; CPU OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1', label: 'Safari (iPad)' },
-    { value: 'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36', label: 'Chrome (Android)' },
-    { value: 'custom', label: 'Custom User Agent' }
-  ];
-
-  // Common viewport resolutions for dropdown
-  const commonViewports = [
-    { value: '1920x1080', label: '1920 × 1080 (Full HD)' },
-    { value: '1366x768', label: '1366 × 768 (HD)' },
-    { value: '1440x900', label: '1440 × 900 (MacBook Air)' },
-    { value: '1280x720', label: '1280 × 720 (HD)' },
-    { value: '1024x768', label: '1024 × 768 (iPad)' },
-    { value: '768x1024', label: '768 × 1024 (iPad Portrait)' },
-    { value: '375x667', label: '375 × 667 (iPhone)' },
-    { value: '414x896', label: '414 × 896 (iPhone Plus)' },
-    { value: '360x640', label: '360 × 640 (Android)' },
-    { value: 'custom', label: 'Custom Resolution' }
-  ];
+  const loadExistingBrowserConfigs = async (projectId: string) => {
+    try {
+      const browserConfigsData = await BrowserService.getBrowserConfigsByProject(projectId);
+      setExistingBrowserConfigs(browserConfigsData);
+    } catch (error) {
+      console.error('Failed to load existing browser configs:', error);
+      setExistingBrowserConfigs([]);
+    }
+  };
 
   // Category options for dropdown
   const categoryOptions = [
@@ -138,8 +118,9 @@ const TestCaseDetail: React.FC = () => {
       setTestCase(tc);
       setEditableTestCase(tc);
       
-      // Load recent test runs in parallel
+      // Load recent test runs and existing browser configs in parallel
       loadRecentTestRuns(testCaseId);
+      loadExistingBrowserConfigs(tc.projectId);
     } catch (error: any) {
       console.error('Failed to load test case:', error);
       setError(error.message || 'Failed to load test case');
@@ -258,15 +239,105 @@ const TestCaseDetail: React.FC = () => {
   };
 
   const handleSaveBrowsers = async () => {
-    if (!editableTestCase) return;
+    if (!editableTestCase || !testCase) return;
     try {
-      setTestCase(editableTestCase);
+      // Separate existing configs (to update) from new configs (to create)
+      const existingConfigs: UpdateBrowserConfigWithId[] = [];
+      const newConfigs: CreateBrowserConfigRequest[] = [];
+      const configsToUnlink: string[] = [];
+
+      // Get the original browser configs to compare
+      const originalConfigIds = new Set(testCase.browserConfigs.map(c => c.id));
+      const currentConfigIds = new Set(editableTestCase.browserConfigs.map(c => c.id));
+
+      // Find configs that were removed (to unlink)
+      originalConfigIds.forEach(id => {
+        if (!currentConfigIds.has(id)) {
+          configsToUnlink.push(id);
+        }
+      });
+
+      // Process current configs
+      editableTestCase.browserConfigs.forEach(config => {
+        if (config.id.startsWith('config-')) {
+          // This is a new config (temporary ID)
+          newConfigs.push({
+            test_case_id: testCase.id,
+            browser_config: {
+              browser_channel: config.browserChannel,
+              user_agent: config.userAgent,
+              viewport: {
+                width: config.viewport.width,
+                height: config.viewport.height
+              },
+              geolocation: config.geolocation
+            }
+          });
+        } else {
+          // This is an existing config to update
+          existingConfigs.push({
+            id: config.id,
+            browser_config: {
+              browser_channel: config.browserChannel,
+              user_agent: config.userAgent,
+              viewport: {
+                width: config.viewport.width,
+                height: config.viewport.height
+              },
+              geolocation: config.geolocation
+            }
+          });
+        }
+      });
+
+      // Get existing browser config IDs to link (if any)
+      const existingBrowserConfigIdsToAdd = editableTestCase.existingBrowserConfigIds || [];
+
+      // Call the bulk update API with all operations
+      const response = await BrowserService.bulkUpdateBrowserConfigs({
+        browser_configs: existingConfigs,
+        new_browser_configs: newConfigs,
+        existing_browser_config_ids_to_add: existingBrowserConfigIdsToAdd,
+        browser_config_ids_to_unlink: configsToUnlink,
+        test_case_id: testCase.id
+      });
+      
+      console.log('Browser configs operations completed:', response);
+      
+      // Combine updated, created, and linked configs for the UI
+      const allUpdatedConfigs = [
+        ...response.updated_browser_configs,
+        ...response.created_browser_configs,
+        ...response.linked_browser_configs
+      ].map(backendConfig => ({
+        id: backendConfig.id,
+        browserChannel: backendConfig.browser_config.browser_channel || '',
+        userAgent: backendConfig.browser_config.user_agent || '',
+        viewport: backendConfig.browser_config.viewport || { width: 1920, height: 1080 },
+        geolocation: backendConfig.browser_config.geolocation
+      }));
+
+      // Update the test case state
+      const updatedTestCase = {
+        ...editableTestCase,
+        browserConfigs: allUpdatedConfigs,
+        existingBrowserConfigIds: [] // Clear the linked IDs after saving
+      };
+
+      setTestCase(updatedTestCase);
       setEditingBrowsers(false);
+      
       // Reset dropdown states
+      setBrowserChannelDropdowns({});
       setUserAgentDropdowns({});
       setViewportDropdowns({});
-    } catch (error) {
+      setExistingBrowserConfigDropdownOpen(false);
+      
+    } catch (error: any) {
       console.error('Failed to save browser configurations:', error);
+      
+      // Show error to user - you could implement a toast notification here
+      alert(`Failed to save browser configurations: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -274,8 +345,10 @@ const TestCaseDetail: React.FC = () => {
     setEditableTestCase({ ...testCase! });
     setEditingBrowsers(false);
     // Reset dropdown states
+    setBrowserChannelDropdowns({});
     setUserAgentDropdowns({});
     setViewportDropdowns({});
+    setExistingBrowserConfigDropdownOpen(false);
   };
 
   const handleEditSecrets = () => {
@@ -862,7 +935,7 @@ const TestCaseDetail: React.FC = () => {
                     if (editableTestCase) {
                       const newConfig = {
                         id: `config-${Date.now()}`,
-                        name: 'New Configuration',
+                        browserChannel: '',
                         userAgent: '',
                         viewport: { width: 1920, height: 1080 },
                         geolocation: undefined
@@ -873,7 +946,7 @@ const TestCaseDetail: React.FC = () => {
                       });
                     }
                   }}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
                 >
                   <Plus className="w-4 h-4 mr-1" />
                   Add config
@@ -904,6 +977,61 @@ const TestCaseDetail: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Select Existing Browser Config - Only show in edit mode */}
+        {editingBrowsers && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Or select an existing browser configuration
+            </label>
+            
+            {existingBrowserConfigs.length === 0 ? (
+              <div className="text-sm text-gray-500 italic">
+                No existing browser configurations found for this project
+              </div>
+            ) : (
+              <CustomDropdown
+                options={existingBrowserConfigs
+                  .filter(config => !editableTestCase?.browserConfigs.some(existing => existing.id === config.id))
+                  .map(config => {
+                    const viewport = config.browser_config?.viewport;
+                    const userAgent = config.browser_config?.user_agent || '';
+                    
+                    // Extract browser type from user agent (same logic as CreateTest.tsx)
+                    let browserType = 'Unknown';
+                    if (userAgent.includes('Chrome') && !userAgent.includes('Edg')) browserType = 'Chromium';
+                    else if (userAgent.includes('Firefox')) browserType = 'Firefox';
+                    else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) browserType = 'Webkit';
+                    else if (userAgent.includes('Edg')) browserType = 'Microsoft Edge';
+                    
+                    return {
+                      value: config.id,
+                      label: `${browserType} - ${viewport?.width || 1920}×${viewport?.height || 1080}`
+                    };
+                  })}
+                value=""
+                onChange={(configId) => {
+                  if (configId && editableTestCase) {
+                    // Add the existing config ID to a special field for linking
+                    if (!editableTestCase.existingBrowserConfigIds) {
+                      editableTestCase.existingBrowserConfigIds = [];
+                    }
+                    if (!editableTestCase.existingBrowserConfigIds.includes(configId)) {
+                      setEditableTestCase({
+                        ...editableTestCase,
+                        existingBrowserConfigIds: [...editableTestCase.existingBrowserConfigIds, configId]
+                      });
+                    }
+                  }
+                }}
+                isOpen={existingBrowserConfigDropdownOpen}
+                setIsOpen={setExistingBrowserConfigDropdownOpen}
+                placeholder="Select existing configuration"
+                fullWidth={true}
+              />
+            )}
+          </div>
+        )}
         
         <div className="space-y-4">
           {editingBrowsers ? (
@@ -912,22 +1040,7 @@ const TestCaseDetail: React.FC = () => {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-2">
                     <Monitor className="w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      value={config.name}
-                      onChange={(e) => {
-                        if (editableTestCase) {
-                          const newConfigs = [...editableTestCase.browserConfigs];
-                          newConfigs[index] = { ...newConfigs[index], name: e.target.value };
-                          setEditableTestCase({
-                            ...editableTestCase,
-                            browserConfigs: newConfigs
-                          });
-                        }
-                      }}
-                      className="font-medium text-gray-800 bg-transparent border-b border-gray-300 focus:border-indigo-500 focus:outline-none"
-                      placeholder="Configuration name"
-                    />
+                    <span className="font-medium text-gray-800">Browser Configuration</span>
                   </div>
                   <button
                     onClick={() => {
@@ -945,133 +1058,78 @@ const TestCaseDetail: React.FC = () => {
                   </button>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm overflow-visible">
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">User agent</label>
-                    <div className="space-y-2">
-                      <CustomDropdown
-                        options={commonUserAgents}
-                        value={commonUserAgents.find(ua => ua.value === config.userAgent)?.value || 'custom'}
-                        onChange={(value) => {
-                          if (editableTestCase) {
-                            const newConfigs = [...editableTestCase.browserConfigs];
-                            if (value !== 'custom') {
-                              newConfigs[index] = { ...newConfigs[index], userAgent: value };
-                              setEditableTestCase({
-                                ...editableTestCase,
-                                browserConfigs: newConfigs
-                              });
-                            }
-                          }
-                        }}
-                        isOpen={userAgentDropdowns[config.id] || false}
-                        setIsOpen={(open) => setUserAgentDropdowns(prev => ({ ...prev, [config.id]: open }))}
-                        placeholder="Select User Agent"
-                        fullWidth={true}
-                      />
-                      {(commonUserAgents.find(ua => ua.value === config.userAgent)?.value === 'custom' || 
-                        !commonUserAgents.find(ua => ua.value === config.userAgent)) && (
-                        <textarea
-                          value={config.userAgent}
-                          onChange={(e) => {
-                            if (editableTestCase) {
-                              const newConfigs = [...editableTestCase.browserConfigs];
-                              newConfigs[index] = { ...newConfigs[index], userAgent: e.target.value };
-                              setEditableTestCase({
-                                ...editableTestCase,
-                                browserConfigs: newConfigs
-                              });
-                            }
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none text-xs"
-                          rows={2}
-                          placeholder="Enter custom user agent string"
-                        />
-                      )}
-                    </div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Browser Channel</label>
+                    <CustomDropdown
+                      options={browserConfigOptions?.browser_channels.map(channel => ({ value: channel, label: channel })) || []}
+                      value={config.browserChannel || ''}
+                      onChange={(value) => {
+                        if (editableTestCase) {
+                          const newConfigs = [...editableTestCase.browserConfigs];
+                          newConfigs[index] = { ...newConfigs[index], browserChannel: value };
+                          setEditableTestCase({
+                            ...editableTestCase,
+                            browserConfigs: newConfigs
+                          });
+                        }
+                      }}
+                      isOpen={browserChannelDropdowns[config.id] || false}
+                      setIsOpen={(open) => setBrowserChannelDropdowns(prev => ({ ...prev, [config.id]: open }))}
+                      placeholder="Select Browser Channel"
+                      fullWidth={true}
+                    />
                   </div>
                   
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Viewport resolution</label>
-                    <div className="space-y-2">
-                      <CustomDropdown
-                        options={commonViewports}
-                        value={(() => {
-                          const currentResolution = `${config.viewport.width}x${config.viewport.height}`;
-                          return commonViewports.find(vp => vp.value === currentResolution)?.value || 'custom';
-                        })()}
-                        onChange={(value) => {
-                          if (editableTestCase && value !== 'custom') {
-                            const [width, height] = value.split('x').map(Number);
-                            const newConfigs = [...editableTestCase.browserConfigs];
-                            newConfigs[index] = {
-                              ...newConfigs[index],
-                              viewport: { width, height }
-                            };
-                            setEditableTestCase({
-                              ...editableTestCase,
-                              browserConfigs: newConfigs
-                            });
-                          }
-                        }}
-                        isOpen={viewportDropdowns[config.id] || false}
-                        setIsOpen={(open) => setViewportDropdowns(prev => ({ ...prev, [config.id]: open }))}
-                        placeholder="Select Viewport Resolution"
-                        fullWidth={true}
-                      />
-                      {(() => {
-                        const currentResolution = `${config.viewport.width}x${config.viewport.height}`;
-                        return !commonViewports.find(vp => vp.value === currentResolution) || 
-                               commonViewports.find(vp => vp.value === currentResolution)?.value === 'custom';
-                      })() && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Width</label>
-                            <input
-                              type="number"
-                              value={config.viewport.width}
-                              onChange={(e) => {
-                                if (editableTestCase) {
-                                  const newConfigs = [...editableTestCase.browserConfigs];
-                                  newConfigs[index] = {
-                                    ...newConfigs[index],
-                                    viewport: { ...newConfigs[index].viewport, width: parseInt(e.target.value) || 0 }
-                                  };
-                                  setEditableTestCase({
-                                    ...editableTestCase,
-                                    browserConfigs: newConfigs
-                                  });
-                                }
-                              }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                              placeholder="Width"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Height</label>
-                            <input
-                              type="number"
-                              value={config.viewport.height}
-                              onChange={(e) => {
-                                if (editableTestCase) {
-                                  const newConfigs = [...editableTestCase.browserConfigs];
-                                  newConfigs[index] = {
-                                    ...newConfigs[index],
-                                    viewport: { ...newConfigs[index].viewport, height: parseInt(e.target.value) || 0 }
-                                  };
-                                  setEditableTestCase({
-                                    ...editableTestCase,
-                                    browserConfigs: newConfigs
-                                  });
-                                }
-                              }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                              placeholder="Height"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">User Agent</label>
+                    <CustomDropdown
+                      options={browserConfigOptions?.user_agents.map(agent => ({ value: agent, label: agent.slice(0, 50) + '...' })) || []}
+                      value={config.userAgent || ''}
+                      onChange={(value) => {
+                        if (editableTestCase) {
+                          const newConfigs = [...editableTestCase.browserConfigs];
+                          newConfigs[index] = { ...newConfigs[index], userAgent: value };
+                          setEditableTestCase({
+                            ...editableTestCase,
+                            browserConfigs: newConfigs
+                          });
+                        }
+                      }}
+                      isOpen={userAgentDropdowns[config.id] || false}
+                      setIsOpen={(open) => setUserAgentDropdowns(prev => ({ ...prev, [config.id]: open }))}
+                      placeholder="Select User Agent"
+                      fullWidth={true}
+                    />
+                  </div>
+                  
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Viewport Size</label>
+                    <CustomDropdown
+                      options={browserConfigOptions?.viewport_sizes.map(viewport => ({
+                        value: `${viewport.width}x${viewport.height}`,
+                        label: `${viewport.width} × ${viewport.height}`
+                      })) || []}
+                      value={config.viewport ? `${config.viewport.width}x${config.viewport.height}` : ''}
+                      onChange={(value) => {
+                        if (editableTestCase) {
+                          const [width, height] = value.split('x').map(Number);
+                          const newConfigs = [...editableTestCase.browserConfigs];
+                          newConfigs[index] = { 
+                            ...newConfigs[index], 
+                            viewport: { width, height }
+                          };
+                          setEditableTestCase({
+                            ...editableTestCase,
+                            browserConfigs: newConfigs
+                          });
+                        }
+                      }}
+                      isOpen={viewportDropdowns[config.id] || false}
+                      setIsOpen={(open) => setViewportDropdowns(prev => ({ ...prev, [config.id]: open }))}
+                      placeholder="Select Viewport Size"
+                      fullWidth={true}
+                    />
                   </div>
                   
                   <div>
@@ -1101,7 +1159,7 @@ const TestCaseDetail: React.FC = () => {
                           });
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                       placeholder="e.g. 40.7128"
                     />
                   </div>
@@ -1133,7 +1191,7 @@ const TestCaseDetail: React.FC = () => {
                           });
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                       placeholder="e.g. -74.0060"
                     />
                   </div>
@@ -1145,21 +1203,21 @@ const TestCaseDetail: React.FC = () => {
             <div key={config.id} className="border border-gray-200 rounded-lg p-4">
               <div className="flex items-center space-x-2 mb-3">
                 <Monitor className="w-5 h-5 text-gray-400" />
-                <h3 className="font-medium text-gray-800">{config.name}</h3>
+                <h3 className="font-medium text-gray-800">Browser Configuration</h3>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Browser type</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Browser Channel</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded text-gray-700">
-                    {getBrowserType(config.userAgent)}
+                    {config.browserChannel || 'No browser channel specified'}
                   </div>
                 </div>
                 
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Viewport</label>
                   <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded text-gray-700">
-                    {config.viewport.width} × {config.viewport.height}
+                    {config.viewport ? `${config.viewport.width} × ${config.viewport.height}` : 'No viewport specified'}
                   </div>
                 </div>
                 

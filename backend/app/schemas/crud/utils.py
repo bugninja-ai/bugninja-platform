@@ -9,10 +9,12 @@ from faker import Faker
 from app.schemas.crud.constants import (
     ACTION_DATA_TEMPLATES,
     ACTION_TYPES,
+    BROWSER_CHANNELS,
     BROWSER_CONFIG_TEMPLATES,
     COLOR_SCHEMES,
     DOM_ELEMENT_TYPES,
     DOM_TAG_NAMES,
+    USER_AGENTS,
 )
 
 
@@ -116,8 +118,9 @@ def generate_browser_config_data(faker: Faker, template_type: str = "default") -
     """
     template: Dict[str, Any] = BROWSER_CONFIG_TEMPLATES[template_type].copy()
 
-    # Fill in dynamic values
-    template["user_agent"] = faker.user_agent()
+    # Fill in dynamic values using constants for single source of truth
+    template["browser_channel"] = faker.random_element(BROWSER_CHANNELS)
+    template["user_agent"] = faker.random_element(USER_AGENTS)
     template["color_scheme"] = faker.random_element(COLOR_SCHEMES)
 
     # Generate allowed domains
@@ -130,6 +133,6 @@ def generate_browser_config_data(faker: Faker, template_type: str = "default") -
 
     # Handle headers for alternative template
     if template_type == "alternative" and "headers" in template:
-        template["headers"]["User-Agent"] = faker.user_agent()
+        template["headers"]["User-Agent"] = template["user_agent"]  # Use consistent user agent
 
     return template
