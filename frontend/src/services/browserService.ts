@@ -101,10 +101,45 @@ export interface BulkUpdateBrowserConfigResponse {
   failed_links: any[];
 }
 
+// Secret Value interfaces for bulk operations
+export interface UpdateSecretValueWithId {
+  id: string;
+  secret_name?: string;
+  secret_value?: string;
+}
+
+export interface CreateSecretValueRequest {
+  test_case_id: string;
+  secret_name: string;
+  secret_value: string;
+}
+
+export interface BulkUpdateSecretValueRequest {
+  secret_values?: UpdateSecretValueWithId[];
+  new_secret_values?: CreateSecretValueRequest[];
+  existing_secret_value_ids_to_add?: string[];
+  secret_value_ids_to_unlink?: string[];
+  test_case_id?: string;
+}
+
+export interface BulkUpdateSecretValueResponse {
+  updated_secret_values: SecretValue[];
+  created_secret_values: SecretValue[];
+  linked_secret_values: SecretValue[];
+  total_updated: number;
+  total_created: number;
+  total_linked: number;
+  total_unlinked: number;
+  failed_updates: any[];
+  failed_creations: any[];
+  failed_links: any[];
+}
+
 export class BrowserService {
   private static readonly ENDPOINTS = {
     BROWSER_TYPES: '/browser-types',
     SECRET_VALUES: '/secret-values/project',
+    SECRET_VALUES_BULK: '/secret-values/bulk',
     BROWSER_CONFIGS: '/browser-configs/project',
     BROWSER_CONFIGS_BULK: '/browser-configs/bulk',
   };
@@ -222,6 +257,26 @@ export class BrowserService {
     } catch (error: any) {
       const apiError: ApiError = {
         message: error.response?.data?.detail || error.message || 'Failed to update browser configurations',
+        status: error.response?.status,
+        code: error.code,
+      };
+      throw apiError;
+    }
+  }
+
+  /**
+   * Bulk update secret values
+   */
+  static async bulkUpdateSecretValues(requestData: BulkUpdateSecretValueRequest): Promise<BulkUpdateSecretValueResponse> {
+    try {
+      const response = await apiClient.put<BulkUpdateSecretValueResponse>(
+        this.ENDPOINTS.SECRET_VALUES_BULK, 
+        requestData
+      );
+      return response.data;
+    } catch (error: any) {
+      const apiError: ApiError = {
+        message: error.response?.data?.detail || error.message || 'Failed to update secret values',
         status: error.response?.status,
         code: error.code,
       };

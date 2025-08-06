@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { FrontendTestCase, TestCategory, TestPriority } from '../types';
 import { TestCaseService } from '../services/testCaseService';
-import { BrowserService, BrowserConfigOptions, BrowserConfigData, UpdateBrowserConfigWithId, CreateBrowserConfigRequest } from '../services/browserService';
+import { BrowserService, BrowserConfigOptions, BrowserConfigData, UpdateBrowserConfigWithId, CreateBrowserConfigRequest, UpdateSecretValueWithId, CreateSecretValueRequest, SecretValue } from '../services/browserService';
 import { CustomDropdown } from '../components/CustomDropdown';
 import { BASE_DOMAIN } from '../services/api';
 
@@ -59,6 +59,10 @@ const TestCaseDetail: React.FC = () => {
   const [viewportDropdowns, setViewportDropdowns] = useState<Record<string, boolean>>({});
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [priorityDropdownOpen, setPriorityDropdownOpen] = useState(false);
+  
+  // Secret data and dropdown states
+  const [existingSecrets, setExistingSecrets] = useState<SecretValue[]>([]);
+  const [existingSecretDropdownOpen, setExistingSecretDropdownOpen] = useState(false);
   
   // Editable values
   const [editableTestCase, setEditableTestCase] = useState<FrontendTestCase | null>(null);
@@ -92,6 +96,16 @@ const TestCaseDetail: React.FC = () => {
     }
   };
 
+  const loadExistingSecrets = async (projectId: string) => {
+    try {
+      const secretsData = await BrowserService.getSecretsByProject(projectId);
+      setExistingSecrets(secretsData);
+    } catch (error) {
+      console.error('Failed to load existing secrets:', error);
+      setExistingSecrets([]);
+    }
+  };
+
   // Category options for dropdown
   const categoryOptions = [
     { value: 'authentication', label: 'Authentication' },
@@ -118,9 +132,10 @@ const TestCaseDetail: React.FC = () => {
       setTestCase(tc);
       setEditableTestCase(tc);
       
-      // Load recent test runs and existing browser configs in parallel
+      // Load recent test runs, existing browser configs, and existing secrets in parallel
       loadRecentTestRuns(testCaseId);
       loadExistingBrowserConfigs(tc.projectId);
+      loadExistingSecrets(tc.projectId);
     } catch (error: any) {
       console.error('Failed to load test case:', error);
       setError(error.message || 'Failed to load test case');
@@ -357,12 +372,84 @@ const TestCaseDetail: React.FC = () => {
   };
 
   const handleSaveSecrets = async () => {
-    if (!editableTestCase) return;
+    if (!editableTestCase || !testCase) return;
     try {
-      setTestCase(editableTestCase);
+      // Separate existing secrets (to update) from new secrets (to create)
+      const existingSecrets: UpdateSecretValueWithId[] = [];
+      const newSecrets: CreateSecretValueRequest[] = [];
+      const secretsToUnlink: string[] = [];
+
+      // Get the original secret IDs to compare
+      const originalSecretIds = new Set(testCase.secrets.map(s => s.id));
+      const currentSecretIds = new Set(editableTestCase.secrets.map(s => s.id));
+
+      // Find secrets that were removed (to unlink)
+      originalSecretIds.forEach(id => {
+        if (!currentSecretIds.has(id)) {
+          secretsToUnlink.push(id);
+        }
+      });
+
+      // Process current secrets
+      editableTestCase.secrets.forEach(secret => {
+        if (secret.id.startsWith('secret-')) {
+          // This is a new secret (temporary ID)
+          newSecrets.push({
+            test_case_id: testCase.id,
+            secret_name: secret.secretName,
+            secret_value: secret.value
+          });
+        } else {
+          // This is an existing secret to update
+          existingSecrets.push({
+            id: secret.id,
+            secret_name: secret.secretName,
+            secret_value: secret.value
+          });
+        }
+      });
+
+      // Get existing secret IDs to link (if any)
+      const existingSecretIdsToAdd = editableTestCase.existingSecretIds || [];
+
+      // Call the bulk update API with all operations
+      const response = await BrowserService.bulkUpdateSecretValues({
+        secret_values: existingSecrets,
+        new_secret_values: newSecrets,
+        existing_secret_value_ids_to_add: existingSecretIdsToAdd,
+        secret_value_ids_to_unlink: secretsToUnlink,
+        test_case_id: testCase.id
+      });
+      
+      console.log('Secret values operations completed:', response);
+      
+      // Combine updated, created, and linked secrets for the UI
+      const allUpdatedSecrets = [
+        ...response.updated_secret_values,
+        ...response.created_secret_values,
+        ...response.linked_secret_values
+      ].map(backendSecret => ({
+        id: backendSecret.id,
+        secretName: backendSecret.secret_name,
+        value: backendSecret.secret_value
+      }));
+
+      // Update the test case state
+      const updatedTestCase = {
+        ...editableTestCase,
+        secrets: allUpdatedSecrets,
+        existingSecretIds: [] // Clear the linked IDs after saving
+      };
+
+      setTestCase(updatedTestCase);
       setEditingSecrets(false);
-    } catch (error) {
+      
+      // Reset dropdown states
+      setExistingSecretDropdownOpen(false);
+
+    } catch (error: any) {
       console.error('Failed to save secrets:', error);
+      // Handle error feedback here if needed
     }
   };
 
@@ -1295,10 +1382,87 @@ const TestCaseDetail: React.FC = () => {
             </div>
           </div>
           
+          {/* Select Existing Secret - Only show in edit mode */}
+          {editingSecrets && (
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Or select an existing secret
+              </label>
+              
+              {existingSecrets.length === 0 ? (
+                <div className="text-sm text-gray-500 italic">
+                  No existing secrets found for this project
+                </div>
+              ) : (
+                <CustomDropdown
+                  options={existingSecrets
+                    .filter(secret => !editableTestCase?.secrets.some(existing => existing.id === secret.id))
+                    .map(secret => ({
+                      value: secret.id,
+                      label: `${secret.secret_name} - ${new Date(secret.created_at).toLocaleDateString()}`
+                    }))}
+                  value=""
+                  onChange={(secretId) => {
+                    if (secretId && editableTestCase) {
+                      // Add the existing secret ID to a special field for linking
+                      if (!editableTestCase.existingSecretIds) {
+                        editableTestCase.existingSecretIds = [];
+                      }
+                      if (!editableTestCase.existingSecretIds.includes(secretId)) {
+                        setEditableTestCase({
+                          ...editableTestCase,
+                          existingSecretIds: [...editableTestCase.existingSecretIds, secretId]
+                        });
+                      }
+                    }
+                  }}
+                  isOpen={existingSecretDropdownOpen}
+                  setIsOpen={setExistingSecretDropdownOpen}
+                  placeholder="Select existing secret"
+                  fullWidth={true}
+                />
+              )}
+            </div>
+          )}
+          
           <div className="space-y-3">
             {editingSecrets ? (
-              editableTestCase?.secrets.map((secret, index) => (
-                <div key={secret.id} className="border border-gray-200 rounded-lg p-4">
+              <div>
+                {/* Existing Secrets (Non-editable) - Linked from project */}
+                {editableTestCase?.existingSecretIds?.map((secretId) => {
+                  const secret = existingSecrets.find(s => s.id === secretId);
+                  if (!secret) return null;
+                  
+                  return (
+                    <div key={secretId} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="flex-1 text-sm font-medium text-gray-700 mr-4">
+                          {secret.secret_name} (Existing)
+                        </span>
+                        <button
+                          onClick={() => {
+                            if (editableTestCase && editableTestCase.existingSecretIds) {
+                              setEditableTestCase({
+                                ...editableTestCase,
+                                existingSecretIds: editableTestCase.existingSecretIds.filter(id => id !== secretId)
+                              });
+                            }
+                          }}
+                          className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        This secret will be reused from existing setup
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* New Secrets (Editable) */}
+                {editableTestCase?.secrets.map((secret, index) => (
+                <div key={secret.id} className="border border-gray-200 rounded-lg p-4 overflow-visible">
                   <div className="flex items-center justify-between mb-2">
                     <input
                       type="text"
@@ -1313,10 +1477,11 @@ const TestCaseDetail: React.FC = () => {
                           });
                         }
                       }}
-                      className="text-sm font-medium text-gray-700 bg-transparent border-b border-gray-300 focus:border-indigo-500 focus:outline-none flex-1 mr-4"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-sm mr-4"
                       placeholder="Secret name"
                     />
                     <button
+                      type="button"
                       onClick={() => {
                         if (editableTestCase) {
                           const newSecrets = editableTestCase.secrets.filter((_, i) => i !== index);
@@ -1332,9 +1497,9 @@ const TestCaseDetail: React.FC = () => {
                     </button>
                   </div>
                   
-                  <div className="relative">
+                  <div>
                     <input
-                      type="text"
+                      type="password"
                       value={secret.value}
                       onChange={(e) => {
                         if (editableTestCase) {
@@ -1346,12 +1511,13 @@ const TestCaseDetail: React.FC = () => {
                           });
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded text-gray-800 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-gray-800 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                       placeholder="Secret value"
                     />
                   </div>
                 </div>
-              ))
+                ))}
+              </div>
             ) : (
               testCase.secrets.map((secret) => (
               <div key={secret.id} className="border border-gray-200 rounded-lg p-4">

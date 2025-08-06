@@ -198,14 +198,26 @@ async def bulk_update_secret_values(
         BulkUpdateSecretValueResponse: Response with updated entities and error details
     """
     try:
-        # Perform bulk update
-        updated_secret_values, failed_updates = SecretValueRepo.bulk_update(
+        # Perform bulk update with linking/unlinking capabilities
+        (
+            updated_secret_values,
+            created_secret_values,
+            linked_secret_values,
+            failed_updates,
+            failed_creations,
+            failed_links,
+            unlinked_count,
+        ) = SecretValueRepo.bulk_update(
             db=db_session,
             secret_values_data=request_data.secret_values,
+            new_secret_values=request_data.new_secret_values,
+            existing_secret_value_ids_to_add=request_data.existing_secret_value_ids_to_add,
+            secret_value_ids_to_unlink=request_data.secret_value_ids_to_unlink,
+            test_case_id=request_data.test_case_id,
         )
 
         # Convert to response models
-        response_secret_values = [
+        updated_response_secret_values = [
             ResponseSecretValue(
                 id=sv.id,
                 project_id=sv.project_id,
@@ -217,10 +229,42 @@ async def bulk_update_secret_values(
             for sv in updated_secret_values
         ]
 
+        linked_response_secret_values = [
+            ResponseSecretValue(
+                id=sv.id,
+                project_id=sv.project_id,
+                created_at=sv.created_at,
+                updated_at=sv.updated_at,
+                secret_name=sv.secret_name,
+                secret_value=sv.secret_value,
+            )
+            for sv in linked_secret_values
+        ]
+
+        # Convert created secrets to response models
+        created_response_secret_values = [
+            ResponseSecretValue(
+                id=sv.id,
+                project_id=sv.project_id,
+                created_at=sv.created_at,
+                updated_at=sv.updated_at,
+                secret_name=sv.secret_name,
+                secret_value=sv.secret_value,
+            )
+            for sv in created_secret_values
+        ]
+
         return BulkUpdateSecretValueResponse(
-            updated_secret_values=response_secret_values,
+            updated_secret_values=updated_response_secret_values,
+            created_secret_values=created_response_secret_values,
+            linked_secret_values=linked_response_secret_values,
             total_updated=len(updated_secret_values),
+            total_created=len(created_secret_values),
+            total_linked=len(linked_secret_values),
+            total_unlinked=unlinked_count,
             failed_updates=failed_updates,
+            failed_creations=failed_creations,
+            failed_links=failed_links,
         )
 
     except HTTPException:

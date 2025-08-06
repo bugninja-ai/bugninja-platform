@@ -273,13 +273,22 @@ class BulkUpdateSecretValueRequest(BaseModel):
     """
     Request schema for bulk secret value updates.
 
-    Allows updating multiple secret values in a single request.
+    Allows updating multiple secret values in a single request, creating new ones,
+    linking existing ones, and unlinking secrets from test cases.
 
     Attributes:
         secret_values: List of secret value update data with IDs
+        new_secret_values: List of new secret values to create and link
+        existing_secret_value_ids_to_add: List of existing secret IDs to link to test case
+        secret_value_ids_to_unlink: List of secret IDs to unlink from test case
+        test_case_id: Test case ID for linking/unlinking operations
     """
 
-    secret_values: List[UpdateSecretValueWithId]
+    secret_values: List[UpdateSecretValueWithId] = []
+    new_secret_values: Optional[List[CreateSecretValue]] = None
+    existing_secret_value_ids_to_add: Optional[List[str]] = None
+    secret_value_ids_to_unlink: Optional[List[str]] = None
+    test_case_id: Optional[str] = None
 
     @classmethod
     def sample_factory_build(cls, secret_value_count: int = 3) -> "BulkUpdateSecretValueRequest":
@@ -306,17 +315,31 @@ class BulkUpdateSecretValueResponse(BaseModel):
     Response schema for bulk secret value updates.
 
     Contains all updated secret values along with detailed information
-    about successful and failed operations.
+    about successful and failed operations, including created and linked secrets.
 
     Attributes:
         updated_secret_values: List of successfully updated secret values
+        created_secret_values: List of newly created secret values
+        linked_secret_values: List of existing secret values linked to test case
         total_updated: Total number of secret values successfully updated
+        total_created: Total number of new secret values created
+        total_linked: Total number of existing secret values linked
+        total_unlinked: Total number of secret values unlinked
         failed_updates: List of failed update attempts with error details
+        failed_creations: List of failed creation attempts with error details
+        failed_links: List of failed link attempts with error details
     """
 
-    updated_secret_values: List[ResponseSecretValue]
-    total_updated: int
-    failed_updates: List[Dict[str, Any]]
+    updated_secret_values: List[ResponseSecretValue] = []
+    created_secret_values: List[ResponseSecretValue] = []
+    linked_secret_values: List[ResponseSecretValue] = []
+    total_updated: int = 0
+    total_created: int = 0
+    total_linked: int = 0
+    total_unlinked: int = 0
+    failed_updates: List[Dict[str, Any]] = []
+    failed_creations: List[Dict[str, Any]] = []
+    failed_links: List[Dict[str, Any]] = []
 
     @classmethod
     def sample_factory_build(cls, secret_value_count: int = 3) -> "BulkUpdateSecretValueResponse":

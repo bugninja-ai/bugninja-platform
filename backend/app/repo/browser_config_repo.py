@@ -557,7 +557,13 @@ class BrowserConfigRepo:
         browser_config_ids_to_unlink: List[str] = [],
         test_case_id: Optional[str] = None,
     ) -> Tuple[
-        List[BrowserConfig], List[BrowserConfig], List[BrowserConfig], int, List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]
+        List[BrowserConfig],
+        List[BrowserConfig],
+        List[BrowserConfig],
+        int,
+        List[Dict[str, Any]],
+        List[Dict[str, Any]],
+        List[Dict[str, Any]],
     ]:
         """
         Perform bulk operations on browser configurations: update, create, link existing, and unlink.
@@ -662,11 +668,13 @@ class BrowserConfigRepo:
                     # Get the existing browser config
                     existing_browser_config = BrowserConfigRepo.get_by_id(db, browser_config_id)
                     if not existing_browser_config:
-                        failed_links.append({
-                            "index": index,
-                            "error": f"Browser config with ID {browser_config_id} not found",
-                            "browser_config_id": browser_config_id,
-                        })
+                        failed_links.append(
+                            {
+                                "index": index,
+                                "error": f"Browser config with ID {browser_config_id} not found",
+                                "browser_config_id": browser_config_id,
+                            }
+                        )
                         continue
 
                     # Create association between test case and browser config
@@ -682,11 +690,13 @@ class BrowserConfigRepo:
                     linked_browser_configs.append(existing_browser_config)
 
                 except Exception as e:
-                    failed_links.append({
-                        "index": index,
-                        "error": str(e),
-                        "browser_config_id": browser_config_id,
-                    })
+                    failed_links.append(
+                        {
+                            "index": index,
+                            "error": str(e),
+                            "browser_config_id": browser_config_id,
+                        }
+                    )
 
         # 4. Handle unlinking browser configs from test case
         if browser_config_ids_to_unlink and test_case_id:
@@ -707,7 +717,12 @@ class BrowserConfigRepo:
                 )
 
         # Commit all successful operations
-        if updated_browser_configs or created_browser_configs or linked_browser_configs or total_unlinked > 0:
+        if (
+            updated_browser_configs
+            or created_browser_configs
+            or linked_browser_configs
+            or total_unlinked > 0
+        ):
             db.commit()
 
         return (

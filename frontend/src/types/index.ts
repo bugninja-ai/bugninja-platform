@@ -276,4 +276,5 @@ export interface FrontendTestCase {
   secrets: TestSecret[];
   document: BackendDocument | null;
   existingBrowserConfigIds?: string[]; // For linking existing browser configs
+  existingSecretIds?: string[]; // For linking existing secrets
 } 
