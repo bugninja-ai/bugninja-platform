@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Settings as SettingsIcon, 
   Monitor, 
@@ -10,15 +11,18 @@ import {
   EyeOff,
   Edit,
   Save,
-  X as XIcon
+  X as XIcon,
+  AlertCircle
 } from 'lucide-react';
 import { useProjects } from '../hooks/useProjects';
 import { DeleteConfirmationModal } from '../components/DeleteConfirmationModal';
 import { settingsService, BrowserConfig, SecretValue, UpdateProjectData } from '../services/settingsService';
+import { ProjectService } from '../services/projectService';
 
 type SettingsSection = 'project' | 'browser-configs' | 'secret-values' | 'global' | 'integrations';
 
 const Settings: React.FC = () => {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<SettingsSection>('project');
   const [browserConfigs, setBrowserConfigs] = useState<BrowserConfig[]>([]);
   const [secretValues, setSecretValues] = useState<SecretValue[]>([]);
@@ -32,6 +36,11 @@ const Settings: React.FC = () => {
     default_start_url: string;
   }>({ name: '', default_start_url: '' });
   const [projectUpdateLoading, setProjectUpdateLoading] = useState(false);
+  
+  // Project deletion state
+  const [showProjectDeleteModal, setShowProjectDeleteModal] = useState(false);
+  const [projectDeleteLoading, setProjectDeleteLoading] = useState(false);
+  const [projectDeleteError, setProjectDeleteError] = useState<string | null>(null);
   
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -217,6 +226,35 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleDeleteProject = () => {
+    setShowProjectDeleteModal(true);
+    setProjectDeleteError(null);
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!selectedProject?.id) return;
+    
+    try {
+      setProjectDeleteLoading(true);
+      setProjectDeleteError(null);
+      
+      await ProjectService.deleteProject(selectedProject.id);
+      
+      // Navigate back to home/project selection after successful deletion
+      navigate('/');
+    } catch (error: any) {
+      console.error('Failed to delete project:', error);
+      setProjectDeleteError(error.message || 'Failed to delete project');
+    } finally {
+      setProjectDeleteLoading(false);
+    }
+  };
+
+  const cancelDeleteProject = () => {
+    setShowProjectDeleteModal(false);
+    setProjectDeleteError(null);
+  };
+
   const formatBrowserConfig = (browserConfig: BrowserConfig) => {
     const config = browserConfig.browser_config;
     if (!config) return 'Default configuration';
@@ -316,6 +354,24 @@ const Settings: React.FC = () => {
                   Click the edit icon to modify project settings
                 </div>
               )}
+            </div>
+
+            {/* Danger Zone */}
+            <div className="bg-white p-6 rounded-lg border border-red-200">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 mr-6">
+                  <h3 className="text-lg font-semibold text-red-800 mb-2">Danger Zone</h3>
+                  <p className="text-gray-600">Permanently delete this project and all associated data.</p>
+                </div>
+                <button
+                  onClick={handleDeleteProject}
+                  disabled={isEditingProject}
+                  className="flex-shrink-0 inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Project
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -501,6 +557,97 @@ const Settings: React.FC = () => {
         loading={confirmModal.loading}
         error={confirmModal.error}
       />
+
+      {/* Project Delete Confirmation Modal */}
+      {showProjectDeleteModal && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-[10000]"
+            onClick={cancelDeleteProject}
+          />
+
+          {/* Modal */}
+          <div className="fixed inset-0 flex items-center justify-center z-[10001] p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                    <Trash2 className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Delete Project</h2>
+                    <p className="text-sm text-gray-500">This action cannot be undone</p>
+                  </div>
+                </div>
+                <button
+                  onClick={cancelDeleteProject}
+                  disabled={projectDeleteLoading}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <XIcon className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-4">
+                {projectDeleteError && (
+                  <div className="flex items-center p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+                    <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span>{projectDeleteError}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <Globe className="w-5 h-5 text-red-600 mr-3" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-700 truncate">{selectedProject?.name}</p>
+                    <p className="text-sm text-gray-500 truncate">{selectedProject?.default_start_url}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-sm text-gray-600">
+                  <p className="font-medium text-red-800">This will permanently delete:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-4">
+                    <li>The entire project and its configuration</li>
+                    <li>All test cases and their configurations</li>
+                    <li>All test runs and execution history</li>
+                    <li>All browser configurations</li>
+                    <li>All secret values</li>
+                    <li>All documents and traversals</li>
+                  </ul>
+                </div>
+
+                <p className="text-sm text-gray-600 font-medium">
+                  Are you absolutely sure you want to delete this project?
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={cancelDeleteProject}
+                  disabled={projectDeleteLoading}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteProject}
+                  disabled={projectDeleteLoading}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {projectDeleteLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>{projectDeleteLoading ? 'Deleting...' : 'Delete Project'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

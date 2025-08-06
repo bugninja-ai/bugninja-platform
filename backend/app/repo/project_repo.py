@@ -146,7 +146,25 @@ class ProjectRepo:
     @staticmethod
     def delete(db: Session, project_id: str) -> bool:
         """
-        Delete a project by its ID.
+        Delete a project by its ID with comprehensive cascade deletion.
+        
+        This method performs cascade deletion in the following order to respect foreign key constraints:
+        1. Delete all actions associated with brain states (through test traversals)
+        2. Delete all brain states associated with test traversals
+        3. Delete all history elements and costs associated with test runs
+        4. Delete all test runs associated with test traversals
+        5. Delete all test traversals associated with test cases
+        6. Delete all browser config associations (TestCaseBrowserConfig)
+        7. Delete all secret value associations (SecretValueTestCase)
+        8. Delete all test cases
+        9. Delete all browser configurations
+        10. Delete all secret values
+        11. Delete all documents
+        12. Delete all costs directly associated with project
+        13. Delete the project itself
+        
+        This ensures that all related data is properly cleaned up before attempting
+        to delete the project, preventing foreign key constraint violations.
 
         Args:
             db: Database session
@@ -154,14 +172,139 @@ class ProjectRepo:
 
         Returns:
             bool: True if project was deleted, False if not found
+            
+        Raises:
+            Exception: If any database operation fails, transaction is rolled back
         """
         project = ProjectRepo.get_by_id(db, project_id)
         if not project:
             return False
 
-        db.delete(project)
-        db.commit()
-        return True
+        try:
+            # Import here to avoid circular imports
+            from app.db.action import Action
+            from app.db.brain_state import BrainState
+            from app.db.browser_config import BrowserConfig
+            from app.db.cost import Cost
+            from app.db.document import Document
+            from app.db.history_element import HistoryElement
+            from app.db.secret_value import SecretValue
+            from app.db.secret_value_test_case import SecretValueTestCase
+            from app.db.test_case import TestCase
+            from app.db.test_case_browser_config import TestCaseBrowserConfig
+            from app.db.test_run import TestRun
+            from app.db.test_traversal import TestTraversal
+
+            # 1. Get all test cases for this project
+            test_cases = db.exec(
+                select(TestCase).where(TestCase.project_id == project_id)
+            ).all()
+            
+            # 2. Delete cascade starting from the deepest level: Actions -> BrainStates -> TestRuns -> TestTraversals -> TestCases
+            for test_case in test_cases:
+                # Get all test traversals for this test case
+                traversals = db.exec(
+                    select(TestTraversal).where(TestTraversal.test_case_id == test_case.id)
+                ).all()
+                
+                for traversal in traversals:
+                    # Delete all actions through brain states
+                    brain_states = db.exec(
+                        select(BrainState).where(BrainState.test_traversal_id == traversal.id)
+                    ).all()
+                    
+                    for brain_state in brain_states:
+                        # Delete all actions for this brain state
+                        actions = db.exec(
+                            select(Action).where(Action.brain_state_id == brain_state.id)
+                        ).all()
+                        for action in actions:
+                            db.delete(action)
+                    
+                    # Delete all brain states for this traversal
+                    for brain_state in brain_states:
+                        db.delete(brain_state)
+                    
+                    # Delete all test runs for this traversal
+                    test_runs = db.exec(
+                        select(TestRun).where(TestRun.test_traversal_id == traversal.id)
+                    ).all()
+                    
+                    for test_run in test_runs:
+                        # Delete history elements for this test run
+                        history_elements = db.exec(
+                            select(HistoryElement).where(HistoryElement.test_run_id == test_run.id)
+                        ).all()
+                        for history_element in history_elements:
+                            db.delete(history_element)
+                        
+                        # Delete cost associated with this test run
+                        costs = db.exec(
+                            select(Cost).where(Cost.test_run_id == test_run.id)
+                        ).all()
+                        for cost in costs:
+                            db.delete(cost)
+                        
+                        # Delete the test run itself
+                        db.delete(test_run)
+
+                # Delete all test traversals for this test case
+                for traversal in traversals:
+                    db.delete(traversal)
+
+                # Delete browser config associations for this test case
+                browser_config_associations = db.exec(
+                    select(TestCaseBrowserConfig).where(TestCaseBrowserConfig.test_case_id == test_case.id)
+                ).all()
+                for association in browser_config_associations:
+                    db.delete(association)
+
+                # Delete secret value associations for this test case
+                secret_associations = db.exec(
+                    select(SecretValueTestCase).where(SecretValueTestCase.test_case_id == test_case.id)
+                ).all()
+                for association in secret_associations:
+                    db.delete(association)
+
+                # Delete the test case itself
+                db.delete(test_case)
+
+            # 3. Delete all browser configurations for this project
+            browser_configs = db.exec(
+                select(BrowserConfig).where(BrowserConfig.project_id == project_id)
+            ).all()
+            for browser_config in browser_configs:
+                db.delete(browser_config)
+
+            # 4. Delete all secret values for this project
+            secret_values = db.exec(
+                select(SecretValue).where(SecretValue.project_id == project_id)
+            ).all()
+            for secret_value in secret_values:
+                db.delete(secret_value)
+
+            # 5. Delete all documents for this project
+            documents = db.exec(
+                select(Document).where(Document.project_id == project_id)
+            ).all()
+            for document in documents:
+                db.delete(document)
+
+            # 6. Delete all remaining costs directly associated with this project
+            remaining_costs = db.exec(
+                select(Cost).where(Cost.project_id == project_id)
+            ).all()
+            for cost in remaining_costs:
+                db.delete(cost)
+
+            # 7. Finally, delete the project itself
+            db.delete(project)
+            db.commit()
+            return True
+
+        except Exception as e:
+            db.rollback()
+            raise e
 
     @staticmethod
     def get_by_name(db: Session, name: str) -> Optional[Project]:
