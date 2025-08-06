@@ -11,8 +11,12 @@ from typing import Any, Dict, List, Optional, Sequence
 from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
 
+from app.db.action import Action
+from app.db.brain_state import BrainState
 from app.db.browser_config import BrowserConfig
+from app.db.cost import Cost
 from app.db.document import Document
+from app.db.history_element import HistoryElement
 from app.db.secret_value import SecretValue
 from app.db.secret_value_test_case import SecretValueTestCase
 from app.db.test_case import TestCase
@@ -283,7 +287,20 @@ class TestCaseRepo:
     @staticmethod
     def delete(db: Session, test_case_id: str) -> bool:
         """
-        Delete a test case by its ID.
+        Delete a test case by its ID with comprehensive cascade deletion.
+
+        This method performs cascade deletion in the following order to respect foreign key constraints:
+        1. Delete all actions associated with brain states
+        2. Delete all brain states associated with test traversals
+        3. Delete all history elements and costs associated with test runs
+        4. Delete all test runs associated with test traversals
+        5. Delete all test traversals associated with this test case
+        6. Delete all browser config associations (TestCaseBrowserConfig)
+        7. Delete all secret value associations (SecretValueTestCase)
+        8. Delete the test case itself
+
+        This ensures that all related data is properly cleaned up before attempting
+        to delete the test case, preventing foreign key constraint violations.
 
         Args:
             db: Database session
@@ -291,14 +308,88 @@ class TestCaseRepo:
 
         Returns:
             bool: True if test case was deleted, False if not found
+
+        Raises:
+            Exception: If any database operation fails, transaction is rolled back
         """
         test_case = TestCaseRepo.get_by_id(db, test_case_id)
         if not test_case:
             return False
 
-        db.delete(test_case)
-        db.commit()
-        return True
+        try:
+            # 1. Get all test traversals for this test case
+            traversals = db.exec(
+                select(TestTraversal).where(TestTraversal.test_case_id == test_case_id)
+            ).all()
+
+            # 2. Delete cascade starting from the deepest level: Actions -> BrainStates -> TestRuns -> TestTraversals
+            for traversal in traversals:
+                # 2a. Delete all actions through brain states
+                brain_states = db.exec(
+                    select(BrainState).where(BrainState.test_traversal_id == traversal.id)
+                ).all()
+
+                for brain_state in brain_states:
+                    # Delete all actions for this brain state
+                    actions = db.exec(
+                        select(Action).where(Action.brain_state_id == brain_state.id)
+                    ).all()
+                    for action in actions:
+                        db.delete(action)
+
+                # 2b. Delete all brain states for this traversal
+                for brain_state in brain_states:
+                    db.delete(brain_state)
+
+                # 2c. Delete all test runs for this traversal
+                test_runs = db.exec(
+                    select(TestRun).where(TestRun.test_traversal_id == traversal.id)
+                ).all()
+
+                for test_run in test_runs:
+                    # Delete history elements for this test run
+                    history_elements = db.exec(
+                        select(HistoryElement).where(HistoryElement.test_run_id == test_run.id)
+                    ).all()
+                    for history_element in history_elements:
+                        db.delete(history_element)
+
+                    # Delete cost associated with this test run
+                    costs = db.exec(select(Cost).where(Cost.test_run_id == test_run.id)).all()
+                    for cost in costs:
+                        db.delete(cost)
+
+                    # Delete the test run itself
+                    db.delete(test_run)
+
+            # 3. Delete all test traversals
+            for traversal in traversals:
+                db.delete(traversal)
+
+            # 4. Delete browser config associations (TestCaseBrowserConfig)
+            browser_config_associations = db.exec(
+                select(TestCaseBrowserConfig).where(
+                    TestCaseBrowserConfig.test_case_id == test_case_id
+                )
+            ).all()
+            for association in browser_config_associations:
+                db.delete(association)
+
+            # 5. Delete secret value associations (SecretValueTestCase)
+            secret_associations = db.exec(
+                select(SecretValueTestCase).where(SecretValueTestCase.test_case_id == test_case_id)
+            ).all()
+            for association in secret_associations:
+                db.delete(association)
+
+            # 6. Finally, delete the test case itself
+            db.delete(test_case)
+            db.commit()
+            return True
+
+        except Exception as e:
+            db.rollback()
+            raise e
 
     @staticmethod
     def get_by_name(db: Session, test_name: str) -> Optional[TestCase]:

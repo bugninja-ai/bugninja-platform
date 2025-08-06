@@ -407,6 +407,7 @@ async def get_secret_values_by_project(
     description="Delete a secret value by its ID",
     responses={
         200: create_success_response("Secret value deleted successfully", ResponseSecretValue),
+        409: {"description": "Conflict - Secret value is still in use"},
         **COMMON_ERROR_RESPONSES,
     },
 )
@@ -418,6 +419,7 @@ async def delete_secret_value(
     Delete a secret value from the system.
 
     This endpoint permanently removes a secret value and returns the deleted secret value information.
+    If the secret value is still being used by test cases, it will return a 409 Conflict error.
     """
     try:
         # First get the secret value to return it after deletion
@@ -427,6 +429,17 @@ async def delete_secret_value(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Secret value with id {secret_value_id} not found",
+            )
+
+        # Check if secret value is still being used
+        is_in_use, usage_details = SecretValueRepo.check_usage(
+            db=db_session, secret_value_id=secret_value_id
+        )
+
+        if is_in_use:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Cannot delete secret value. It is still being used by {usage_details}",
             )
 
         # Delete the secret value

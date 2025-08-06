@@ -658,10 +658,31 @@ class SecretValueRepo:
 
             if not existing_association:
                 association = SecretValueTestCase(
-                    id=CUID().generate(),
                     secret_value_id=secret_value_id,
                     test_case_id=test_case_id,
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc),
                 )
                 db.add(association)
+
+    @staticmethod
+    def check_usage(db: Session, secret_value_id: str) -> Tuple[bool, str]:
+        """
+        Check if a secret value is still being used by test cases.
+
+        Args:
+            db: Database session
+            secret_value_id: Secret value identifier
+
+        Returns:
+            Tuple[bool, str]: (is_in_use, usage_details)
+        """
+        # Check test case associations
+        test_case_associations = db.exec(
+            select(SecretValueTestCase).where(
+                SecretValueTestCase.secret_value_id == secret_value_id
+            )
+        ).all()
+
+        if test_case_associations:
+            return True, f"{len(test_case_associations)} test case(s)"
+        else:
+            return False, ""

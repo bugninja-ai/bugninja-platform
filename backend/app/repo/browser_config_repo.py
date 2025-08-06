@@ -734,3 +734,44 @@ class BrowserConfigRepo:
             failed_creations,
             failed_links,
         )
+
+    @staticmethod
+    def check_usage(db: Session, browser_config_id: str) -> Tuple[bool, str]:
+        """
+        Check if a browser configuration is still being used by test cases or test runs.
+
+        Args:
+            db: Database session
+            browser_config_id: Browser configuration identifier
+
+        Returns:
+            Tuple[bool, str]: (is_in_use, usage_details)
+        """
+        from sqlmodel import text
+        from app.db.test_case_browser_config import TestCaseBrowserConfig
+        from app.db.test_run import TestRun
+
+        usage_details = []
+
+        # Check test case associations
+        test_case_associations = db.exec(
+            select(TestCaseBrowserConfig).where(
+                TestCaseBrowserConfig.browser_config_id == browser_config_id
+            )
+        ).all()
+
+        if test_case_associations:
+            usage_details.append(f"{len(test_case_associations)} test case(s)")
+
+        # Check test run usage
+        test_runs = db.exec(
+            select(TestRun).where(TestRun.browser_config_id == browser_config_id)
+        ).all()
+
+        if test_runs:
+            usage_details.append(f"{len(test_runs)} test run(s)")
+
+        if usage_details:
+            return True, " and ".join(usage_details)
+        else:
+            return False, ""

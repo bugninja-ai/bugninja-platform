@@ -386,6 +386,7 @@ async def get_browser_configs_by_project(
         200: create_success_response(
             "Browser configuration deleted successfully", ResponseBrowserConfig
         ),
+        409: {"description": "Conflict - Browser configuration is still in use"},
         **COMMON_ERROR_RESPONSES,
     },
 )
@@ -397,6 +398,7 @@ async def delete_browser_config(
     Delete a browser configuration from the system.
 
     This endpoint permanently removes a browser configuration and returns the deleted configuration information.
+    If the browser configuration is still being used by test cases or test runs, it will return a 409 Conflict error.
     """
     try:
         # First get the browser config to return it after deletion
@@ -408,6 +410,17 @@ async def delete_browser_config(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Browser configuration with id {browser_config_id} not found",
+            )
+
+        # Check if browser config is still being used
+        is_in_use, usage_details = BrowserConfigRepo.check_usage(
+            db=db_session, browser_config_id=browser_config_id
+        )
+
+        if is_in_use:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Cannot delete browser configuration. It is still being used by {usage_details}",
             )
 
         # Delete the browser config
