@@ -1,7 +1,7 @@
 ---
+alwaysApply: false
 description: React best practices and patterns for modern web applications
 globs: **/*.tsx,*.jsx,frontend/**,frontend/components/**,**.jsx
-alwaysApply: false
 ---
 
 # React Best Practices

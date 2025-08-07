@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ApiState, ApiError } from '../types';
-import { TestCaseService } from '../services/testCaseService';
+import { FrontendTestCase, ApiState, ApiError, TestPriority, TestCategory } from '../../../types';
+import { TestCaseService } from '../../../services/testCaseService';
 
-export interface UseTestRunsParams {
+export interface UseTestCasesParams {
+  projectId?: string;
   page?: number;
   pageSize?: number;
   search?: string;
-  status?: string;
+  priority?: TestPriority;
+  category?: TestCategory;
   sortOrder?: 'asc' | 'desc';
-  projectId?: string;
-  testCaseId?: string;
 }
 
-export interface UseTestRunsResult extends ApiState<any[]> {
+export interface UseTestCasesResult extends ApiState<FrontendTestCase[]> {
   // Pagination info
   totalCount: number;
   page: number;
@@ -26,21 +26,21 @@ export interface UseTestRunsResult extends ApiState<any[]> {
   setPage: (page: number) => void;
   setPageSize: (pageSize: number) => void;
   setSearch: (search: string) => void;
-  setStatus: (status: string | undefined) => void;
+  setPriority: (priority: TestPriority | undefined) => void;
+  setCategory: (category: TestCategory | undefined) => void;
   setSortOrder: (sortOrder: 'asc' | 'desc') => void;
-  setTestCaseId: (id: string | undefined) => void;
   
   // Current filters
   filters: {
     search: string;
-    status?: string;
+    priority?: TestPriority;
+    category?: TestCategory;
     sortOrder: 'asc' | 'desc';
-    testCaseId?: string;
   };
 }
 
-export const useTestRuns = (params?: UseTestRunsParams): UseTestRunsResult => {
-  const [state, setState] = useState<ApiState<any[]>>({
+export const useTestCases = (params?: UseTestCasesParams): UseTestCasesResult => {
+  const [state, setState] = useState<ApiState<FrontendTestCase[]>>({
     data: null,
     loading: true,
     error: null,
@@ -59,11 +59,11 @@ export const useTestRuns = (params?: UseTestRunsParams): UseTestRunsResult => {
 
   // Filter state
   const [search, setSearchState] = useState(params?.search || '');
-  const [status, setStatusState] = useState<string | undefined>(params?.status);
+  const [priority, setPriorityState] = useState<TestPriority | undefined>(params?.priority);
+  const [category, setCategoryState] = useState<TestCategory | undefined>(params?.category);
   const [sortOrder, setSortOrderState] = useState<'asc' | 'desc'>(params?.sortOrder || 'desc');
-  const [testCaseId, setTestCaseIdState] = useState<string | undefined>(params?.testCaseId);
 
-  const fetchTestRuns = useCallback(async () => {
+  const fetchTestCases = useCallback(async () => {
     if (!projectId) {
       setState(prev => ({ 
         ...prev, 
@@ -77,14 +77,12 @@ export const useTestRuns = (params?: UseTestRunsParams): UseTestRunsResult => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       
-      const response = await TestCaseService.getAllTestRuns({
+      const response = await TestCaseService.getTestCases({
         page,
         page_size: pageSize,
         sort_order: sortOrder,
         project_id: projectId,
-        test_case_id: testCaseId,
         search: search || undefined,
-        status: status || undefined,
       });
       
       setState(prev => ({ 
@@ -104,7 +102,7 @@ export const useTestRuns = (params?: UseTestRunsParams): UseTestRunsResult => {
       const apiError = error as ApiError;
       
       // If project not found, it might be deleted - clear localStorage and reset
-      if (apiError.status === 404 && projectId && apiError.message?.includes('Project') && apiError.message?.includes('not found')) {
+      if (apiError.status === 404 && projectId && apiError.message?.includes('not found')) {
         localStorage.removeItem('selectedProjectId');
         // Don't show error for invalid project - let useProjects handle it
         setState(prev => ({ 
@@ -116,23 +114,17 @@ export const useTestRuns = (params?: UseTestRunsParams): UseTestRunsResult => {
         return;
       }
       
-      // If we get a 404 for test case not found, clear the filter and retry
-      if (apiError.status === 404 && testCaseId && apiError.message?.includes('not found')) {
-        setTestCaseIdState(undefined);
-        return; // This will trigger a re-fetch with the cleared filter
-      }
-      
       setState(prev => ({ 
         ...prev, 
         loading: false, 
         error: apiError.message 
       }));
     }
-  }, [page, pageSize, sortOrder, projectId, testCaseId, search, status]);
+  }, [page, pageSize, sortOrder, projectId, search]);
 
   const refetch = useCallback(async () => {
-    await fetchTestRuns();
-  }, [fetchTestRuns]);
+    await fetchTestCases();
+  }, [fetchTestCases]);
 
   // Reset to first page when filters change
   const setPage = useCallback((newPage: number) => {
@@ -149,8 +141,13 @@ export const useTestRuns = (params?: UseTestRunsParams): UseTestRunsResult => {
     setPageState(1); // Reset to first page when searching
   }, []);
 
-  const setStatus = useCallback((newStatus: string | undefined) => {
-    setStatusState(newStatus);
+  const setPriority = useCallback((newPriority: TestPriority | undefined) => {
+    setPriorityState(newPriority);
+    setPageState(1); // Reset to first page when filtering
+  }, []);
+
+  const setCategory = useCallback((newCategory: TestCategory | undefined) => {
+    setCategoryState(newCategory);
     setPageState(1); // Reset to first page when filtering
   }, []);
 
@@ -159,22 +156,22 @@ export const useTestRuns = (params?: UseTestRunsParams): UseTestRunsResult => {
     setPageState(1); // Reset to first page when sorting
   }, []);
 
-  const setTestCaseId = useCallback((newId: string | undefined) => {
-    setTestCaseIdState(newId);
-    setPageState(1); // Reset to first page when filtering
-  }, []);
-
   // Fetch data when dependencies change
   useEffect(() => {
     if (projectId) {
-      fetchTestRuns();
+      fetchTestCases();
     }
-  }, [fetchTestRuns, projectId]);
+  }, [fetchTestCases, projectId]);
 
-  // No client-side filtering needed - all filtering is handled by the backend
+  // Client-side filtering for priority and category (since backend might not support all filters)
+  const filteredData = state.data?.filter(testCase => {
+    if (priority && testCase.priority !== priority) return false;
+    if (category && testCase.category !== category) return false;
+    return true;
+  }) || null;
 
   return {
-    data: state.data,
+    data: filteredData,
     loading: state.loading,
     error: state.error,
     totalCount,
@@ -187,14 +184,14 @@ export const useTestRuns = (params?: UseTestRunsParams): UseTestRunsResult => {
     setPage,
     setPageSize,
     setSearch,
-    setStatus,
+    setPriority,
+    setCategory,
     setSortOrder,
-    setTestCaseId,
     filters: {
       search,
-      status,
+      priority,
+      category,
       sortOrder,
-      testCaseId,
     },
   };
 }; 

@@ -75,7 +75,18 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 z-[10000]"
+        className="modal-backdrop fixed bg-black bg-opacity-50 z-[10000]"
+        style={{ 
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
+          margin: 0,
+          padding: 0
+        }}
         onClick={onClose}
       />
       

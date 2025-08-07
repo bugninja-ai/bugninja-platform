@@ -1,12 +1,12 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
-import TestCases from './pages/TestCases';
+import TestCasesPage from './features/test-cases/TestCasesPage';
 import CreateTest from './pages/CreateTest';
-import TestRuns from './pages/TestRuns';
-import { TestRunDetail } from './pages/TestRunDetail';
-import TestCaseDetail from './pages/TestCaseDetail';
-import Settings from './pages/Settings';
+import TestRunsPage from './features/test-runs/TestRunsPage';
+import TestRunDetailPage from './features/test-run-detail/TestRunDetailPage';
+import TestCaseDetailPage from './features/test-cases/TestCaseDetailPage';
+import SettingsPage from './features/settings/SettingsPage';
 import './App.css';
 
 function App() {
@@ -14,14 +14,14 @@ function App() {
     <Router>
       <Layout>
         <Routes>
-          <Route path="/" element={<TestCases />} />
+          <Route path="/" element={<TestCasesPage />} />
           <Route path="/create" element={<CreateTest />} />
-          <Route path="/runs" element={<TestRuns />} />
-          <Route path="/runs/:runId" element={<TestRunDetail />} />
-          <Route path="/test-details/:id" element={<TestCaseDetail />} />
+          <Route path="/runs" element={<TestRunsPage />} />
+          <Route path="/runs/:runId" element={<TestRunDetailPage />} />
+          <Route path="/test-details/:id" element={<TestCaseDetailPage />} />
           <Route path="/dashboard" element={<div className="p-8 text-center"><h1 className="text-2xl font-bold text-gray-900">Dashboard</h1><p className="text-gray-600">Coming soon...</p></div>} />
           <Route path="/analytics" element={<div className="p-8 text-center"><h1 className="text-2xl font-bold text-gray-900">Analytics</h1><p className="text-gray-600">Coming soon...</p></div>} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </Layout>
     </Router>
