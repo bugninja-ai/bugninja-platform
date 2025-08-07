@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { 
   Calendar, 
   Clock, 
@@ -22,6 +22,8 @@ import {
 import { CustomDropdown } from '../components/CustomDropdown';
 import { useTestRuns } from '../hooks/useTestRuns';
 import { useProjects } from '../hooks/useProjects';
+import { TestCaseService } from '../services/testCaseService';
+import { FrontendTestCase } from '../types';
 
 // Pagination Component
 interface PaginationProps {
@@ -136,6 +138,9 @@ const Pagination: React.FC<PaginationProps> = ({
 };
 
 const TestRuns: React.FC = () => {
+  // Get URL search parameters
+  const [searchParams] = useSearchParams();
+  
   // Get selected project
   const { selectedProject } = useProjects();
   
@@ -170,6 +175,43 @@ const TestRuns: React.FC = () => {
   // Browser filtering state
   const [selectedBrowserId, setSelectedBrowserId] = useState<string | undefined>();
 
+  // State for all test cases in the project (for dropdown options)
+  const [allTestCases, setAllTestCases] = useState<FrontendTestCase[]>([]);
+  const [testCasesLoading, setTestCasesLoading] = useState(false);
+
+  // Handle URL query parameters on component mount
+  useEffect(() => {
+    const testCaseParam = searchParams.get('testCase');
+    if (testCaseParam) {
+      setTestCaseId(testCaseParam);
+    }
+  }, [searchParams, setTestCaseId]);
+
+  // Fetch all test cases for the project (for dropdown options)
+  useEffect(() => {
+    const fetchAllTestCases = async () => {
+      if (!selectedProject?.id) {
+        return;
+      }
+      
+      try {
+        setTestCasesLoading(true);
+        const response = await TestCaseService.getTestCases({
+          project_id: selectedProject.id,
+          page_size: 100 // Maximum allowed by backend
+        });
+        setAllTestCases(response.items);
+      } catch (error) {
+        console.error('Failed to fetch test cases for dropdown:', error);
+        setAllTestCases([]);
+      } finally {
+        setTestCasesLoading(false);
+      }
+    };
+
+    fetchAllTestCases();
+  }, [selectedProject?.id]);
+
   // Apply client-side browser filtering (since backend doesn't support it)
   const filteredRuns = (testRuns || []).filter(run => {
     if (!selectedBrowserId) return true;
@@ -197,19 +239,30 @@ const TestRuns: React.FC = () => {
     ? filteredRuns.slice((filteredCurrentPage - 1) * currentPageSize, filteredCurrentPage * currentPageSize)
     : filteredRuns;
 
-  // Generate dropdown options from current data
+  // Generate test case dropdown options - combine test cases from runs and all test cases
   const testCaseOptions = React.useMemo(() => {
-    if (!testRuns) return [];
     const testCaseMap = new Map<string, string>();
-    testRuns.forEach(run => {
-      const testCaseId = run.test_case?.id || run.testCase?.id;
-      const testCaseName = run.test_case?.test_name || run.testCase?.title;
-      if (testCaseId && testCaseName) {
-        testCaseMap.set(testCaseId, testCaseName);
+    
+    // First, add test cases from current test runs (these are guaranteed to have runs)
+    if (testRuns) {
+      testRuns.forEach(run => {
+        const testCaseId = run.test_case?.id || run.testCase?.id;
+        const testCaseName = run.test_case?.test_name || run.testCase?.title;
+        if (testCaseId && testCaseName) {
+          testCaseMap.set(testCaseId, testCaseName);
+        }
+      });
+    }
+    
+    // Then, add all test cases from the project (ensures we have all options)
+    allTestCases.forEach(testCase => {
+      if (testCase.id && testCase.title) {
+        testCaseMap.set(testCase.id, testCase.title);
       }
     });
+    
     return Array.from(testCaseMap.entries()).map(([id, name]) => ({ id, name }));
-  }, [testRuns]);
+  }, [testRuns, allTestCases]);
 
   const browserOptions = React.useMemo(() => {
     if (!testRuns) return [];
@@ -313,13 +366,15 @@ const TestRuns: React.FC = () => {
   ];
 
   // Format options for dropdowns
-  const testCaseDropdownOptions = [
-    { value: 'all', label: 'All test cases' },
-    ...testCaseOptions.map(testCase => ({
-      value: testCase.id,
-      label: testCase.name
-    }))
-  ];
+  const testCaseDropdownOptions = React.useMemo(() => {
+    return [
+      { value: 'all', label: 'All test cases' },
+      ...testCaseOptions.map(testCase => ({
+        value: testCase.id,
+        label: testCase.name
+      }))
+    ];
+  }, [testCaseOptions]);
 
   const browserDropdownOptions = [
     { value: 'all', label: 'All browsers' },
@@ -339,7 +394,13 @@ const TestRuns: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Test runs</h1>
-          <p className="mt-1 text-gray-600">View and analyze past test run results</p>
+          <p className="mt-1 text-gray-600">
+            {filters.testCaseId ? (
+              <>Runs for test case: <span className="font-medium">{testCaseOptions.find(tc => tc.id === filters.testCaseId)?.name || filters.testCaseId}</span></>
+            ) : (
+              'View and analyze past test run results'
+            )}
+          </p>
         </div>
         <div className="mt-4 sm:mt-0 text-sm text-gray-500">
           {isBrowserFiltered ? (
