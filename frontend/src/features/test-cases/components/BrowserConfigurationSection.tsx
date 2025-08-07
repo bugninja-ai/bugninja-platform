@@ -1,9 +1,9 @@
 import React, { Dispatch, SetStateAction } from 'react';
 import { Monitor, Plus, Trash2, MapPin } from 'lucide-react';
-import { FrontendTestCase, BrowserConfig } from '../../../shared/types';
+import { FrontendTestCase, BrowserConfig } from '../types';
 import { EditableSection } from '../../../shared/components/EditableSection';
 import { CustomDropdown } from '../../../shared/components/CustomDropdown';
-import { BrowserConfigOptions, BrowserConfigData } from '../../../shared/services/browserService';
+import { BrowserConfigOptions, BrowserConfigData } from '../../settings/types';
 
 interface BrowserConfigurationSectionProps {
   testCase: FrontendTestCase;

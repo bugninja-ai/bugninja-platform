@@ -1,9 +1,9 @@
 import React from 'react';
 import { Plus, Trash2, Eye, EyeOff, Copy, CheckCircle } from 'lucide-react';
-import { FrontendTestCase, TestSecret } from '../../../shared/types';
+import { FrontendTestCase, TestSecret } from '../types';
 import { EditableSection } from '../../../shared/components/EditableSection';
 import { CustomDropdown } from '../../../shared/components/CustomDropdown';
-import { SecretValue } from '../../../shared/services/browserService';
+import { SecretValue } from '../../settings/types';
 
 interface SecretsSectionProps {
   testCase: FrontendTestCase;

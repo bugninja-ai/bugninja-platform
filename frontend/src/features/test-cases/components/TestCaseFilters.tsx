@@ -1,6 +1,6 @@
 import React from 'react';
 import { Filter, Search } from 'lucide-react';
-import { TestPriority, TestCategory } from '../../../shared/types';
+import { TestPriority, TestCategory } from '../types';
 import { CustomDropdown } from '../../../shared/components/CustomDropdown';
 
 interface TestCaseFiltersProps {

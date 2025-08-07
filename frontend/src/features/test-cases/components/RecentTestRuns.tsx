@@ -12,7 +12,7 @@ import {
   Monitor, 
   Play 
 } from 'lucide-react';
-import { FrontendTestCase } from '../../../shared/types';
+import { FrontendTestCase } from '../types';
 import { StatusBadge } from '../../../shared/components/StatusBadge';
 import { BASE_DOMAIN } from '../../../shared/services/api';
 

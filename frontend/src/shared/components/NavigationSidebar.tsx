@@ -60,9 +60,10 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
   const sidebarWidth = sidebarMinimized ? 'w-20' : 'w-72';
 
   return (
-    <div className={`sidebar-container fixed left-0 top-0 h-full ${sidebarWidth} bg-white/80 backdrop-blur-xl border-r border-dashed border-gray-300 z-50 transform transition-all duration-300 ease-in-out ${
+    <div className={`fixed left-0 top-0 h-full ${sidebarWidth} bg-white/80 backdrop-blur-xl border-r border-dashed border-gray-300 z-50 transform transition-all duration-300 ease-in-out ${
       sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-    } lg:translate-x-0`}>
+    } lg:translate-x-0`}
+         style={{ zoom: 0.9 }}>
       
       {/* Logo and controls */}
       {!sidebarMinimized && (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './app/layout/Layout';
 import TestCasesPage from './features/test-cases/TestCasesPage';
 import CreateTestPage from './features/test-cases/CreateTestPage';
@@ -7,7 +7,7 @@ import TestRunsPage from './features/test-runs/TestRunsPage';
 import TestRunDetailPage from './features/test-run-detail/TestRunDetailPage';
 import TestCaseDetailPage from './features/test-cases/TestCaseDetailPage';
 import SettingsPage from './features/settings/SettingsPage';
-import './App.css';
+
 
 function App() {
   return (

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FrontendTestCase, TestCategory, TestPriority, BrowserConfig, TestSecret, ExtraRule } from '../../../shared/types';
+import { FrontendTestCase, TestCategory, TestPriority, BrowserConfig, TestSecret, ExtraRule } from '../types';
 import { TestCaseService } from '../services/testCaseService';
-import { BrowserService, BrowserConfigOptions, BrowserConfigData, SecretValue, UpdateBrowserConfigWithId, CreateBrowserConfigRequest, UpdateSecretValueWithId, CreateSecretValueRequest } from '../../../shared/services/browserService';
+import { BrowserService } from '../../settings/services/browserService';
+import { BrowserConfigOptions, BrowserConfigData, SecretValue, UpdateBrowserConfigWithId, CreateBrowserConfigRequest, UpdateSecretValueWithId, CreateSecretValueRequest } from '../../settings/types';
 
 export const useTestCaseDetail = (testCaseId: string | undefined) => {
   const navigate = useNavigate();

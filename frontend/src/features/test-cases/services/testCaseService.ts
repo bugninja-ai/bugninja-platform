@@ -5,11 +5,11 @@ import {
   FrontendTestCase, 
   TestPriority,
   TestCategory,
-  ApiError,
   ExtraRule,
   BrowserConfig,
   TestSecret
-} from '../../../shared/types';
+} from '../types';
+import { ApiError } from '../../../shared/types';
 
 export class TestCaseService {
   private static readonly ENDPOINTS = {

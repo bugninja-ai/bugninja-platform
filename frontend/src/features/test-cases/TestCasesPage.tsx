@@ -10,7 +10,7 @@ import {
   RefreshCw,
   AlertCircle
 } from 'lucide-react';
-import { TestPriority, TestCategory } from '../../shared/types';
+import { TestPriority, TestCategory } from './types';
 import { useTestCases } from './hooks/useTestCases';
 import { useProjects } from '../../shared/hooks/useProjects';
 import { StatsCard } from '../../shared/components/StatsCard';

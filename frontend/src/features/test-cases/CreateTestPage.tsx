@@ -14,7 +14,8 @@ import {
 } from 'lucide-react';
 import { CustomDropdown } from '../../shared/components/CustomDropdown';
 import { useProjects } from '../../shared/hooks/useProjects';
-import { BrowserService, BrowserType, SecretValue, BrowserConfigData, BrowserConfigOptions } from '../../shared/services/browserService';
+import { BrowserService } from '../settings/services/browserService';
+import { BrowserType, SecretValue, BrowserConfigData, BrowserConfigOptions } from '../settings/types';
 import { TestCaseService } from './services/testCaseService';
 
 const CreateTest: React.FC = () => {
