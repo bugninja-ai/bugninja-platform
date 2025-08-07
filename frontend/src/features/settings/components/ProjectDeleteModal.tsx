@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trash2, X as XIcon, Globe, AlertCircle, Loader2 } from 'lucide-react';
-import { ProjectService } from '../../../services/projectService';
-import { Project } from '../../../types';
+import { ProjectService } from '../../projects/services/projectService';
+import { Project } from '../../../shared/types';
 
 interface ProjectDeleteModalProps {
   project: Project | null;

@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import { apiClient } from '../../../shared/services/api';
 
 export interface BrowserConfig {
   id: string;

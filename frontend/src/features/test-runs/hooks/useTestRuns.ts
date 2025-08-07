@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ApiState, ApiError } from '../../../types';
-import { TestCaseService } from '../../../services/testCaseService';
+import { ApiState, ApiError } from '../../../shared/types';
+import { TestCaseService } from '../../test-cases/services/testCaseService';
 
 export interface UseTestRunsParams {
   page?: number;

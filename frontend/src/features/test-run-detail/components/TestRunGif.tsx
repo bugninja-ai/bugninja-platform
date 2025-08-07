@@ -1,6 +1,6 @@
 import React from 'react';
 import { MonitorPlay } from 'lucide-react';
-import { BASE_DOMAIN } from '../../../services/api';
+import { BASE_DOMAIN } from '../../../shared/services/api';
 
 interface TestRunGifProps {
   gif: string;

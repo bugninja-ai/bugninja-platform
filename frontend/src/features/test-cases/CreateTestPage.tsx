@@ -12,10 +12,10 @@ import {
   Globe,
   Monitor
 } from 'lucide-react';
-import { CustomDropdown } from '../components/CustomDropdown';
-import { useProjects } from '../hooks/useProjects';
-import { BrowserService, BrowserType, SecretValue, BrowserConfigData, BrowserConfigOptions } from '../services/browserService';
-import { TestCaseService } from '../services/testCaseService';
+import { CustomDropdown } from '../../shared/components/CustomDropdown';
+import { useProjects } from '../../shared/hooks/useProjects';
+import { BrowserService, BrowserType, SecretValue, BrowserConfigData, BrowserConfigOptions } from '../../shared/services/browserService';
+import { TestCaseService } from './services/testCaseService';
 
 const CreateTest: React.FC = () => {
   const navigate = useNavigate();

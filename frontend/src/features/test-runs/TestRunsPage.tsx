@@ -7,9 +7,9 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useTestRuns } from './hooks/useTestRuns';
-import { useProjects } from '../../hooks/useProjects';
-import { TestCaseService } from '../../services/testCaseService';
-import { FrontendTestCase } from '../../types';
+import { useProjects } from '../../shared/hooks/useProjects';
+import { TestCaseService } from '../test-cases/services/testCaseService';
+import { FrontendTestCase } from '../../shared/types';
 import { Pagination } from '../../shared/components/Pagination';
 import { TestRunFilters } from './components/TestRunFilters';
 import { TestRunListItem } from './components/TestRunListItem';

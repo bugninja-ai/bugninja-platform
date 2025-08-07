@@ -9,7 +9,7 @@ import { RunInformation } from './components/RunInformation';
 import { BrowserConfiguration } from './components/BrowserConfiguration';
 import { TestExecutionSteps } from './components/TestExecutionSteps';
 import { ErrorSection } from './components/ErrorSection';
-import ScreenshotModal from '../../components/ScreenshotModal';
+import ScreenshotModal from '../../shared/components/ScreenshotModal';
 
 const TestRunDetailPage: React.FC = () => {
   const { runId } = useParams<{ runId: string }>();

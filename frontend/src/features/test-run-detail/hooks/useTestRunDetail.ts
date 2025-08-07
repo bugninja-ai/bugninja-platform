@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { TestRun } from '../../../types';
-import { TestCaseService } from '../../../services/testCaseService';
+import { TestRun } from '../../../shared/types';
+import { TestCaseService } from '../../test-cases/services/testCaseService';
 
 export interface UseTestRunDetailResult {
   testRun: TestRun | null;

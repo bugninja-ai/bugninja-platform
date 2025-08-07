@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Settings as SettingsIcon } from 'lucide-react';
-import { useProjects } from '../../hooks/useProjects';
+import { useProjects } from '../../shared/hooks/useProjects';
 import { SettingsNavigation, SettingsSection } from './components/SettingsNavigation';
 import { ProjectSettingsSection } from './components/ProjectSettingsSection';
 import { BrowserConfigsSection } from './components/BrowserConfigsSection';

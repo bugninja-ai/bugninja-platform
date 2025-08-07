@@ -9,9 +9,9 @@ import {
   RefreshCw,
   FolderPlus
 } from 'lucide-react';
-import { useProjects } from '../hooks/useProjects';
-import { ProjectCreationModal } from './ProjectCreationModal';
-import { NavigationSidebar } from '../shared/components/NavigationSidebar';
+import { useProjects } from '../../shared/hooks/useProjects';
+import { ProjectCreationModal } from '../../features/projects/components/ProjectCreationModal';
+import { NavigationSidebar } from '../../shared/components/NavigationSidebar';
 
 interface LayoutProps {
   children: React.ReactNode;

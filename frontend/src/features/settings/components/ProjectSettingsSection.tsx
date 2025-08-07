@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Edit, Save, X as XIcon, Trash2, Loader2 } from 'lucide-react';
-import { useProjects } from '../../../hooks/useProjects';
-import { settingsService, UpdateProjectData } from '../../../services/settingsService';
+import { useProjects } from '../../../shared/hooks/useProjects';
+import { settingsService, UpdateProjectData } from '../services/settingsService';
 import { ProjectDeleteModal } from './ProjectDeleteModal';
 
 export const ProjectSettingsSection: React.FC = () => {

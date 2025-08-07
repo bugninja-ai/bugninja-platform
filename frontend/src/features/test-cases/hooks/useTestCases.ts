@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { FrontendTestCase, ApiState, ApiError, TestPriority, TestCategory } from '../../../types';
-import { TestCaseService } from '../../../services/testCaseService';
+import { FrontendTestCase, ApiState, ApiError, TestPriority, TestCategory } from '../../../shared/types';
+import { TestCaseService } from '../services/testCaseService';
 
 export interface UseTestCasesParams {
   projectId?: string;

@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import { apiClient } from '../../../shared/services/api';
 import { 
   BackendTestCase, 
   PaginatedTestCasesResponse, 
@@ -9,7 +9,7 @@ import {
   ExtraRule,
   BrowserConfig,
   TestSecret
-} from '../types';
+} from '../../../shared/types';
 
 export class TestCaseService {
   private static readonly ENDPOINTS = {

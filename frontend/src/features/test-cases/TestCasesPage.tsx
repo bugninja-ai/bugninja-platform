@@ -10,9 +10,9 @@ import {
   RefreshCw,
   AlertCircle
 } from 'lucide-react';
-import { TestPriority, TestCategory } from '../../types';
+import { TestPriority, TestCategory } from '../../shared/types';
 import { useTestCases } from './hooks/useTestCases';
-import { useProjects } from '../../hooks/useProjects';
+import { useProjects } from '../../shared/hooks/useProjects';
 import { StatsCard } from '../../shared/components/StatsCard';
 import { Pagination } from '../../shared/components/Pagination';
 import { TestCaseFilters } from './components/TestCaseFilters';

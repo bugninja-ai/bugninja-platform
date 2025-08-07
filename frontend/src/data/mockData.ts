@@ -1,4 +1,4 @@
-import { TestCase, TestRun, TestStep, TestStatistics, TestStatus, TestPriority, TestCategory, BrowserConfig, TestSecret, ExtraRule, BrainAction, BrainState } from '../types';
+import { TestCase, TestRun, TestStep, TestStatistics, TestStatus, TestPriority, TestCategory, BrowserConfig, TestSecret, ExtraRule, BrainAction, BrainState } from '../shared/types';
 
 // Mock Test Cases
 export const mockTestCases: TestCase[] = [

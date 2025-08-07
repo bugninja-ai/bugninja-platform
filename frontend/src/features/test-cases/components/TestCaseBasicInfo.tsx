@@ -1,8 +1,8 @@
 import React from 'react';
 import { Calendar } from 'lucide-react';
-import { FrontendTestCase, TestCategory, TestPriority } from '../../../types';
+import { FrontendTestCase, TestCategory, TestPriority } from '../../../shared/types';
 import { EditableSection } from '../../../shared/components/EditableSection';
-import { CustomDropdown } from '../../../components/CustomDropdown';
+import { CustomDropdown } from '../../../shared/components/CustomDropdown';
 
 interface TestCaseBasicInfoProps {
   testCase: FrontendTestCase;

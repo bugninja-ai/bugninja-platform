@@ -1,5 +1,5 @@
-import { apiClient } from './api';
-import { Project, ProjectsResponse, ApiError } from '../types';
+import { apiClient } from '../../../shared/services/api';
+import { Project, ProjectsResponse, ApiError } from '../../../shared/types';
 
 export class ProjectService {
   private static readonly ENDPOINTS = {

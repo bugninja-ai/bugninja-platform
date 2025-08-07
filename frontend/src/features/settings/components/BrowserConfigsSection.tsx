@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Monitor, Trash2, Loader2 } from 'lucide-react';
-import { useProjects } from '../../../hooks/useProjects';
-import { settingsService, BrowserConfig } from '../../../services/settingsService';
-import { DeleteConfirmationModal } from '../../../components/DeleteConfirmationModal';
+import { useProjects } from '../../../shared/hooks/useProjects';
+import { settingsService, BrowserConfig } from '../services/settingsService';
+import { DeleteConfirmationModal } from '../../../shared/components/DeleteConfirmationModal';
 
 export const BrowserConfigsSection: React.FC = () => {
   const { selectedProject } = useProjects();

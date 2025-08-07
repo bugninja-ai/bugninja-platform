@@ -1,7 +1,7 @@
 import React from 'react';
 import { Lock, ZoomIn, Image, Brain } from 'lucide-react';
 import { getStatusColor, getStatusIcon, getActionIcon, formatDuration } from './TestRunUtils';
-import { BASE_DOMAIN } from '../../../services/api';
+import { BASE_DOMAIN } from '../../../shared/services/api';
 
 interface ActionStepProps {
   step: any;

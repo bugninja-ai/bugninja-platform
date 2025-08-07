@@ -12,9 +12,9 @@ import {
   Monitor, 
   Play 
 } from 'lucide-react';
-import { FrontendTestCase } from '../../../types';
+import { FrontendTestCase } from '../../../shared/types';
 import { StatusBadge } from '../../../shared/components/StatusBadge';
-import { BASE_DOMAIN } from '../../../services/api';
+import { BASE_DOMAIN } from '../../../shared/services/api';
 
 interface RecentTestRunsProps {
   testCase: FrontendTestCase;

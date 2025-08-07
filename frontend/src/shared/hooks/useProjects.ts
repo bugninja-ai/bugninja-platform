@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Project, ApiState, ApiError } from '../types';
-import { ProjectService } from '../services/projectService';
+import { ProjectService } from '../../features/projects/services/projectService';
 
 export interface UseProjectsResult extends ApiState<Project[]> {
   refetch: () => Promise<void>;

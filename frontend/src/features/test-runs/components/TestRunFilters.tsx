@@ -1,6 +1,6 @@
 import React from 'react';
 import { Filter, Search, Calendar, ArrowUp, ArrowDown, X } from 'lucide-react';
-import { CustomDropdown } from '../../../components/CustomDropdown';
+import { CustomDropdown } from '../../../shared/components/CustomDropdown';
 
 interface TestRunFiltersProps {
   search: string;

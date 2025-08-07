@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Key, Trash2, Loader2, Eye, EyeOff } from 'lucide-react';
-import { useProjects } from '../../../hooks/useProjects';
-import { settingsService, SecretValue } from '../../../services/settingsService';
-import { DeleteConfirmationModal } from '../../../components/DeleteConfirmationModal';
+import { useProjects } from '../../../shared/hooks/useProjects';
+import { settingsService, SecretValue } from '../services/settingsService';
+import { DeleteConfirmationModal } from '../../../shared/components/DeleteConfirmationModal';
 
 export const SecretValuesSection: React.FC = () => {
   const { selectedProject } = useProjects();
