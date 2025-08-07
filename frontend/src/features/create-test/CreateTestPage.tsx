@@ -1,0 +1,231 @@
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Loader2, Plus, AlertCircle } from 'lucide-react';
+import { useCreateTest } from './hooks/useCreateTest';
+import { MethodSelection } from './components/MethodSelection';
+import { FileUploadSection } from './components/FileUploadSection';
+import { BasicInformationSection } from './components/BasicInformationSection';
+import { TestConfigurationSection } from './components/TestConfigurationSection';
+import { ExtraRulesSection } from './components/ExtraRulesSection';
+import { SuccessModal } from './components/SuccessModal';
+import { NoProjectWarning } from './components/NoProjectWarning';
+import { BrowserConfigurationsSection } from './components/BrowserConfigurationsSection';
+import { SecretsSection } from './components/SecretsSection';
+import { useProjects } from '../../shared/hooks/useProjects';
+
+
+const CreateTestPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { selectedProject } = useProjects();
+  const {
+    method,
+    setMethod,
+    formData,
+    file,
+    setFile,
+    browserConfigOptions,
+    existingBrowserConfigs,
+    existingSecrets,
+    loadingData,
+    priorityDropdownOpen,
+    setPriorityDropdownOpen,
+    categoryDropdownOpen,
+    setCategoryDropdownOpen,
+    browserChannelDropdowns,
+    setBrowserChannelDropdowns,
+    userAgentDropdowns,
+    setUserAgentDropdowns,
+    viewportDropdowns,
+    setViewportDropdowns,
+    existingBrowserConfigDropdowns,
+    setExistingBrowserConfigDropdowns,
+    existingSecretsDropdowns,
+    setExistingSecretsDropdowns,
+    handleInputChange,
+    handleRuleChange,
+    addRule,
+    removeRule,
+    handleDomainChange,
+    addDomain,
+    removeDomain,
+    handleNewBrowserConfigChange,
+    addNewBrowserConfig,
+    removeNewBrowserConfig,
+    removeExistingBrowserConfig,
+    addExistingBrowserConfig,
+    handleNewSecretChange,
+    addNewSecret,
+    removeNewSecret,
+    removeExistingSecret,
+    addExistingSecret,
+    handleFileChange,
+    loading,
+    success,
+    handleSubmit,
+    priorityOptions,
+    categoryOptions,
+  } = useCreateTest();
+
+  if (success) {
+    return <SuccessModal />;
+  }
+
+  if (!selectedProject) {
+    return <NoProjectWarning />;
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-800">Create Test Case</h1>
+        <p className="mt-1 text-gray-600">Create a new automated test case for your application</p>
+      </div>
+
+      {/* Method Selection */}
+      <MethodSelection method={method} onMethodChange={setMethod} />
+
+      {/* Form Content */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {method === 'upload' ? (
+          <FileUploadSection
+            file={file}
+            onFileChange={handleFileChange}
+            onFileRemove={() => setFile(null)}
+          />
+        ) : (
+          <div className="space-y-8">
+            {loadingData ? (
+              <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200 relative z-0">
+                <div className="flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-indigo-600 mr-2" />
+                  <span className="text-gray-600">Loading browser types and existing configurations...</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Basic Information */}
+                <BasicInformationSection
+                  formData={{
+                    title: formData.title,
+                    description: formData.description,
+                    priority: formData.priority,
+                    category: formData.category,
+                    goal: formData.goal,
+                  }}
+                  onInputChange={handleInputChange}
+                  priorityOptions={priorityOptions}
+                  categoryOptions={categoryOptions}
+                  priorityDropdownOpen={priorityDropdownOpen}
+                  setPriorityDropdownOpen={setPriorityDropdownOpen}
+                  categoryDropdownOpen={categoryDropdownOpen}
+                  setCategoryDropdownOpen={setCategoryDropdownOpen}
+                />
+
+                {/* Test Configuration */}
+                <TestConfigurationSection
+                  formData={{
+                    startingUrl: formData.startingUrl,
+                    allowedDomains: formData.allowedDomains,
+                  }}
+                  onInputChange={handleInputChange}
+                  onDomainChange={handleDomainChange}
+                  onAddDomain={addDomain}
+                  onRemoveDomain={removeDomain}
+                />
+
+                {/* Browser Configurations */}
+                <BrowserConfigurationsSection
+                  newBrowserConfigs={formData.newBrowserConfigs}
+                  existingBrowserConfigIds={formData.existingBrowserConfigIds}
+                  existingBrowserConfigs={existingBrowserConfigs}
+                  browserConfigOptions={browserConfigOptions}
+                  onNewBrowserConfigChange={handleNewBrowserConfigChange}
+                  onAddNewBrowserConfig={addNewBrowserConfig}
+                  onRemoveNewBrowserConfig={removeNewBrowserConfig}
+                  onRemoveExistingBrowserConfig={removeExistingBrowserConfig}
+                  onAddExistingBrowserConfig={addExistingBrowserConfig}
+                  browserChannelDropdowns={browserChannelDropdowns}
+                  setBrowserChannelDropdowns={setBrowserChannelDropdowns}
+                  userAgentDropdowns={userAgentDropdowns}
+                  setUserAgentDropdowns={setUserAgentDropdowns}
+                  viewportDropdowns={viewportDropdowns}
+                  setViewportDropdowns={setViewportDropdowns}
+                  existingBrowserConfigDropdowns={existingBrowserConfigDropdowns}
+                  setExistingBrowserConfigDropdowns={setExistingBrowserConfigDropdowns}
+                />
+
+                {/* Secrets */}
+                <SecretsSection
+                  newSecrets={formData.newSecrets}
+                  existingSecretIds={formData.existingSecretIds}
+                  existingSecrets={existingSecrets}
+                  onNewSecretChange={handleNewSecretChange}
+                  onAddNewSecret={addNewSecret}
+                  onRemoveNewSecret={removeNewSecret}
+                  onRemoveExistingSecret={removeExistingSecret}
+                  onAddExistingSecret={addExistingSecret}
+                  existingSecretsDropdowns={existingSecretsDropdowns}
+                  setExistingSecretsDropdowns={setExistingSecretsDropdowns}
+                />
+
+                {/* Extra Rules */}
+                <ExtraRulesSection
+                  extraRules={formData.extraRules}
+                  onRuleChange={handleRuleChange}
+                  onAddRule={addRule}
+                  onRemoveRule={removeRule}
+                />
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between pt-6">
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </button>
+          
+          <button
+            type="submit"
+            disabled={loading || (method === 'upload' && !file) || (method === 'manual' && (!formData.title || !formData.description || !formData.goal || !formData.startingUrl || formData.allowedDomains.some(domain => !domain.trim())))}
+            className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-2" />
+                Create Test Case
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+
+      {/* Help Information */}
+      <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+        <div className="flex items-start space-x-3">
+          <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-semibold text-blue-900 mb-1">Need Help?</h3>
+            <p className="text-sm text-blue-800">
+              Test cases should be clear, specific, and include all necessary steps to validate the expected behavior. 
+              For file uploads, we support CSV, JSON, TXT, DOC, DOCX, PDF, XLSX, XLS, RTF, and ODT formats with predefined structures.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CreateTestPage;

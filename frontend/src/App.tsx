@@ -2,7 +2,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './app/layout/Layout';
 import TestCasesPage from './features/test-cases/TestCasesPage';
-import CreateTestPage from './features/test-cases/CreateTestPage';
+import { CreateTestPage } from './features/create-test';
 import TestRunsPage from './features/test-runs/TestRunsPage';
 import TestRunDetailPage from './features/test-run-detail/TestRunDetailPage';
 import TestCaseDetailPage from './features/test-cases/TestCaseDetailPage';
