@@ -1,6 +1,6 @@
 import React from 'react';
 import { MonitorPlay } from 'lucide-react';
-import { TestRun } from '../../../types';
+import { TestRun } from '../../test-runs/types';
 
 interface BrowserConfigurationProps {
   testRun: TestRun;
@@ -10,7 +10,7 @@ export const BrowserConfiguration: React.FC<BrowserConfigurationProps> = ({ test
   const getBrowserInfo = (run: TestRun) => {
     const browserConfig = run.testCase.browserConfigs.find(config => 
       config.userAgent === run.userAgent || 
-      config.name.toLowerCase().includes(run.browser.toLowerCase().split(' ')[0])
+      config.browserChannel.toLowerCase().includes(run.browser.toLowerCase().split(' ')[0])
     );
     
     if (browserConfig) {
@@ -19,7 +19,7 @@ export const BrowserConfiguration: React.FC<BrowserConfigurationProps> = ({ test
     
     return {
       id: 'default',
-      name: run.browser,
+      browserChannel: run.browser,
       userAgent: run.userAgent,
       viewport: { width: 1920, height: 1080 }
     };
@@ -33,7 +33,7 @@ export const BrowserConfiguration: React.FC<BrowserConfigurationProps> = ({ test
       <div className="border border-gray-200 rounded-lg p-4">
         <div className="flex items-center space-x-2 mb-3">
           <MonitorPlay className="w-5 h-5 text-gray-600" />
-          <h3 className="font-medium text-gray-800">{browserInfo.name}</h3>
+          <h3 className="font-medium text-gray-800">{browserInfo.browserChannel}</h3>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">

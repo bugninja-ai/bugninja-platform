@@ -269,7 +269,7 @@ export const useTestCaseDetail = (testCaseId: string | undefined) => {
     if (!editableTestCase || !testCase) return;
     try {
       const updatedTestCase = await TestCaseService.updateTestCase(editableTestCase.id, {
-        extra_rules: editableTestCase.extraRules
+        extra_rules: editableTestCase.extraRules.map(rule => rule.description)
       });
       
       // Merge to preserve stats and complex nested data (except extraRules which we're updating)

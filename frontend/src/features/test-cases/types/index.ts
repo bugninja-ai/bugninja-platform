@@ -79,6 +79,7 @@ export interface BackendBrowserConfig {
   created_at: string;
   updated_at: string;
   browser_config: {
+    browser_channel?: string;
     user_agent: string;
     viewport: {
       width: number;
@@ -119,11 +120,7 @@ export interface BackendTestCase {
   test_name: string;
   test_description: string;
   test_goal: string;
-  extra_rules: string[] | {
-    id: string;
-    rule_number: number;
-    description: string;
-  }[];
+  extra_rules: string[];
   url_routes: string;
   url_route?: string; // Used by PUT endpoint response
   allowed_domains: string[];

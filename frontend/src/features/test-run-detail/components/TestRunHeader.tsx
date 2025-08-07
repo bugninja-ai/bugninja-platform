@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, FileText } from 'lucide-react';
-import { TestRun } from '../../../types';
+import { TestRun } from '../../test-runs/types';
 import { getStatusColor, getStatusIcon } from './TestRunUtils';
 
 interface TestRunHeaderProps {

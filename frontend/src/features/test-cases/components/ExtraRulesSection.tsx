@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { FrontendTestCase, ExtraRule } from '../../../types';
+import { FrontendTestCase, ExtraRule } from '../types';
 import { EditableSection } from '../../../shared/components/EditableSection';
 
 interface ExtraRulesSectionProps {

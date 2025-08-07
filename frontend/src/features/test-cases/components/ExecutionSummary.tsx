@@ -1,5 +1,5 @@
 import React from 'react';
-import { FrontendTestCase } from '../../../types';
+import { FrontendTestCase } from '../types';
 
 interface ExecutionSummaryProps {
   testCase: FrontendTestCase;

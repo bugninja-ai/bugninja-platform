@@ -1,6 +1,6 @@
 import React from 'react';
 import { Globe, Plus, Trash2 } from 'lucide-react';
-import { FrontendTestCase } from '../../../types';
+import { FrontendTestCase } from '../types';
 import { EditableSection } from '../../../shared/components/EditableSection';
 
 interface TestCaseConfigurationProps {

@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+
 import { 
   Menu, 
   ChevronDown,
-  FolderOpen,
   Loader2,
   AlertCircle,
   RefreshCw,
@@ -23,7 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [createProjectModalOpen, setCreateProjectModalOpen] = useState(false);
   const [createProjectLoading, setCreateProjectLoading] = useState(false);
-  const location = useLocation();
+
 
   // Use real backend data for projects
   const { 
@@ -65,7 +64,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
 
 
-  const sidebarWidth = sidebarMinimized ? 'w-20' : 'w-72';
+
   const contentMargin = sidebarMinimized ? 'lg:ml-20' : 'lg:ml-72';
 
   const currentProject = selectedProject;

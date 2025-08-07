@@ -55,7 +55,7 @@ const TestRunsPage: React.FC = () => {
 
   // State for all test cases in the project (for dropdown options)
   const [allTestCases, setAllTestCases] = useState<FrontendTestCase[]>([]);
-  const [testCasesLoading, setTestCasesLoading] = useState(false);
+
 
   // Handle URL query parameters on component mount
   useEffect(() => {
@@ -73,7 +73,7 @@ const TestRunsPage: React.FC = () => {
       }
       
       try {
-        setTestCasesLoading(true);
+
         const response = await TestCaseService.getTestCases({
           project_id: selectedProject.id,
           page_size: 100 // Maximum allowed by backend
@@ -83,7 +83,7 @@ const TestRunsPage: React.FC = () => {
         console.error('Failed to fetch test cases for dropdown:', error);
         setAllTestCases([]);
       } finally {
-        setTestCasesLoading(false);
+
       }
     };
 

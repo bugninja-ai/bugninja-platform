@@ -5,12 +5,8 @@ import {
   BrowserConfigOptions,
   SecretValue,
   BrowserConfigData,
-  UpdateBrowserConfigWithId,
-  CreateBrowserConfigRequest,
   BulkUpdateBrowserConfigRequest,
   BulkUpdateBrowserConfigResponse,
-  UpdateSecretValueWithId,
-  CreateSecretValueRequest,
   BulkUpdateSecretValueRequest,
   BulkUpdateSecretValueResponse
 } from '../types';

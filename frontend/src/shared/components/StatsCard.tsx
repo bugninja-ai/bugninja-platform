@@ -7,7 +7,7 @@ interface StatsCardProps {
   icon: LucideIcon;
   iconColor: string;
   iconBgColor: string;
-  subtitle?: string;
+  subtitle?: string | React.ReactNode;
   subtitleColor?: string;
 }
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Calendar, Timer, CheckCircle, XCircle } from 'lucide-react';
-import { TestRun } from '../../../types';
+import { TestRun } from '../../test-runs/types';
 import { formatDate, formatDuration } from './TestRunUtils';
 
 interface RunInformationProps {

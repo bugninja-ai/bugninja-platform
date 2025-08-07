@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FrontendTestCase, TestPriority, TestCategory } from '../types';
 import { ApiState, ApiError } from '../../../shared/types';
 import { TestCaseService } from '../services/testCaseService';

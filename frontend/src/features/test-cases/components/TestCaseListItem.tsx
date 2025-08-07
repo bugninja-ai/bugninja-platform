@@ -4,12 +4,9 @@ import {
   Play,
   Calendar,
   Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
   FileText
 } from 'lucide-react';
-import { FrontendTestCase } from '../../../types';
+import { FrontendTestCase } from '../types';
 import { StatusBadge } from '../../../shared/components/StatusBadge';
 import { PriorityBadge } from '../../../shared/components/PriorityBadge';
 
@@ -17,18 +14,7 @@ interface TestCaseListItemProps {
   testCase: FrontendTestCase;
 }
 
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case 'passed':
-      return <CheckCircle className="w-4 h-4 text-emerald-500" />;
-    case 'failed':
-      return <XCircle className="w-4 h-4 text-red-500" />;
-    case 'pending':
-      return <Clock className="w-4 h-4 text-amber-500" />;
-    default:
-      return <AlertCircle className="w-4 h-4 text-amber-500" />;
-  }
-};
+
 
 export const TestCaseListItem: React.FC<TestCaseListItemProps> = ({
   testCase
@@ -43,7 +29,7 @@ export const TestCaseListItem: React.FC<TestCaseListItemProps> = ({
             <PriorityBadge priority={testCase.priority} />
             <StatusBadge 
               status={testCase.status} 
-              icon={getStatusIcon(testCase.status)} 
+ 
             />
           </div>
           

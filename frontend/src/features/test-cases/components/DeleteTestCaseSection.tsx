@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trash2 } from 'lucide-react';
-import { FrontendTestCase } from '../../../types';
+import { FrontendTestCase } from '../types';
 
 interface DeleteTestCaseSectionProps {
   testCase: FrontendTestCase;

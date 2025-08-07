@@ -58,31 +58,14 @@ export class TestCaseService {
             ruleNumber: index + 1,
             description: rule
           }));
-        } else if (typeof firstItem === 'object' && firstItem !== null) {
-          // Handle array of rule objects
-          extraRules = backendTestCase.extra_rules.map((rule, index) => ({
-            id: rule.id || `rule-${backendTestCase.id}-${index + 1}`,
-            ruleNumber: rule.rule_number || index + 1,
-            description: rule.description || ''
-          }));
         }
-      } else if (typeof backendTestCase.extra_rules === 'string') {
-        // Handle legacy string format (split by newlines)
-        extraRules = backendTestCase.extra_rules
-          .split('\n')
-          .filter(rule => rule.trim())
-          .map((rule, index) => ({
-            id: `rule-${backendTestCase.id}-${index + 1}`,
-            ruleNumber: index + 1,
-            description: rule.trim()
-          }));
       }
     }
 
     // Transform backend browser configs to frontend format
     // Note: All data except 'name' comes directly from backend
     // Handle both GET response (has browser_configs) and CREATE response (doesn't have it)
-    const browserConfigs: BrowserConfig[] = (backendTestCase.browser_configs || []).map((backendConfig, index) => ({
+    const browserConfigs: BrowserConfig[] = (backendTestCase.browser_configs || []).map((backendConfig) => ({
       id: backendConfig.id, // ✅ Real backend data
       browserChannel: backendConfig.browser_config.browser_channel || '', // ✅ Real backend data
       userAgent: backendConfig.browser_config.user_agent, // ✅ Real backend data
@@ -248,7 +231,7 @@ export class TestCaseService {
     test_name: string;
     test_description: string;
     test_goal: string;
-    extra_rules: ExtraRule[];
+    extra_rules: string[];
     url_route: string;
     allowed_domains: string[];
     priority: TestPriority;
@@ -267,8 +250,8 @@ export class TestCaseService {
       }> = { ...testCase };
 
       if (testCase.extra_rules) {
-        // Backend expects List[str] (array of strings), not a single joined string
-        payload.extra_rules = testCase.extra_rules.map(r => r.description);
+        // Backend expects List[str] (array of strings)
+        payload.extra_rules = testCase.extra_rules;
       }
 
       const response = await apiClient.put<BackendTestCase>(`${this.ENDPOINTS.TEST_CASES}${id}`, payload);

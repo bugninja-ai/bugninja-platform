@@ -53,7 +53,7 @@ export const useTestRunDetail = (runId?: string): UseTestRunDetailResult => {
     // Transform brain states to steps
     const steps = backendData.brain_states?.map((brainState: any, index: number) => {
       // Get the first history element for basic step info
-      const firstHistoryElement = brainState.history_elements?.[0];
+
       
       // Determine step status based on history elements
       const hasFailedElement = brainState.history_elements?.some((he: any) => he.history_element_state === 'FAILED');
@@ -128,12 +128,12 @@ export const useTestRunDetail = (runId?: string): UseTestRunDetailResult => {
 
     // Calculate totals
     const totalSteps = steps.length;
-    const passedSteps = steps.filter(step => step.status === 'passed').length;
-    const failedSteps = steps.filter(step => step.status === 'failed').length;
+    const passedSteps = steps.filter((step: any) => step.status === 'passed').length;
+    const failedSteps = steps.filter((step: any) => step.status === 'failed').length;
 
     // Use real test case data from backend if available
     const realTestCase = backendData.test_case;
-    const testCase = {
+    const testCase: any = {
       id: realTestCase?.id || backendData.test_traversal_id,
       code: realTestCase?.id ? `TC-${realTestCase.id.slice(-8)}` : `TR-${backendData.id.slice(-8)}`,
       title: realTestCase?.test_name || `Test Run - ${backendData.id.slice(-8)}`,
@@ -141,11 +141,10 @@ export const useTestRunDetail = (runId?: string): UseTestRunDetailResult => {
       goal: realTestCase?.test_goal || 'Execute test case objectives',
       browserConfigs: [{
         id: backendData.browser_config?.id || 'unknown',
-        name: `${browserName} - ${viewport.width}x${viewport.height}`,
+        browserChannel: `${browserName} - ${viewport.width}x${viewport.height}`,
         userAgent: userAgent,
         viewport: viewport,
-        geolocation: browserConfig?.geolocation,
-        timeout: browserConfig?.timeout
+        geolocation: browserConfig?.geolocation
       }]
     };
 
@@ -157,6 +156,7 @@ export const useTestRunDetail = (runId?: string): UseTestRunDetailResult => {
 
     return {
       id: backendData.id,
+      testCaseId: backendData.test_case?.id || backendData.test_traversal_id,
       testCase,
       status: statusMap[backendData.current_state] || 'pending',
       startedAt: new Date(backendData.started_at),

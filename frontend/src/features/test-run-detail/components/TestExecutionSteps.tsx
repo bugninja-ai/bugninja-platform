@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
-import { TestRun } from '../../../types';
+import { TestRun } from '../../test-runs/types';
 import { ActionStep } from './ActionStep';
 
 interface TestExecutionStepsProps {

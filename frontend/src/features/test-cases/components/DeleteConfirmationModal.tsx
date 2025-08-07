@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trash2, X, AlertCircle, Target, Loader2 } from 'lucide-react';
-import { FrontendTestCase } from '../../../types';
+import { FrontendTestCase } from '../types';
 
 interface DeleteConfirmationModalProps {
   isOpen: boolean;

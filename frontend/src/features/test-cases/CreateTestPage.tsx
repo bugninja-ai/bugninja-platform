@@ -15,7 +15,7 @@ import {
 import { CustomDropdown } from '../../shared/components/CustomDropdown';
 import { useProjects } from '../../shared/hooks/useProjects';
 import { BrowserService } from '../settings/services/browserService';
-import { BrowserType, SecretValue, BrowserConfigData, BrowserConfigOptions } from '../settings/types';
+import { SecretValue, BrowserConfigData, BrowserConfigOptions } from '../settings/types';
 import { TestCaseService } from './services/testCaseService';
 
 const CreateTest: React.FC = () => {

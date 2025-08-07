@@ -1,2 +1,2 @@
-export { SettingsService } from './settingsService';
+export { settingsService } from './settingsService';
 export { BrowserService } from './browserService';

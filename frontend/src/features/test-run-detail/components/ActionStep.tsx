@@ -68,7 +68,7 @@ export const ActionStep: React.FC<ActionStepProps> = ({ step, onScreenshotClick 
             {/* Actions Section (Light Blue) */}
             <div className="space-y-3 mb-4">
               <div className="text-sm font-medium text-gray-700 mb-2">Actions taken:</div>
-              {step.brainState.actions.map((action: any, index: number) => (
+              {step.brainState.actions.map((action: any) => (
                 <div key={action.id} className="bg-indigo-50 border border-indigo-200 rounded-lg overflow-hidden">
                   <div className="flex items-center justify-between p-3 bg-indigo-100/50">
                     <div className="flex items-center space-x-2">
