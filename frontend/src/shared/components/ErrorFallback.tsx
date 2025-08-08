@@ -2,12 +2,10 @@ import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface ErrorFallbackProps {
-  error: Error;
   resetErrorBoundary: () => void;
 }
 
 export const ErrorFallback: React.FC<ErrorFallbackProps> = ({ 
-  error, 
   resetErrorBoundary 
 }) => {
   return (
@@ -39,16 +37,7 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
             </button>
           </div>
         </div>
-        {process.env.NODE_ENV === 'development' && (
-          <details className="mt-6 text-left">
-            <summary className="text-sm text-gray-500 cursor-pointer">
-              Error Details (Development Only)
-            </summary>
-            <pre className="mt-2 text-xs text-red-600 bg-red-50 p-3 rounded border overflow-auto">
-              {error.stack}
-            </pre>
-          </details>
-        )}
+
       </div>
     </div>
   );

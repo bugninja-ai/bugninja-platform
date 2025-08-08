@@ -2,12 +2,10 @@ import { useCallback } from 'react';
 import { FrontendTestCase, TestCategory, TestPriority, BrowserConfig, TestSecret, ExtraRule } from '../types';
 
 interface UseTestCaseActionsProps {
-  editableTestCase: FrontendTestCase | null;
   setEditableTestCase: React.Dispatch<React.SetStateAction<FrontendTestCase | null>>;
 }
 
 export const useTestCaseActions = ({ 
-  editableTestCase, 
   setEditableTestCase 
 }: UseTestCaseActionsProps) => {
   const handleGoalChange = useCallback((goal: string) => {

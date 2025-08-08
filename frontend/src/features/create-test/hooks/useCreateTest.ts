@@ -101,7 +101,7 @@ export const useCreateTest = (): UseCreateTestResult => {
   const dropdowns = useDropdowns();
   
   // Async operation management
-  const { loading, success, error, execute: executeAsync, setSuccess } = useAsyncOperation();
+  const { loading, success, error, execute: executeAsync } = useAsyncOperation();
 
   // Form data
   const [formData, setFormData] = useState<CreateTestFormData>({
