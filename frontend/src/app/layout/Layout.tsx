@@ -8,7 +8,7 @@ import {
   RefreshCw,
   FolderPlus
 } from 'lucide-react';
-import { useProjects } from '../../shared/hooks/useProjects';
+import { useProjectContext } from '../providers/ProjectContext';
 import { ProjectCreationModal } from '../../features/projects/components/ProjectCreationModal';
 import { NavigationSidebar } from '../../shared/components/NavigationSidebar';
 
@@ -24,28 +24,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [createProjectLoading, setCreateProjectLoading] = useState(false);
 
 
-  // Use real backend data for projects
+  // Use project context for global project state
   const { 
-    data: projects, 
+    projects, 
     loading: projectsLoading, 
     error: projectsError,
     selectedProject,
     setSelectedProject,
     refetch: refetchProjects,
     createProject
-  } = useProjects();
-
-  // Store previous project ID to detect changes and force page refresh
-  const [prevProjectId, setPrevProjectId] = React.useState<string | undefined>(selectedProject?.id);
-
-  // Force page refresh when project changes
-  React.useEffect(() => {
-    if (selectedProject?.id && prevProjectId && selectedProject.id !== prevProjectId) {
-      console.log('Layout: Project changed from', prevProjectId, 'to', selectedProject.id, '- refreshing page');
-      window.location.reload();
-    }
-    setPrevProjectId(selectedProject?.id);
-  }, [selectedProject?.id, prevProjectId]);
+  } = useProjectContext();
 
   // Handle project creation
   const handleCreateProject = async (projectData: { name: string; default_start_url: string }) => {

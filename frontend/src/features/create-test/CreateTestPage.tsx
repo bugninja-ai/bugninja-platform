@@ -27,20 +27,7 @@ const CreateTestPage: React.FC = () => {
     existingBrowserConfigs,
     existingSecrets,
     loadingData,
-    priorityDropdownOpen,
-    setPriorityDropdownOpen,
-    categoryDropdownOpen,
-    setCategoryDropdownOpen,
-    browserChannelDropdowns,
-    setBrowserChannelDropdowns,
-    userAgentDropdowns,
-    setUserAgentDropdowns,
-    viewportDropdowns,
-    setViewportDropdowns,
-    existingBrowserConfigDropdowns,
-    setExistingBrowserConfigDropdowns,
-    existingSecretsDropdowns,
-    setExistingSecretsDropdowns,
+    dropdowns,
     handleInputChange,
     handleRuleChange,
     addRule,
@@ -61,10 +48,97 @@ const CreateTestPage: React.FC = () => {
     handleFileChange,
     loading,
     success,
+    error,
     handleSubmit,
     priorityOptions,
     categoryOptions,
   } = useCreateTest();
+
+  // Simple fix: just use the dropdowns directly with the correct keys
+  const browserChannelDropdowns = { [formData.newBrowserConfigs[0]?.id || '1']: dropdowns.isOpen(`browserChannel-${formData.newBrowserConfigs[0]?.id || '1'}`) };
+  const setBrowserChannelDropdowns = (update: any) => {
+    if (typeof update === 'function') {
+      const current = { [formData.newBrowserConfigs[0]?.id || '1']: dropdowns.isOpen(`browserChannel-${formData.newBrowserConfigs[0]?.id || '1'}`) };
+      const newState = update(current);
+      Object.entries(newState).forEach(([key, isOpen]) => {
+        if (isOpen) dropdowns.open(`browserChannel-${key}`);
+        else dropdowns.close(`browserChannel-${key}`);
+      });
+    } else {
+      Object.entries(update).forEach(([key, isOpen]) => {
+        if (isOpen) dropdowns.open(`browserChannel-${key}`);
+        else dropdowns.close(`browserChannel-${key}`);
+      });
+    }
+  };
+
+  const userAgentDropdowns = { [formData.newBrowserConfigs[0]?.id || '1']: dropdowns.isOpen(`userAgent-${formData.newBrowserConfigs[0]?.id || '1'}`) };
+  const setUserAgentDropdowns = (update: any) => {
+    if (typeof update === 'function') {
+      const current = { [formData.newBrowserConfigs[0]?.id || '1']: dropdowns.isOpen(`userAgent-${formData.newBrowserConfigs[0]?.id || '1'}`) };
+      const newState = update(current);
+      Object.entries(newState).forEach(([key, isOpen]) => {
+        if (isOpen) dropdowns.open(`userAgent-${key}`);
+        else dropdowns.close(`userAgent-${key}`);
+      });
+    } else {
+      Object.entries(update).forEach(([key, isOpen]) => {
+        if (isOpen) dropdowns.open(`userAgent-${key}`);
+        else dropdowns.close(`userAgent-${key}`);
+      });
+    }
+  };
+
+  const viewportDropdowns = { [formData.newBrowserConfigs[0]?.id || '1']: dropdowns.isOpen(`viewport-${formData.newBrowserConfigs[0]?.id || '1'}`) };
+  const setViewportDropdowns = (update: any) => {
+    if (typeof update === 'function') {
+      const current = { [formData.newBrowserConfigs[0]?.id || '1']: dropdowns.isOpen(`viewport-${formData.newBrowserConfigs[0]?.id || '1'}`) };
+      const newState = update(current);
+      Object.entries(newState).forEach(([key, isOpen]) => {
+        if (isOpen) dropdowns.open(`viewport-${key}`);
+        else dropdowns.close(`viewport-${key}`);
+      });
+    } else {
+      Object.entries(update).forEach(([key, isOpen]) => {
+        if (isOpen) dropdowns.open(`viewport-${key}`);
+        else dropdowns.close(`viewport-${key}`);
+      });
+    }
+  };
+
+  const existingBrowserConfigDropdowns = { main: dropdowns.isOpen('existingBrowserConfig-main') };
+  const setExistingBrowserConfigDropdowns = (update: any) => {
+    if (typeof update === 'function') {
+      const current = { main: dropdowns.isOpen('existingBrowserConfig-main') };
+      const newState = update(current);
+      Object.entries(newState).forEach(([key, isOpen]) => {
+        if (isOpen) dropdowns.open(`existingBrowserConfig-${key}`);
+        else dropdowns.close(`existingBrowserConfig-${key}`);
+      });
+    } else {
+      Object.entries(update).forEach(([key, isOpen]) => {
+        if (isOpen) dropdowns.open(`existingBrowserConfig-${key}`);
+        else dropdowns.close(`existingBrowserConfig-${key}`);
+      });
+    }
+  };
+
+  const existingSecretsDropdowns = { main: dropdowns.isOpen('existingSecrets-main') };
+  const setExistingSecretsDropdowns = (update: any) => {
+    if (typeof update === 'function') {
+      const current = { main: dropdowns.isOpen('existingSecrets-main') };
+      const newState = update(current);
+      Object.entries(newState).forEach(([key, isOpen]) => {
+        if (isOpen) dropdowns.open(`existingSecrets-${key}`);
+        else dropdowns.close(`existingSecrets-${key}`);
+      });
+    } else {
+      Object.entries(update).forEach(([key, isOpen]) => {
+        if (isOpen) dropdowns.open(`existingSecrets-${key}`);
+        else dropdowns.close(`existingSecrets-${key}`);
+      });
+    }
+  };
 
   if (success) {
     return <SuccessModal />;
@@ -84,6 +158,16 @@ const CreateTestPage: React.FC = () => {
 
       {/* Method Selection */}
       <MethodSelection method={method} onMethodChange={setMethod} />
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
+            <p className="text-red-800">{error}</p>
+          </div>
+        </div>
+      )}
 
       {/* Form Content */}
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -116,10 +200,10 @@ const CreateTestPage: React.FC = () => {
                   onInputChange={handleInputChange}
                   priorityOptions={priorityOptions}
                   categoryOptions={categoryOptions}
-                  priorityDropdownOpen={priorityDropdownOpen}
-                  setPriorityDropdownOpen={setPriorityDropdownOpen}
-                  categoryDropdownOpen={categoryDropdownOpen}
-                  setCategoryDropdownOpen={setCategoryDropdownOpen}
+                  priorityDropdownOpen={dropdowns.isOpen('priority')}
+                  setPriorityDropdownOpen={(open: boolean) => open ? dropdowns.open('priority') : dropdowns.close('priority')}
+                  categoryDropdownOpen={dropdowns.isOpen('category')}
+                  setCategoryDropdownOpen={(open: boolean) => open ? dropdowns.open('category') : dropdowns.close('category')}
                 />
 
                 {/* Test Configuration */}

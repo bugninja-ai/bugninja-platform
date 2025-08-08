@@ -46,7 +46,7 @@ export const BrowserConfigurationsSection: React.FC<BrowserConfigurationsSection
   viewportDropdowns,
   setViewportDropdowns,
   existingBrowserConfigDropdowns,
-  setExistingBrowserConfigDropdowns
+  setExistingBrowserConfigDropdowns,
 }) => {
   const handleExistingConfigSelect = (configId: string) => {
     if (configId && !existingBrowserConfigIds.includes(configId)) {

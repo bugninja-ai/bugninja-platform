@@ -4,6 +4,8 @@ import { useProjects } from '../../../shared/hooks/useProjects';
 import { BrowserService } from '../../settings/services/browserService';
 import { SecretValue, BrowserConfigData, BrowserConfigOptions } from '../../settings/types';
 import { TestCaseService } from '../../test-cases/services/testCaseService';
+import { useDropdowns } from '../../../shared/hooks/useDropdowns';
+import { useAsyncOperation } from '../../../shared/hooks/useAsyncOperation';
 
 export interface CreateTestFormData {
   title: string;
@@ -42,20 +44,13 @@ export interface UseCreateTestResult {
   loadingData: boolean;
   
   // Dropdown states
-  priorityDropdownOpen: boolean;
-  setPriorityDropdownOpen: (open: boolean) => void;
-  categoryDropdownOpen: boolean;
-  setCategoryDropdownOpen: (open: boolean) => void;
-  browserChannelDropdowns: Record<string, boolean>;
-  setBrowserChannelDropdowns: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  userAgentDropdowns: Record<string, boolean>;
-  setUserAgentDropdowns: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  viewportDropdowns: Record<string, boolean>;
-  setViewportDropdowns: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  existingBrowserConfigDropdowns: Record<string, boolean>;
-  setExistingBrowserConfigDropdowns: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  existingSecretsDropdowns: Record<string, boolean>;
-  setExistingSecretsDropdowns: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  dropdowns: {
+    isOpen: (key: string) => boolean;
+    toggle: (key: string) => void;
+    open: (key: string) => void;
+    close: (key: string) => void;
+    closeAll: () => void;
+  };
   
   // Form handlers
   handleInputChange: (field: string, value: string) => void;
@@ -80,6 +75,7 @@ export interface UseCreateTestResult {
   // Submit
   loading: boolean;
   success: boolean;
+  error: string | null;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   
   // Options
@@ -93,8 +89,6 @@ export const useCreateTest = (): UseCreateTestResult => {
   
   // Form state
   const [method, setMethod] = useState<'upload' | 'manual'>('manual');
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   
   // API Data states
@@ -103,14 +97,11 @@ export const useCreateTest = (): UseCreateTestResult => {
   const [existingSecrets, setExistingSecrets] = useState<SecretValue[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   
-  // Dropdown states
-  const [priorityDropdownOpen, setPriorityDropdownOpen] = useState(false);
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
-  const [browserChannelDropdowns, setBrowserChannelDropdowns] = useState<Record<string, boolean>>({});
-  const [userAgentDropdowns, setUserAgentDropdowns] = useState<Record<string, boolean>>({});
-  const [viewportDropdowns, setViewportDropdowns] = useState<Record<string, boolean>>({});
-  const [existingBrowserConfigDropdowns, setExistingBrowserConfigDropdowns] = useState<Record<string, boolean>>({});
-  const [existingSecretsDropdowns, setExistingSecretsDropdowns] = useState<Record<string, boolean>>({});
+  // Dropdown management
+  const dropdowns = useDropdowns();
+  
+  // Async operation management
+  const { loading, success, error, execute: executeAsync, setSuccess } = useAsyncOperation();
 
   // Form data
   const [formData, setFormData] = useState<CreateTestFormData>({
@@ -363,55 +354,57 @@ export const useCreateTest = (): UseCreateTestResult => {
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
+    
     try {
-      // Validation
-      if (!selectedProject?.id) {
-        throw new Error('Project must be selected!');
-      }
-
-      if (method === 'upload' && !file) {
-        throw new Error('File must be uploaded!');
-      }
-
-      if (method === 'manual') {
-        if (!formData.title.trim()) throw new Error('Test name is required!');
-        if (!formData.description.trim()) throw new Error('Test description is required!');
-        if (!formData.goal.trim()) throw new Error('Test goal is required!');
-        if (!formData.startingUrl.trim()) throw new Error('Starting URL is required!');
-        if (formData.allowedDomains.every(domain => !domain.trim())) {
-          throw new Error('At least one domain must be specified!');
+      await executeAsync(async () => {
+        // Validation
+        if (!selectedProject?.id) {
+          throw new Error('Project must be selected!');
         }
-      }
 
-      // Build the payload
-      const payload = {
-        project_id: selectedProject?.id || '',
-        document_id: file ? 'uploaded-document' : null,
-        test_name: formData.title,
-        test_description: formData.description,
-        test_goal: formData.goal,
-        extra_rules: formData.extraRules.map(rule => rule.description).filter(desc => desc.trim() !== ''),
-        url_route: formData.startingUrl,
-        allowed_domains: formData.allowedDomains.filter(domain => domain.trim() !== ''),
-        priority: formData.priority as 'low' | 'medium' | 'high' | 'critical',
-        category: formData.category,
-        new_browser_configs: [], // Skip for now due to backend bug
-        existing_browser_config_ids: formData.existingBrowserConfigIds,
-        new_secret_values: [], // Skip for now due to backend bug  
-        existing_secret_value_ids: formData.existingSecretIds
-      };
+        if (method === 'upload' && !file) {
+          throw new Error('File must be uploaded!');
+        }
 
-      console.log('Creating test case with payload:', payload);
-      
-      const createdTestCase = await TestCaseService.createTestCase(payload);
-      console.log('Test case created successfully:', createdTestCase);
-      setSuccess(true);
-      
-      setTimeout(() => {
-        navigate('/');
-      }, 1500);
+        if (method === 'manual') {
+          if (!formData.title.trim()) throw new Error('Test name is required!');
+          if (!formData.description.trim()) throw new Error('Test description is required!');
+          if (!formData.goal.trim()) throw new Error('Test goal is required!');
+          if (!formData.startingUrl.trim()) throw new Error('Starting URL is required!');
+          if (formData.allowedDomains.every(domain => !domain.trim())) {
+            throw new Error('At least one domain must be specified!');
+          }
+        }
+
+        // Build the payload
+        const payload = {
+          project_id: selectedProject?.id || '',
+          document_id: file ? 'uploaded-document' : null,
+          test_name: formData.title,
+          test_description: formData.description,
+          test_goal: formData.goal,
+          extra_rules: formData.extraRules.map(rule => rule.description).filter(desc => desc.trim() !== ''),
+          url_route: formData.startingUrl,
+          allowed_domains: formData.allowedDomains.filter(domain => domain.trim() !== ''),
+          priority: formData.priority as 'low' | 'medium' | 'high' | 'critical',
+          category: formData.category,
+          new_browser_configs: [], // Skip for now due to backend bug
+          existing_browser_config_ids: formData.existingBrowserConfigIds,
+          new_secret_values: [], // Skip for now due to backend bug  
+          existing_secret_value_ids: formData.existingSecretIds
+        };
+
+        console.log('Creating test case with payload:', payload);
+        
+        const createdTestCase = await TestCaseService.createTestCase(payload);
+        console.log('Test case created successfully:', createdTestCase);
+        
+        setTimeout(() => {
+          navigate('/');
+        }, 1500);
+        
+        return createdTestCase;
+      });
     } catch (error) {
       console.error('Failed to create test case:', error);
       if (error instanceof Error) {
@@ -419,10 +412,8 @@ export const useCreateTest = (): UseCreateTestResult => {
       } else {
         alert('An unexpected error occurred!');
       }
-    } finally {
-      setLoading(false);
     }
-  }, [selectedProject?.id, method, file, formData, navigate]);
+  }, [selectedProject?.id, method, file, formData, navigate, executeAsync]);
 
   const priorityOptions = [
     { value: 'low', label: 'Low' },
@@ -456,20 +447,7 @@ export const useCreateTest = (): UseCreateTestResult => {
     loadingData,
     
     // Dropdown states
-    priorityDropdownOpen,
-    setPriorityDropdownOpen,
-    categoryDropdownOpen,
-    setCategoryDropdownOpen,
-    browserChannelDropdowns,
-    setBrowserChannelDropdowns,
-    userAgentDropdowns,
-    setUserAgentDropdowns,
-    viewportDropdowns,
-    setViewportDropdowns,
-    existingBrowserConfigDropdowns,
-    setExistingBrowserConfigDropdowns,
-    existingSecretsDropdowns,
-    setExistingSecretsDropdowns,
+    dropdowns,
     
     // Form handlers
     handleInputChange,
@@ -494,6 +472,7 @@ export const useCreateTest = (): UseCreateTestResult => {
     // Submit
     loading,
     success,
+    error,
     handleSubmit,
     
     // Options
