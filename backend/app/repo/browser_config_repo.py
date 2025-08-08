@@ -637,13 +637,16 @@ class BrowserConfigRepo:
 
         # 2. Handle creation of new browser configs
         if new_browser_configs and test_case_id:
-            for index, browser_config_data in enumerate(new_browser_configs):
+            for index, new_browser_config_data in enumerate(new_browser_configs):
                 try:
-                    # Set the test case ID for the new browser config
-                    browser_config_data.test_case_id = test_case_id
+                    # Create a new browser config data with the correct test_case_id
+                    browser_config_with_test_case = CreateBrowserConfig(
+                        test_case_id=test_case_id,
+                        browser_config=new_browser_config_data.browser_config or {},
+                    )
 
                     # Create the browser config
-                    new_browser_config = BrowserConfigRepo.create(db, browser_config_data)
+                    new_browser_config = BrowserConfigRepo.create(db, browser_config_with_test_case)
                     created_browser_configs.append(new_browser_config)
 
                     # Create the association between test case and browser config
@@ -657,7 +660,7 @@ class BrowserConfigRepo:
                         {
                             "index": index,
                             "error": str(e),
-                            "data": browser_config_data.model_dump(),
+                            "data": new_browser_config_data.model_dump(),
                         }
                     )
 
@@ -747,7 +750,6 @@ class BrowserConfigRepo:
         Returns:
             Tuple[bool, str]: (is_in_use, usage_details)
         """
-        from sqlmodel import text
         from app.db.test_case_browser_config import TestCaseBrowserConfig
         from app.db.test_run import TestRun
 

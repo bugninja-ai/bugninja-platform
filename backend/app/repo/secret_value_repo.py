@@ -465,11 +465,11 @@ class SecretValueRepo:
     @staticmethod
     def bulk_update(
         db: Session,
-        secret_values_data: List[UpdateSecretValueWithId] = None,
-        new_secret_values: List[CreateSecretValue] = None,
-        existing_secret_value_ids_to_add: List[str] = None,
-        secret_value_ids_to_unlink: List[str] = None,
-        test_case_id: str = None,
+        secret_values_data: Optional[List[UpdateSecretValueWithId]] = None,
+        new_secret_values: Optional[List[CreateSecretValue]] = None,
+        existing_secret_value_ids_to_add: Optional[List[str]] = None,
+        secret_value_ids_to_unlink: Optional[List[str]] = None,
+        test_case_id: Optional[str] = None,
     ) -> Tuple[
         List[SecretValue],
         List[SecretValue],
@@ -500,12 +500,12 @@ class SecretValueRepo:
             - List of failed links with error details
             - Number of unlinked secrets
         """
-        updated_secret_values = []
-        created_secret_values = []
-        linked_secret_values = []
-        failed_updates = []
-        failed_creations = []
-        failed_links = []
+        updated_secret_values: List[SecretValue] = []
+        created_secret_values: List[SecretValue] = []
+        linked_secret_values: List[SecretValue] = []
+        failed_updates: List[Dict[str, Any]] = []
+        failed_creations: List[Dict[str, Any]] = []
+        failed_links: List[Dict[str, Any]] = []
         unlinked_count = 0
 
         # Handle secret value updates
@@ -619,7 +619,7 @@ class SecretValueRepo:
                     if association:
                         db.delete(association)
                         unlinked_count += 1
-                except Exception as e:
+                except Exception:
                     # Log error but don't fail the operation
                     pass
 

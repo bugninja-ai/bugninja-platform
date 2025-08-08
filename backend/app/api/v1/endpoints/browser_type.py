@@ -1,8 +1,7 @@
-from typing import Dict, List, Any
+from typing import Any, Dict
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints.utils import create_success_response
 from app.schemas.crud.constants import BROWSER_CHANNELS, USER_AGENTS, VIEWPORT_SIZES
 
 browser_types_router = APIRouter(prefix="/browser-types", tags=["Browser Types"])

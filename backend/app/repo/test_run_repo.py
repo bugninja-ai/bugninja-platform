@@ -23,7 +23,6 @@ from app.schemas.communication.test_run import (
     PaginatedResponseExtendedTestRun,
 )
 from app.schemas.crud.browser_config import ResponseBrowserConfig
-
 from app.schemas.crud.test_run import CreateTestRun, ResponseTestRun, UpdateTestRun
 
 
@@ -568,7 +567,7 @@ class TestRunRepo:
         # Get test case information through test traversal
         test_case_statement = (
             select(TestCase)
-            .join(TestTraversal, TestCase.id == TestTraversal.test_case_id)
+            .join(TestTraversal)
             .where(TestTraversal.id == test_run.test_traversal_id)
         )
         test_case = db.exec(test_case_statement).first()
@@ -869,6 +868,37 @@ class TestRunRepo:
                 browser_config=browser_config.browser_config,
             )
 
+            # Get test case information through test traversal
+            test_case_statement = (
+                select(TestCase)
+                .join(TestTraversal)
+                .where(TestTraversal.id == test_run.test_traversal_id)
+            )
+            test_case = db.exec(test_case_statement).first()
+
+            # Convert test case to dict to avoid circular import
+            response_test_case = None
+            if test_case:
+                response_test_case = {
+                    "id": test_case.id,
+                    "project_id": test_case.project_id,
+                    "document_id": test_case.document_id,
+                    "created_at": (
+                        test_case.created_at.isoformat() if test_case.created_at else None
+                    ),
+                    "updated_at": (
+                        test_case.updated_at.isoformat() if test_case.updated_at else None
+                    ),
+                    "test_name": test_case.test_name,
+                    "test_description": test_case.test_description,
+                    "test_goal": test_case.test_goal,
+                    "extra_rules": test_case.extra_rules or [],
+                    "url_route": test_case.url_route,
+                    "allowed_domains": test_case.allowed_domains or [],
+                    "priority": test_case.priority.value if test_case.priority else None,
+                    "category": test_case.category,
+                }
+
             # Get extended brain states for this test run
             repo_instance = TestRunRepo()
             extended_brain_states = repo_instance.get_extended_brain_states_by_test_traversal_id(
@@ -888,6 +918,7 @@ class TestRunRepo:
                 finished_at=test_run.finished_at,
                 run_gif=test_run.run_gif,
                 browser_config=response_browser_config,
+                test_case=response_test_case,
                 brain_states=extended_brain_states,
             )
             extended_test_runs.append(extended_test_run)

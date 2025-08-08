@@ -20,7 +20,7 @@ It creates a complete hierarchy of entities with proper relationships:
 
 import os
 import shutil
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
 from rich import print as rich_print
@@ -52,6 +52,7 @@ from app.repo import (
 from app.schemas.crud.action import CreateAction
 from app.schemas.crud.brain_state import CreateBrainState
 from app.schemas.crud.browser_config import CreateBrowserConfig
+from app.schemas.crud.constants import BROWSER_CHANNELS, USER_AGENTS, VIEWPORT_SIZES
 from app.schemas.crud.cost import CreateCost
 from app.schemas.crud.document import CreateDocument
 from app.schemas.crud.history_element import CreateHistoryElement
@@ -60,7 +61,6 @@ from app.schemas.crud.secret_value import CreateSecretValue
 from app.schemas.crud.test_case import CreateTestCase
 from app.schemas.crud.test_run import CreateTestRun
 from app.schemas.crud.test_traversal import CreateTestTraversal
-from app.schemas.crud.constants import BROWSER_CHANNELS, USER_AGENTS, VIEWPORT_SIZES
 
 
 def setup_content_folders() -> None:

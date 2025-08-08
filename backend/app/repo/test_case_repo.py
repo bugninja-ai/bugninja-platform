@@ -27,14 +27,12 @@ from app.db.test_traversal import TestTraversal
 # BrowserConfigRepo is imported lazily to avoid circular dependency
 from app.repo.document_repo import DocumentRepo
 from app.repo.project_repo import ProjectRepo
-from app.schemas.crud.browser_config import CreateBrowserConfig
-from app.schemas.crud.secret_value import CreateSecretValue
 from app.repo.secret_value_repo import SecretValueRepo
 from app.repo.test_traversal_repo import TestTraversalRepo
 from app.schemas.communication.test_case import ExtendedResponseTestcase
-from app.schemas.crud.browser_config import ResponseBrowserConfig
+from app.schemas.crud.browser_config import CreateBrowserConfig, ResponseBrowserConfig
 from app.schemas.crud.document import ResponseDocument
-from app.schemas.crud.secret_value import ResponseSecretValue
+from app.schemas.crud.secret_value import CreateSecretValue, ResponseSecretValue
 from app.schemas.crud.test_case import (
     CreateTestCase,
     CreateTestCaseResponse,
@@ -372,15 +370,15 @@ class TestCaseRepo:
                     TestCaseBrowserConfig.test_case_id == test_case_id
                 )
             ).all()
-            for association in browser_config_associations:
-                db.delete(association)
+            for browser_association in browser_config_associations:
+                db.delete(browser_association)
 
             # 5. Delete secret value associations (SecretValueTestCase)
             secret_associations = db.exec(
                 select(SecretValueTestCase).where(SecretValueTestCase.test_case_id == test_case_id)
             ).all()
-            for association in secret_associations:
-                db.delete(association)
+            for secret_association in secret_associations:
+                db.delete(secret_association)
 
             # 6. Finally, delete the test case itself
             db.delete(test_case)

@@ -147,7 +147,7 @@ class ProjectRepo:
     def delete(db: Session, project_id: str) -> bool:
         """
         Delete a project by its ID with comprehensive cascade deletion.
-        
+
         This method performs cascade deletion in the following order to respect foreign key constraints:
         1. Delete all actions associated with brain states (through test traversals)
         2. Delete all brain states associated with test traversals
@@ -162,7 +162,7 @@ class ProjectRepo:
         11. Delete all documents
         12. Delete all costs directly associated with project
         13. Delete the project itself
-        
+
         This ensures that all related data is properly cleaned up before attempting
         to delete the project, preventing foreign key constraint violations.
 
@@ -172,7 +172,7 @@ class ProjectRepo:
 
         Returns:
             bool: True if project was deleted, False if not found
-            
+
         Raises:
             Exception: If any database operation fails, transaction is rolled back
         """
@@ -196,23 +196,21 @@ class ProjectRepo:
             from app.db.test_traversal import TestTraversal
 
             # 1. Get all test cases for this project
-            test_cases = db.exec(
-                select(TestCase).where(TestCase.project_id == project_id)
-            ).all()
-            
+            test_cases = db.exec(select(TestCase).where(TestCase.project_id == project_id)).all()
+
             # 2. Delete cascade starting from the deepest level: Actions -> BrainStates -> TestRuns -> TestTraversals -> TestCases
             for test_case in test_cases:
                 # Get all test traversals for this test case
                 traversals = db.exec(
                     select(TestTraversal).where(TestTraversal.test_case_id == test_case.id)
                 ).all()
-                
+
                 for traversal in traversals:
                     # Delete all actions through brain states
                     brain_states = db.exec(
                         select(BrainState).where(BrainState.test_traversal_id == traversal.id)
                     ).all()
-                    
+
                     for brain_state in brain_states:
                         # Delete all actions for this brain state
                         actions = db.exec(
@@ -220,16 +218,16 @@ class ProjectRepo:
                         ).all()
                         for action in actions:
                             db.delete(action)
-                    
+
                     # Delete all brain states for this traversal
                     for brain_state in brain_states:
                         db.delete(brain_state)
-                    
+
                     # Delete all test runs for this traversal
                     test_runs = db.exec(
                         select(TestRun).where(TestRun.test_traversal_id == traversal.id)
                     ).all()
-                    
+
                     for test_run in test_runs:
                         # Delete history elements for this test run
                         history_elements = db.exec(
@@ -237,14 +235,12 @@ class ProjectRepo:
                         ).all()
                         for history_element in history_elements:
                             db.delete(history_element)
-                        
+
                         # Delete cost associated with this test run
-                        costs = db.exec(
-                            select(Cost).where(Cost.test_run_id == test_run.id)
-                        ).all()
+                        costs = db.exec(select(Cost).where(Cost.test_run_id == test_run.id)).all()
                         for cost in costs:
                             db.delete(cost)
-                        
+
                         # Delete the test run itself
                         db.delete(test_run)
 
@@ -254,17 +250,21 @@ class ProjectRepo:
 
                 # Delete browser config associations for this test case
                 browser_config_associations = db.exec(
-                    select(TestCaseBrowserConfig).where(TestCaseBrowserConfig.test_case_id == test_case.id)
+                    select(TestCaseBrowserConfig).where(
+                        TestCaseBrowserConfig.test_case_id == test_case.id
+                    )
                 ).all()
-                for association in browser_config_associations:
-                    db.delete(association)
+                for browser_association in browser_config_associations:
+                    db.delete(browser_association)
 
                 # Delete secret value associations for this test case
                 secret_associations = db.exec(
-                    select(SecretValueTestCase).where(SecretValueTestCase.test_case_id == test_case.id)
+                    select(SecretValueTestCase).where(
+                        SecretValueTestCase.test_case_id == test_case.id
+                    )
                 ).all()
-                for association in secret_associations:
-                    db.delete(association)
+                for secret_association in secret_associations:
+                    db.delete(secret_association)
 
                 # Delete the test case itself
                 db.delete(test_case)
@@ -284,16 +284,12 @@ class ProjectRepo:
                 db.delete(secret_value)
 
             # 5. Delete all documents for this project
-            documents = db.exec(
-                select(Document).where(Document.project_id == project_id)
-            ).all()
+            documents = db.exec(select(Document).where(Document.project_id == project_id)).all()
             for document in documents:
                 db.delete(document)
 
             # 6. Delete all remaining costs directly associated with this project
-            remaining_costs = db.exec(
-                select(Cost).where(Cost.project_id == project_id)
-            ).all()
+            remaining_costs = db.exec(select(Cost).where(Cost.project_id == project_id)).all()
             for cost in remaining_costs:
                 db.delete(cost)
 
