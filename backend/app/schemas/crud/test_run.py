@@ -288,6 +288,7 @@ class PaginatedResponseExtendedTestRun(PaginatedResponse[ExtendedResponseTestRun
         page: int = 1,
         page_size: int = 10,
         test_traversal_id: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> "PaginatedResponseExtendedTestRun":
         """
         Generate a sample PaginatedResponseExtendedTestRun instance for testing and documentation.
@@ -297,6 +298,7 @@ class PaginatedResponseExtendedTestRun(PaginatedResponse[ExtendedResponseTestRun
             page: Page number (1-based, default: 1)
             page_size: Number of records per page (default: 10)
             test_traversal_id: Optional test traversal ID for filtering (default: None)
+            project_id: Optional project ID for filtering (default: None)
 
         Returns:
             PaginatedResponseExtendedTestRun: A sample paginated response with fake extended test run data
@@ -310,9 +312,7 @@ class PaginatedResponseExtendedTestRun(PaginatedResponse[ExtendedResponseTestRun
         extended_test_run_items = [
             ExtendedResponseTestRun.sample_factory_build(
                 test_traversal_id=test_traversal_id or CUID().generate(),
-                project_id=CUID().generate(),
-                include_brain_states=True,
-                brain_state_count=3,
+                project_id=project_id or CUID().generate(),
             )
             for _ in range(items_in_page)
         ]
@@ -330,6 +330,55 @@ class PaginatedResponseExtendedTestRun(PaginatedResponse[ExtendedResponseTestRun
             has_next=has_next,
             has_previous=has_previous,
         )
+
+
+# Test Run Execution Schemas
+class RerunTestRunsRequest(BaseModel):
+    """
+    Request schema for rerunning existing test runs.
+
+    Args:
+        test_run_ids: List of test run IDs to rerun
+    """
+
+    test_run_ids: List[str] = Field(default=[], description="List of test run IDs to rerun")
+
+
+class TestRunExecutionResponse(BaseModel):
+    """
+    Response schema for test run execution endpoints.
+
+    All execution endpoints return this response with details about what was created or skipped.
+
+    Args:
+        message: Human-readable message about the operation
+        created_test_runs: List of newly created test run IDs
+        skipped_traversals: List of traversal IDs that were skipped due to ongoing runs
+        initial_traversals_processed: Initial traversal IDs that were processed
+        replay_traversals_processed: Replay traversal IDs that were processed
+        initial_traversals_skipped: Initial traversal IDs that were skipped
+        replay_traversals_skipped: Replay traversal IDs that were skipped
+    """
+
+    message: str
+    created_test_runs: List[str] = Field(
+        default_factory=list, description="IDs of newly created test runs"
+    )
+    skipped_traversals: List[str] = Field(
+        default_factory=list, description="Traversal IDs skipped due to ongoing runs"
+    )
+    initial_traversals_processed: List[str] = Field(
+        default_factory=list, description="Initial traversal IDs that were processed"
+    )
+    replay_traversals_processed: List[str] = Field(
+        default_factory=list, description="Replay traversal IDs that were processed"
+    )
+    initial_traversals_skipped: List[str] = Field(
+        default_factory=list, description="Initial traversal IDs that were skipped"
+    )
+    replay_traversals_skipped: List[str] = Field(
+        default_factory=list, description="Replay traversal IDs that were skipped"
+    )
 
 
 class PaginatedResponseTestRunsByTestCase(PaginatedResponse[ExtendedResponseTestRun]):

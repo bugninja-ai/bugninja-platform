@@ -9,6 +9,7 @@ dependencies = [
     "alembic==1.16.4",
     "asyncpg==0.30.0",
     "browser-use[memory]==0.2.5",
+    "bugninja",
     "celery[redis]==5.5.3",
     "cssselect==1.3.0",
     "cuid2==2.0.1",
@@ -49,6 +50,9 @@ dev-dependencies = [
     "mypy==1.16.0",
 ]
 
+[tool.uv.sources]
+bugninja = { git = "https://github.com/bugninja-ai/bugninja-experiment", rev = "akos/experimenting-with-browser-use" }
+
 [tool.ruff]
 line-length = 100
 target-version = "py313"
@@ -74,6 +78,11 @@ disallow_untyped_defs = true
 
 
 [tool.poe.tasks]
+
+#TODO! this is only a temporary development helping functionality, should be removed in the future
+[tool.poe.tasks.update-dep]
+help   = "Update the Bugninja dependencies to the latest version of a branch"
+shell = "uv add git+https://github.com/bugninja-ai/bugninja-experiment@akos/experimenting-with-browser-use"
 
 [tool.poe.tasks.dev]
 help   = "Run the backend in development mode"

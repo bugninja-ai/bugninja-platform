@@ -6,7 +6,7 @@ All methods work with the provided database session and use SQLModel table defin
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from cuid2 import Cuid as CUID
 from sqlmodel import Session, col, select
@@ -1037,3 +1037,249 @@ class TestRunRepo:
             extended_brain_states.append(extended_brain_state)
 
         return extended_brain_states
+
+    @staticmethod
+    def get_extended_brain_states_by_traversal_ids(
+        db: Session, traversal_ids: List[str]
+    ) -> Dict[str, List[ExtendedResponseBrainState]]:
+        """
+        Get extended brain states for multiple traversals in a single optimized query.
+
+        Args:
+            db: Database session
+            traversal_ids: List of test traversal IDs
+
+        Returns:
+            Dict[str, List[ExtendedResponseBrainState]]: Dictionary mapping traversal_id to brain states
+        """
+        if not traversal_ids:
+            return {}
+
+        from sqlmodel import col, select
+
+        from app.db.action import Action
+        from app.db.brain_state import BrainState
+        from app.db.history_element import HistoryElement
+        from app.schemas.communication.test_run import (
+            ExtendedResponseBrainState,
+            ExtendedResponseHistoryElement,
+        )
+
+        # Get brain states with their history elements and action data for all traversals
+        statement = (
+            select(BrainState, HistoryElement, Action)
+            .join(Action, col(BrainState.id) == col(Action.brain_state_id))
+            .join(HistoryElement, col(Action.id) == col(HistoryElement.action_id))
+            .where(col(BrainState.test_traversal_id).in_(traversal_ids))
+            .order_by(
+                col(BrainState.test_traversal_id).asc(),
+                col(BrainState.idx_in_run).asc(),
+                col(HistoryElement.action_started_at).asc(),
+            )
+        )
+
+        results = db.exec(statement).all()
+
+        # Group history elements by brain state, then by traversal
+        brain_state_history_map: Dict[str, Dict[str, Any]] = {}
+        brain_state: BrainState
+
+        for brain_state, history_element, action in results:
+            brain_state_id = brain_state.id
+            traversal_id = brain_state.test_traversal_id
+
+            if brain_state_id not in brain_state_history_map:
+                brain_state_history_map[brain_state_id] = {
+                    "brain_state": brain_state,
+                    "traversal_id": traversal_id,
+                    "history_elements": [],
+                }
+
+            # Create extended history element with both history and action data
+            extended_history_element = ExtendedResponseHistoryElement(
+                # History element fields
+                id=history_element.id,
+                test_run_id=history_element.test_run_id,
+                action_id=history_element.action_id,
+                action_started_at=history_element.action_started_at,
+                action_finished_at=history_element.action_finished_at,
+                history_element_state=history_element.history_element_state.value,
+                screenshot=history_element.screenshot,
+                # Action fields
+                action=action.action,
+                dom_element_data=action.dom_element_data,
+                valid=action.valid,
+                idx_in_brain_state=action.idx_in_brain_state,
+            )
+            brain_state_history_map[brain_state_id]["history_elements"].append(
+                extended_history_element
+            )
+
+        # Convert to response schemas grouped by traversal
+        brain_states_by_traversal: Dict[str, List[ExtendedResponseBrainState]] = {}
+
+        for brain_state_data in brain_state_history_map.values():
+            brain_state = brain_state_data["brain_state"]  # type: ignore
+            traversal_id = brain_state_data["traversal_id"]  # type: ignore
+            history_elements: List[ExtendedResponseHistoryElement] = brain_state_data["history_elements"]  # type: ignore
+
+            extended_brain_state = ExtendedResponseBrainState(
+                id=brain_state.id,
+                test_traversal_id=brain_state.test_traversal_id,
+                idx_in_run=brain_state.idx_in_run,
+                valid=brain_state.valid,
+                evaluation_previous_goal=brain_state.evaluation_previous_goal,
+                memory=brain_state.memory,
+                next_goal=brain_state.next_goal,
+                history_elements=history_elements,
+            )
+
+            if traversal_id not in brain_states_by_traversal:
+                brain_states_by_traversal[traversal_id] = []
+            brain_states_by_traversal[traversal_id].append(extended_brain_state)
+
+        return brain_states_by_traversal
+
+    @staticmethod
+    def get_test_traversal_ids_from_test_runs(db: Session, test_run_ids: List[str]) -> List[str]:
+        """
+        Get test traversal IDs from a list of test run IDs.
+
+        Args:
+            db: Database session
+            test_run_ids: List of test run IDs
+
+        Returns:
+            List[str]: List of unique test traversal IDs
+        """
+        if not test_run_ids:
+            return []
+
+        statement = select(TestRun.test_traversal_id).where(col(TestRun.id).in_(test_run_ids))
+        traversal_ids = db.exec(statement).all()
+        return list(set(traversal_ids))  # Remove duplicates
+
+    @staticmethod
+    def get_ongoing_test_runs_by_traversal_ids(db: Session, traversal_ids: List[str]) -> List[str]:
+        """
+        Get traversal IDs that have ongoing test runs.
+
+        Args:
+            db: Database session
+            traversal_ids: List of test traversal IDs to check
+
+        Returns:
+            List[str]: List of traversal IDs that have ongoing test runs
+        """
+        if not traversal_ids:
+            return []
+
+        statement = (
+            select(TestRun.test_traversal_id)
+            .where(
+                col(TestRun.test_traversal_id).in_(traversal_ids),
+                TestRun.current_state == RunState.PENDING,
+            )
+            .distinct()
+        )
+        ongoing_traversal_ids = db.exec(statement).all()
+        return list(ongoing_traversal_ids)
+
+    @staticmethod
+    def get_traversal_ids_with_completed_runs(db: Session, traversal_ids: List[str]) -> List[str]:
+        """
+        Get traversal IDs that have at least one completed test run.
+
+        Args:
+            db: Database session
+            traversal_ids: List of test traversal IDs to check
+
+        Returns:
+            List[str]: List of traversal IDs that have completed test runs
+        """
+        if not traversal_ids:
+            return []
+
+        statement = (
+            select(TestRun.test_traversal_id)
+            .where(
+                col(TestRun.test_traversal_id).in_(traversal_ids),
+                TestRun.current_state == RunState.FINISHED,
+            )
+            .distinct()
+        )
+        completed_traversal_ids = db.exec(statement).all()
+        return list(completed_traversal_ids)
+
+    @staticmethod
+    def create_test_runs_for_traversals(
+        db: Session,
+        traversal_ids: List[str],
+        run_type: RunType = RunType.AGENTIC,
+        origin: RunOrigin = RunOrigin.USER,
+    ) -> List[TestRun]:
+        """
+        Create new test runs for the specified test traversals.
+
+        Args:
+            db: Database session
+            traversal_ids: List of test traversal IDs to create test runs for
+            run_type: Type of test run to create (default: AGENTIC)
+            origin: Origin of the test run (default: USER)
+
+        Returns:
+            List[TestRun]: List of created test runs
+        """
+        if not traversal_ids:
+            return []
+
+        created_test_runs = []
+
+        for traversal_id in traversal_ids:
+            # Get the test traversal to get browser config ID
+            from app.repo.test_traversal_repo import TestTraversalRepo
+
+            test_traversal = TestTraversalRepo.get_by_id(db, traversal_id)
+            if not test_traversal:
+                continue
+
+            # Create new test run
+            test_run_data = CreateTestRun(
+                test_traversal_id=traversal_id,
+                browser_config_id=test_traversal.browser_config_id,
+                run_type=run_type,
+                origin=origin,
+                repair_was_needed=False,
+                current_state=RunState.PENDING,
+                run_gif="",  # Will be populated during execution
+            )
+
+            test_run = TestRunRepo.create(db, test_run_data)
+            created_test_runs.append(test_run)
+
+        return created_test_runs
+
+    @staticmethod
+    def check_usage(db: Session, browser_config_id: str) -> Tuple[bool, str]:
+        """
+        Check if a browser configuration is currently in use by any test run.
+
+        Args:
+            db: Database session
+            browser_config_id: Browser configuration identifier
+
+        Returns:
+            Tuple[bool, str]: A tuple (is_in_use, reason) where is_in_use is True if in use,
+            False otherwise. reason is a string explaining why it's in use.
+        """
+        # Check if there are any test runs associated with the browser config
+        if TestRunRepo.get_by_browser_config_id(db, browser_config_id):
+            return True, "Browser configuration is currently in use by a test run."
+
+        # Check if there are any ongoing test runs for this browser config
+        # This requires fetching all test runs for the browser config and checking their state
+        test_runs = TestRunRepo.get_by_browser_config_id(db, browser_config_id)
+        if any(test_run.current_state == RunState.PENDING for test_run in test_runs):
+            return True, "Browser configuration is currently in use by an ongoing test run."
+
+        return False, "Browser configuration is not in use."

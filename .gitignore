@@ -1,5 +1,9 @@
 # Bugninja Platform .gitignore
 
+# Bugninja library related functionality
+
+screenshots/
+
 # General
 traverse_*.json
 content

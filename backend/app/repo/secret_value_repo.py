@@ -325,6 +325,41 @@ class SecretValueRepo:
         return db.exec(statement).all()
 
     @staticmethod
+    def get_by_test_case_ids(db: Session, test_case_ids: List[str]) -> Dict[str, List[SecretValue]]:
+        """
+        Get secrets for multiple test cases in a single optimized query.
+
+        Args:
+            db: Database session
+            test_case_ids: List of test case IDs to retrieve secrets for
+
+        Returns:
+            Dict[str, List[SecretValue]]: Dictionary mapping test_case_id to list of secrets
+        """
+        if not test_case_ids:
+            return {}
+
+        # Single query to get all secrets for the test cases
+        statement = (
+            select(SecretValue, SecretValueTestCase.test_case_id)
+            .join(
+                SecretValueTestCase, col(SecretValue.id) == col(SecretValueTestCase.secret_value_id)
+            )
+            .where(col(SecretValueTestCase.test_case_id).in_(test_case_ids))
+        )
+
+        results = db.exec(statement).all()
+
+        # Group secrets by test case ID
+        secrets_by_test_case: Dict[str, List[SecretValue]] = {}
+        for secret_value, test_case_id in results:
+            if test_case_id not in secrets_by_test_case:
+                secrets_by_test_case[test_case_id] = []
+            secrets_by_test_case[test_case_id].append(secret_value)
+
+        return secrets_by_test_case
+
+    @staticmethod
     def associate_with_test_case(db: Session, secret_value_id: str, test_case_id: str) -> bool:
         """
         Associate a secret value with a test case.
