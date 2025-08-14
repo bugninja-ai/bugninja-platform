@@ -151,21 +151,24 @@ async def get_all_test_cases(
     page: int = 1,
     page_size: int = 10,
     sort_order: str = "desc",
+    search: Optional[str] = None,
     db_session: Session = Depends(get_db),
 ) -> PaginatedResponseExtendedTestCase:
     """
-    Retrieve all test cases with pagination, sorting, and project filtering.
+    Retrieve all test cases with pagination, sorting, filtering, and search.
 
     This endpoint returns a paginated list of extended test cases in the system,
     sorted by creation date. The most recent test cases are returned first by default.
     Each test case includes associated documents and browser configurations.
     Filter by project ID to get only test cases for a specific project.
+    Search by test name or description to find specific test cases.
 
     Args:
         project_id: Project ID to filter by
         page: Page number (1-based, default: 1)
         page_size: Number of records per page (default: 10, max: 100)
         sort_order: Sort order - "asc" for oldest first, "desc" for newest first (default: "desc")
+        search: Optional search term to filter by test name or description (default: None)
         db_session: Database session
 
     Returns:
@@ -208,10 +211,13 @@ async def get_all_test_cases(
             page_size=page_size,
             sort_order=sort_order,
             project_id=project_id,
+            search=search,
         )
 
         # Get total count for pagination metadata
-        total_count = TestCaseRepo.count_with_filter(db=db_session, project_id=project_id)
+        total_count = TestCaseRepo.count_with_filter(
+            db=db_session, project_id=project_id, search=search
+        )
 
         # Calculate pagination metadata
         total_pages = (total_count + page_size - 1) // page_size  # Ceiling division

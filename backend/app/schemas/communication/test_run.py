@@ -144,6 +144,9 @@ class ExtendedResponseTestRun(BaseModel):
     browser_config: Optional[ResponseBrowserConfig]
     test_case: Optional[Dict[str, Any]]  # Using Dict to avoid circular import
     brain_states: List[ExtendedResponseBrainState]
+    passed_steps: int
+    failed_steps: int
+    total_steps: int
 
     class Config:
         """Pydantic config."""
@@ -187,6 +190,9 @@ class ExtendedResponseTestRun(BaseModel):
             browser_config=ResponseBrowserConfig.sample_factory_build(),
             test_case=None,  # Will be populated with real test case data
             brain_states=brain_states,
+            passed_steps=5,
+            failed_steps=1,
+            total_steps=6,
         )
 
 

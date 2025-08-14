@@ -48,6 +48,7 @@ class ExtendedResponseTestcase(BaseModel):
         passed_runs: Number of test runs that passed
         failed_runs: Number of test runs that failed
         success_rate: Success rate as a percentage (0-100)
+        last_run_at: Timestamp of the most recent test run, if any
     """
 
     id: str
@@ -69,6 +70,7 @@ class ExtendedResponseTestcase(BaseModel):
     passed_runs: int
     failed_runs: int
     success_rate: float
+    last_run_at: Optional[datetime]
 
     @classmethod
     def sample_factory_build(

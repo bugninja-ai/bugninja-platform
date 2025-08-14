@@ -597,6 +597,13 @@ class TestRunRepo:
             db, test_run.test_traversal_id
         )
 
+        # Calculate step counts from history elements
+        from app.repo.history_element_repo import HistoryElementRepo
+
+        passed_steps = HistoryElementRepo.count_passed_by_test_run(db, test_run.id)
+        failed_steps = HistoryElementRepo.count_failed_by_test_run(db, test_run.id)
+        total_steps = HistoryElementRepo.count_by_test_run(db, test_run.id)
+
         return ExtendedResponseTestRun(
             id=test_run.id,
             test_traversal_id=test_run.test_traversal_id,
@@ -611,6 +618,9 @@ class TestRunRepo:
             browser_config=response_browser_config,
             test_case=response_test_case,
             brain_states=extended_brain_states,
+            passed_steps=passed_steps,
+            failed_steps=failed_steps,
+            total_steps=total_steps,
         )
 
     @staticmethod
@@ -905,6 +915,13 @@ class TestRunRepo:
                 db, test_run.test_traversal_id
             )
 
+            # Calculate step counts from history elements
+            from app.repo.history_element_repo import HistoryElementRepo
+
+            passed_steps = HistoryElementRepo.count_passed_by_test_run(db, test_run.id)
+            failed_steps = HistoryElementRepo.count_failed_by_test_run(db, test_run.id)
+            total_steps = HistoryElementRepo.count_by_test_run(db, test_run.id)
+
             # Build extended test run response
             extended_test_run = ExtendedResponseTestRun(
                 id=test_run.id,
@@ -920,6 +937,9 @@ class TestRunRepo:
                 browser_config=response_browser_config,
                 test_case=response_test_case,
                 brain_states=extended_brain_states,
+                passed_steps=passed_steps,
+                failed_steps=failed_steps,
+                total_steps=total_steps,
             )
             extended_test_runs.append(extended_test_run)
 

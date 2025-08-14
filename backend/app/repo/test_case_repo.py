@@ -133,9 +133,10 @@ class TestCaseRepo:
         page_size: int = 10,
         sort_order: str = "desc",
         project_id: Optional[str] = None,
+        search: Optional[str] = None,
     ) -> Sequence[TestCase]:
         """
-        Retrieve all test cases with pagination, sorting, and optional project filtering.
+        Retrieve all test cases with pagination, sorting, filtering, and search.
 
         Args:
             db: Database session
@@ -143,6 +144,7 @@ class TestCaseRepo:
             page_size: Number of records per page (default: 10)
             sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
             project_id: Optional project ID to filter by (default: None - returns all test cases)
+            search: Optional search term to filter by test name or description (default: None)
 
         Returns:
             Sequence[TestCase]: List of test cases sorted by creation date
@@ -151,12 +153,25 @@ class TestCaseRepo:
         skip = (page - 1) * page_size
 
         # Build the base query
+        base_statement = select(TestCase)
+
+        # Apply filters
+        filters = []
+
         if project_id:
-            # Filter by project ID
-            base_statement = select(TestCase).where(TestCase.project_id == project_id)
-        else:
-            # No filtering - get all test cases
-            base_statement = select(TestCase)
+            filters.append(TestCase.project_id == project_id)
+
+        if search:
+            # Search in test case name and description
+            search_term = f"%{search}%"
+            search_filter = TestCase.test_name.ilike(search_term) | TestCase.test_description.ilike(
+                search_term
+            )
+            filters.append(search_filter)
+
+        # Apply all filters
+        if filters:
+            base_statement = base_statement.where(*filters)
 
         # Add sorting and pagination
         if sort_order.lower() == "asc":
@@ -497,23 +512,42 @@ class TestCaseRepo:
         return len(db.exec(statement).all())
 
     @staticmethod
-    def count_with_filter(db: Session, project_id: Optional[str] = None) -> int:
+    def count_with_filter(
+        db: Session, project_id: Optional[str] = None, search: Optional[str] = None
+    ) -> int:
         """
-        Get the total number of test cases with optional project filtering.
+        Get the total number of test cases with optional filtering and search.
 
         Args:
             db: Database session
             project_id: Optional project ID to filter by (default: None - counts all test cases)
+            search: Optional search term to filter by test name or description (default: None)
 
         Returns:
-            int: Total number of test cases matching the filter
+            int: Total number of test cases matching the filters
         """
-        if project_id:
-            statement = select((TestCase.id)).where(TestCase.project_id == project_id)
-        else:
-            statement = select(TestCase.id)
+        # Build the base query
+        base_statement = select(TestCase.id)
 
-        return len(db.exec(statement).all())
+        # Apply filters
+        filters = []
+
+        if project_id:
+            filters.append(TestCase.project_id == project_id)
+
+        if search:
+            # Search in test case name and description
+            search_term = f"%{search}%"
+            search_filter = TestCase.test_name.ilike(search_term) | TestCase.test_description.ilike(
+                search_term
+            )
+            filters.append(search_filter)
+
+        # Apply all filters
+        if filters:
+            base_statement = base_statement.where(*filters)
+
+        return len(db.exec(base_statement).all())
 
     @staticmethod
     def get_browser_configs_by_test_case_id(
@@ -605,6 +639,9 @@ class TestCaseRepo:
         # Calculate execution statistics
         execution_stats = TestCaseRepo._calculate_execution_statistics(db, test_case_id)
 
+        # Get latest run date
+        latest_run_date = TestCaseRepo._get_latest_run_date(db, test_case_id)
+
         return ExtendedResponseTestcase(
             id=test_case.id,
             project_id=test_case.project_id,
@@ -625,6 +662,7 @@ class TestCaseRepo:
             passed_runs=execution_stats["passed_runs"],
             failed_runs=execution_stats["failed_runs"],
             success_rate=execution_stats["success_rate"],
+            last_run_at=latest_run_date,
         )
 
     @staticmethod
@@ -703,6 +741,33 @@ class TestCaseRepo:
             "failed_runs": failed_runs,
             "success_rate": round(success_rate, 1),
         }
+
+    @staticmethod
+    def _get_latest_run_date(db: Session, test_case_id: str) -> Optional[datetime]:
+        """
+        Get the latest test run date for a test case.
+
+        Args:
+            db: Database session
+            test_case_id: Test case identifier
+
+        Returns:
+            Optional[datetime]: The latest test run date if found, None otherwise
+        """
+        # Get all test runs for this test case through test traversals
+        latest_run_statement = (
+            select(TestRun.started_at)
+            .join(TestTraversal)
+            .where(
+                TestRun.test_traversal_id == TestTraversal.id,
+                TestTraversal.test_case_id == test_case_id,
+            )
+            .order_by(col(TestRun.started_at).desc())
+            .limit(1)
+        )
+
+        result = db.exec(latest_run_statement).first()
+        return result
 
     @staticmethod
     def get_extended_by_project_id(
@@ -1070,9 +1135,10 @@ class TestCaseRepo:
         page_size: int = 10,
         sort_order: str = "desc",
         project_id: Optional[str] = None,
+        search: Optional[str] = None,
     ) -> List[ExtendedResponseTestcase]:
         """
-        Retrieve all test cases with extended responses, pagination, sorting, and optional project filtering.
+        Retrieve all test cases with extended responses, pagination, sorting, filtering, and search.
 
         Args:
             db: Database session
@@ -1080,6 +1146,7 @@ class TestCaseRepo:
             page_size: Number of records per page (default: 10)
             sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
             project_id: Optional project ID to filter by (default: None - returns all test cases)
+            search: Optional search term to filter by test name or description (default: None)
 
         Returns:
             Sequence[ExtendedResponseTestcase]: List of extended test cases sorted by creation date
@@ -1091,6 +1158,7 @@ class TestCaseRepo:
             page_size=page_size,
             sort_order=sort_order,
             project_id=project_id,
+            search=search,
         )
 
         # Convert to extended responses

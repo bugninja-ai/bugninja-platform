@@ -130,6 +130,7 @@ export interface BackendTestCase {
   passed_runs: number;
   failed_runs: number;
   success_rate: number;
+  last_run_at: string | null;
 }
 
 export interface PaginatedTestCasesResponse {

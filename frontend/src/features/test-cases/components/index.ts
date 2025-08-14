@@ -11,3 +11,4 @@ export { DeleteTestCaseSection } from './DeleteTestCaseSection';
 export { DeleteConfirmationModal } from './DeleteConfirmationModal';
 export { TestCaseFilters } from './TestCaseFilters';
 export { TestCaseListItem } from './TestCaseListItem';
+export { TestCaseTableView } from './TestCaseTableView';

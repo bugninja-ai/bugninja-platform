@@ -10,6 +10,7 @@ import {
   ChevronRight,
   X,
   FolderOpen,
+  Github,
   LucideIcon
 } from 'lucide-react';
 
@@ -166,7 +167,26 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
 
       {/* Bottom section */}
       <div className="absolute bottom-0 left-0 right-0 p-3">
-        <div className="border-t border-dashed border-gray-300 pt-3">
+        <div className="border-t border-dashed border-gray-300 pt-3 space-y-1">
+          {/* Star us on Github */}
+          <a
+            href="https://github.com/bugninja-ai/bugninja-platform"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center ${
+              sidebarMinimized 
+                ? 'justify-center w-12 h-12 mx-auto' 
+                : 'space-x-3 px-4 py-3'
+            } rounded-lg hover:bg-gray-100 transition-all duration-300 cursor-pointer group`}
+            title={sidebarMinimized ? "Star us on Github" : undefined}
+          >
+            <Github className="w-5 h-5 text-gray-500 group-hover:text-gray-700 flex-shrink-0" />
+            {!sidebarMinimized && (
+              <span className="font-medium text-gray-600 group-hover:text-gray-900 whitespace-nowrap opacity-100 transition-all duration-300">Star us on Github</span>
+            )}
+          </a>
+          
+          {/* Help & Support */}
           <div className={`flex items-center ${
             sidebarMinimized 
               ? 'justify-center w-12 h-12 mx-auto' 
