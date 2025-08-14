@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Plus, 
@@ -15,12 +15,17 @@ import { useTestCases } from './hooks/useTestCases';
 import { useProjects } from '../../shared/hooks/useProjects';
 import { StatsCard } from '../../shared/components/StatsCard';
 import { Pagination } from '../../shared/components/Pagination';
+import { ViewSwitcher, ViewPreferenceModal, ViewType } from '../../shared/components';
 import { TestCaseFilters } from './components/TestCaseFilters';
-import { TestCaseListItem } from './components/TestCaseListItem';
+import { TestCaseListItem, TestCaseTableView } from './components';
 
 const TestCasesPage: React.FC = () => {
   // Get selected project
   const { selectedProject } = useProjects();
+  
+  // View preferences state
+  const [currentView, setCurrentView] = useState<ViewType>('list');
+  const [showViewPreferenceModal, setShowViewPreferenceModal] = useState(false);
   
   // Get test cases for the selected project
   const {
@@ -38,15 +43,51 @@ const TestCasesPage: React.FC = () => {
     setSearch,
     setPriority,
     setCategory,
+    setPageSize,
+    setSortOrder,
     filters
   } = useTestCases({
     projectId: selectedProject?.id,
-    pageSize: 15
+    pageSize: currentView === 'table' ? 25 : 15
   });
 
   // Dropdown states
   const [priorityDropdownOpen, setPriorityDropdownOpen] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+
+  // Load view preference from localStorage on mount
+  useEffect(() => {
+    const savedView = localStorage.getItem('testCasesViewPreference') as ViewType;
+    const viewPreferenceShown = localStorage.getItem('viewPreferenceModalShown');
+    
+    if (savedView) {
+      setCurrentView(savedView);
+    } else if (!viewPreferenceShown) {
+      // Show view preference modal for first-time users
+      setShowViewPreferenceModal(true);
+    }
+  }, []);
+
+  // Update page size when view changes
+  useEffect(() => {
+    const newPageSize = currentView === 'table' ? 25 : 15;
+    setPageSize(newPageSize);
+  }, [currentView, setPageSize]);
+
+  const handleViewChange = (view: ViewType) => {
+    setCurrentView(view);
+    localStorage.setItem('testCasesViewPreference', view);
+    setPage(1); // Reset to first page when changing views
+  };
+
+  const handleViewPreferenceSelect = (view: ViewType) => {
+    setCurrentView(view);
+    localStorage.setItem('testCasesViewPreference', view);
+  };
+
+  const handleViewPreferenceDontShowAgain = () => {
+    localStorage.setItem('viewPreferenceModalShown', 'true');
+  };
 
   // Calculate statistics from test cases
   // Note: Test case status comes from test runs, not test cases themselves
@@ -119,11 +160,16 @@ const TestCasesPage: React.FC = () => {
           </h2>
         </div>
 
-        <div className="space-y-3">
-          {testCases.map((testCase) => (
-            <TestCaseListItem key={testCase.id} testCase={testCase} />
-          ))}
-        </div>
+        {/* Render based on current view */}
+        {currentView === 'list' ? (
+          <div className="space-y-3">
+            {testCases.map((testCase) => (
+              <TestCaseListItem key={testCase.id} testCase={testCase} />
+            ))}
+          </div>
+        ) : (
+          <TestCaseTableView testCases={testCases} />
+        )}
 
         {/* Pagination */}
         <Pagination
@@ -142,22 +188,28 @@ const TestCasesPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Test Cases</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Test cases</h1>
           <p className="mt-1 text-gray-600">Manage and monitor your automated test cases</p>
         </div>
-        <Link
-          to="/create"
-          className="mt-4 sm:mt-0 inline-flex items-center px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Create test case
-        </Link>
+        <div className="mt-4 sm:mt-0 flex items-center space-x-4">
+          <ViewSwitcher 
+            currentView={currentView} 
+            onViewChange={handleViewChange} 
+          />
+          <Link
+            to="/create"
+            className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Create test case
+          </Link>
+        </div>
       </div>
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
-          title="Total Cases"
+          title="Total cases"
           value={stats.totalTests}
           icon={CheckCircle}
           iconColor="text-indigo-600"
@@ -205,9 +257,11 @@ const TestCasesPage: React.FC = () => {
         search={filters.search}
         priority={filters.priority}
         category={filters.category}
+        sortOrder={filters.sortOrder}
         onSearchChange={setSearch}
         onPriorityChange={(priority) => setPriority(priority)}
         onCategoryChange={(category) => setCategory(category)}
+        onSortOrderChange={setSortOrder}
         priorityDropdownOpen={priorityDropdownOpen}
         setPriorityDropdownOpen={setPriorityDropdownOpen}
         categoryDropdownOpen={categoryDropdownOpen}
@@ -218,6 +272,14 @@ const TestCasesPage: React.FC = () => {
       <div className="space-y-4">
         {renderContent()}
       </div>
+
+      {/* View Preference Modal */}
+      <ViewPreferenceModal
+        isOpen={showViewPreferenceModal}
+        onClose={() => setShowViewPreferenceModal(false)}
+        onSelectView={handleViewPreferenceSelect}
+        onDontShowAgain={handleViewPreferenceDontShowAgain}
+      />
     </div>
   );
 };

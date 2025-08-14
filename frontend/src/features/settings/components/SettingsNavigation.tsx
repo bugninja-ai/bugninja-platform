@@ -1,7 +1,7 @@
 import React from 'react';
-import { Settings as SettingsIcon, Monitor, Key, Globe } from 'lucide-react';
+import { Settings as SettingsIcon, Monitor, Key, Globe, Eye } from 'lucide-react';
 
-export type SettingsSection = 'project' | 'browser-configs' | 'secret-values' | 'global' | 'integrations';
+export type SettingsSection = 'project' | 'browser-configs' | 'secret-values' | 'view-preferences' | 'global' | 'integrations';
 
 interface NavigationItem {
   id: SettingsSection;
@@ -21,8 +21,9 @@ const navigation: NavigationItem[] = [
   { id: 'project', name: 'Project Settings', icon: SettingsIcon, description: 'Change project name and default URL' },
   { id: 'browser-configs', name: 'Browser Configurations', icon: Monitor, description: 'View and manage browser configs' },
   { id: 'secret-values', name: 'Secret Values', icon: Key, description: 'View and manage project secrets' },
+  { id: 'view-preferences', name: 'View Preferences', icon: Eye, description: 'Customize how you view lists and tables' },
   { id: 'global', name: 'Global Settings', icon: Globe, description: 'Application-wide settings', disabled: true },
-  { id: 'integrations', name: 'Integrations (mock)', icon: SettingsIcon, description: 'Third-party integrations', disabled: true },
+  { id: 'integrations', name: 'Integrations', icon: SettingsIcon, description: 'Third-party integrations', disabled: true },
 ];
 
 export const SettingsNavigation: React.FC<SettingsNavigationProps> = ({
@@ -31,7 +32,7 @@ export const SettingsNavigation: React.FC<SettingsNavigationProps> = ({
   projectName
 }) => {
   return (
-    <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+    <div className="w-80 bg-white border border-dashed border-gray-300 rounded-xl m-4 flex flex-col overflow-hidden">
       <div className="p-6 border-b border-gray-200">
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
         <p className="text-gray-600 mt-1">Manage settings for {projectName || 'your project'}</p>

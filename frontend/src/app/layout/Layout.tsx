@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { 
   Menu, 
@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useProjectContext } from '../providers/ProjectContext';
 import { ProjectCreationModal } from '../../features/projects/components/ProjectCreationModal';
-import { NavigationSidebar } from '../../shared/components/NavigationSidebar';
+import { NavigationSidebar, StarRequestModal } from '../../shared/components';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -22,6 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [createProjectModalOpen, setCreateProjectModalOpen] = useState(false);
   const [createProjectLoading, setCreateProjectLoading] = useState(false);
+  const [showStarModal, setShowStarModal] = useState(false);
 
 
   // Use project context for global project state
@@ -48,6 +49,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     } finally {
       setCreateProjectLoading(false);
     }
+  };
+
+  // Handle star modal logic
+  useEffect(() => {
+    // Check if user has already dismissed the star modal
+    const starModalDismissed = localStorage.getItem('star-modal-dismissed');
+    
+    if (!starModalDismissed) {
+      // Show the modal after 10 seconds
+      const timer = setTimeout(() => {
+        setShowStarModal(true);
+      }, 10000); // 10 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleStarModalDontShowAgain = () => {
+    localStorage.setItem('star-modal-dismissed', 'true');
+    setShowStarModal(false);
   };
 
 
@@ -233,6 +254,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         onClose={() => setCreateProjectModalOpen(false)}
         onCreateProject={handleCreateProject}
         loading={createProjectLoading}
+      />
+
+      {/* Star Request Modal */}
+      <StarRequestModal
+        isOpen={showStarModal}
+        onClose={() => setShowStarModal(false)}
+        onDontShowAgain={handleStarModalDontShowAgain}
       />
     </div>
   );

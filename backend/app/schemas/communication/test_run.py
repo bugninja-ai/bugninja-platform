@@ -144,9 +144,9 @@ class ExtendedResponseTestRun(BaseModel):
     browser_config: Optional[ResponseBrowserConfig]
     test_case: Optional[Dict[str, Any]]  # Using Dict to avoid circular import
     brain_states: List[ExtendedResponseBrainState]
-    failed_at_launch: Optional[bool] = Field(
-        default=None, description="Whether the run failed at launch"
-    )
+    passed_steps: int
+    failed_steps: int
+    total_steps: int
 
     class Config:
         """Pydantic config."""
@@ -190,7 +190,9 @@ class ExtendedResponseTestRun(BaseModel):
             browser_config=ResponseBrowserConfig.sample_factory_build(),
             test_case=None,  # Will be populated with real test case data
             brain_states=brain_states,
-            failed_at_launch=None,  # Default value for sample data
+            passed_steps=5,
+            failed_steps=1,
+            total_steps=6,
         )
 
 

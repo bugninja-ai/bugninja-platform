@@ -11,9 +11,11 @@ import { useProjects } from '../../shared/hooks/useProjects';
 import { TestCaseService } from '../test-cases/services/testCaseService';
 import { FrontendTestCase } from '../test-cases/types';
 import { Pagination } from '../../shared/components/Pagination';
+import { ViewSwitcher, ViewPreferenceModal, ViewType } from '../../shared/components';
 import { TestRunFilters } from './components/TestRunFilters';
 import { TestRunListItem } from './components/TestRunListItem';
 import { TestRunStats } from './components/TestRunStats';
+import { TestRunTableView } from './components/TestRunTableView';
 
 const TestRunsPage: React.FC = () => {
   // Get URL search parameters
@@ -26,6 +28,10 @@ const TestRunsPage: React.FC = () => {
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [testCaseDropdownOpen, setTestCaseDropdownOpen] = useState(false);
   const [browserDropdownOpen, setBrowserDropdownOpen] = useState(false);
+
+  // View state
+  const [currentView, setCurrentView] = useState<ViewType>('list');
+  const [showViewPreferenceModal, setShowViewPreferenceModal] = useState(false);
 
   // Use the test runs hook
   const {
@@ -47,7 +53,7 @@ const TestRunsPage: React.FC = () => {
     filters
   } = useTestRuns({
     projectId: selectedProject?.id,
-    pageSize: 10
+    pageSize: currentView === 'table' ? 25 : 10
   });
 
   // Browser filtering state
@@ -64,6 +70,18 @@ const TestRunsPage: React.FC = () => {
       setTestCaseId(testCaseParam);
     }
   }, [searchParams, setTestCaseId]);
+
+  // Load view preference from localStorage
+  useEffect(() => {
+    const savedView = localStorage.getItem('testRunsViewPreference') as ViewType;
+    const viewPreferenceShown = localStorage.getItem('viewPreferenceModalShown');
+
+    if (savedView) {
+      setCurrentView(savedView);
+    } else if (!viewPreferenceShown) {
+      setShowViewPreferenceModal(true);
+    }
+  }, []);
 
   // Fetch all test cases for the project (for dropdown options)
   useEffect(() => {
@@ -198,6 +216,23 @@ const TestRunsPage: React.FC = () => {
     setSelectedBrowserId(undefined);
   };
 
+  const handleViewChange = (view: ViewType) => {
+    setCurrentView(view);
+    localStorage.setItem('testRunsViewPreference', view);
+    setPage(1); // Reset to first page when changing views
+  };
+
+  const handleViewPreferenceSelect = (view: ViewType) => {
+    setCurrentView(view);
+    localStorage.setItem('testRunsViewPreference', view);
+    localStorage.setItem('viewPreferenceModalShown', 'true');
+  };
+
+  const handleViewPreferenceDontShowAgain = () => {
+    localStorage.setItem('viewPreferenceModalShown', 'true');
+    setShowViewPreferenceModal(false);
+  };
+
   const renderContent = () => {
     if (testRunsLoading) {
       return (
@@ -218,7 +253,7 @@ const TestRunsPage: React.FC = () => {
             className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
-            Try Again
+            Try again
           </button>
         </div>
       );
@@ -244,11 +279,15 @@ const TestRunsPage: React.FC = () => {
 
     return (
       <>
-        <div className="space-y-3">
-          {paginatedFilteredRuns.map((run: any) => (
-            <TestRunListItem key={run.id} run={run} />
-          ))}
-        </div>
+        {currentView === 'list' ? (
+          <div className="space-y-3">
+            {paginatedFilteredRuns.map((run: any) => (
+              <TestRunListItem key={run.id} run={run} />
+            ))}
+          </div>
+        ) : (
+          <TestRunTableView runs={paginatedFilteredRuns} />
+        )}
 
         {/* Pagination */}
         <Pagination
@@ -276,12 +315,18 @@ const TestRunsPage: React.FC = () => {
             )}
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 text-sm text-gray-500">
-          {isBrowserFiltered ? (
-            `Showing ${paginatedFilteredRuns.length} of ${filteredRuns.length} filtered test runs`
-          ) : (
-            `Showing ${((page - 1) * pageSize) + 1}-${Math.min(page * pageSize, totalCount)} of ${totalCount} test runs`
-          )}
+        <div className="mt-4 sm:mt-0 flex items-center space-x-4">
+          <ViewSwitcher
+            currentView={currentView}
+            onViewChange={handleViewChange}
+          />
+          <div className="text-sm text-gray-500">
+            {isBrowserFiltered ? (
+              `Showing ${paginatedFilteredRuns.length} of ${filteredRuns.length} filtered test runs`
+            ) : (
+              `Showing ${((page - 1) * pageSize) + 1}-${Math.min(page * pageSize, totalCount)} of ${totalCount} test runs`
+            )}
+          </div>
         </div>
       </div>
 
@@ -320,6 +365,14 @@ const TestRunsPage: React.FC = () => {
       <div className="space-y-4">
         {renderContent()}
       </div>
+
+      {/* View Preference Modal */}
+      <ViewPreferenceModal
+        isOpen={showViewPreferenceModal}
+        onClose={() => setShowViewPreferenceModal(false)}
+        onSelectView={handleViewPreferenceSelect}
+        onDontShowAgain={handleViewPreferenceDontShowAgain}
+      />
     </div>
   );
 };

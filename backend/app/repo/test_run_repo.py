@@ -396,6 +396,13 @@ class TestRunRepo:
             db, test_run.test_traversal_id
         )
 
+        # Calculate step counts from history elements
+        from app.repo.history_element_repo import HistoryElementRepo
+
+        passed_steps = HistoryElementRepo.count_passed_by_test_run(db, test_run.id)
+        failed_steps = HistoryElementRepo.count_failed_by_test_run(db, test_run.id)
+        total_steps = HistoryElementRepo.count_by_test_run(db, test_run.id)
+
         return ExtendedResponseTestRun(
             id=test_run.id,
             test_traversal_id=test_run.test_traversal_id,
@@ -410,7 +417,9 @@ class TestRunRepo:
             browser_config=response_browser_config,
             test_case=response_test_case,
             brain_states=extended_brain_states,
-            failed_at_launch=None,  # Default value for existing runs
+            passed_steps=passed_steps,
+            failed_steps=failed_steps,
+            total_steps=total_steps,
         )
 
     @staticmethod
@@ -576,6 +585,164 @@ class TestRunRepo:
 
         # Count test runs for those traversals
         statement = select(TestRun).where(col(TestRun.test_traversal_id).in_(traversal_ids))
+        test_runs = db.exec(statement).all()
+        return len(test_runs)
+
+    @staticmethod
+    def get_all_extended_by_project_id_with_sorting_and_filter(
+        db: Session,
+        project_id: str,
+        page: int = 1,
+        page_size: int = 10,
+        sort_order: str = "desc",
+    ) -> List[ExtendedResponseTestRun]:
+        """
+        Retrieve all extended test runs for a specific project with pagination and sorting.
+
+        This method uses a single optimized query with JOINs to efficiently retrieve
+        all test runs for a project including browser config and history data.
+
+        Args:
+            db: Database session
+            project_id: Project identifier
+            page: Page number (1-based, default: 1)
+            page_size: Number of records per page (default: 10)
+            sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
+
+        Returns:
+            List[ExtendedResponseTestRun]: List of extended test runs sorted by started_at date
+        """
+
+        # Build optimized query with JOINs for test runs and browser configs
+        statement = (
+            select(TestRun, BrowserConfig)
+            .join(TestTraversal, col(TestRun.test_traversal_id) == col(TestTraversal.id))
+            .join(TestCase, col(TestTraversal.test_case_id) == col(TestCase.id))
+            .outerjoin(BrowserConfig, col(TestRun.browser_config_id) == col(BrowserConfig.id))
+            .where(TestCase.project_id == project_id)
+        )
+
+        # Apply sorting
+        if sort_order.lower() == "desc":
+            statement = statement.order_by(col(TestRun.started_at).desc())
+        else:
+            statement = statement.order_by(col(TestRun.started_at).asc())
+
+        # Apply pagination
+        offset = (page - 1) * page_size
+        statement = statement.offset(offset).limit(page_size)
+
+        # Execute query
+        results = db.exec(statement).all()
+
+        # Convert to extended responses
+        extended_test_runs = []
+        for test_run, browser_config in results:
+            # Skip test runs without browser config (consistent with get_extended_by_id)
+            if not browser_config:
+                continue
+
+            # Build browser config response
+            response_browser_config = ResponseBrowserConfig(
+                id=browser_config.id,
+                project_id=browser_config.project_id,
+                created_at=browser_config.created_at,
+                updated_at=browser_config.updated_at,
+                browser_config=browser_config.browser_config,
+            )
+
+            # Get test case information through test traversal
+            test_case_statement = (
+                select(TestCase)
+                .join(TestTraversal)
+                .where(TestTraversal.id == test_run.test_traversal_id)
+            )
+            test_case = db.exec(test_case_statement).first()
+
+            # Convert test case to dict to avoid circular import
+            response_test_case = None
+            if test_case:
+                response_test_case = {
+                    "id": test_case.id,
+                    "project_id": test_case.project_id,
+                    "document_id": test_case.document_id,
+                    "created_at": (
+                        test_case.created_at.isoformat() if test_case.created_at else None
+                    ),
+                    "updated_at": (
+                        test_case.updated_at.isoformat() if test_case.updated_at else None
+                    ),
+                    "test_name": test_case.test_name,
+                    "test_description": test_case.test_description,
+                    "test_goal": test_case.test_goal,
+                    "extra_rules": test_case.extra_rules or [],
+                    "url_route": test_case.url_route,
+                    "allowed_domains": test_case.allowed_domains or [],
+                    "priority": test_case.priority.value if test_case.priority else None,
+                    "category": test_case.category,
+                }
+
+            # Get extended brain states for this test run
+            repo_instance = TestRunRepo()
+            extended_brain_states = repo_instance.get_extended_brain_states_by_test_traversal_id(
+                db, test_run.test_traversal_id
+            )
+
+            # Calculate step counts from history elements
+            from app.repo.history_element_repo import HistoryElementRepo
+
+            passed_steps = HistoryElementRepo.count_passed_by_test_run(db, test_run.id)
+            failed_steps = HistoryElementRepo.count_failed_by_test_run(db, test_run.id)
+            total_steps = HistoryElementRepo.count_by_test_run(db, test_run.id)
+
+            # Build extended test run response
+            extended_test_run = ExtendedResponseTestRun(
+                id=test_run.id,
+                test_traversal_id=test_run.test_traversal_id,
+                browser_config_id=test_run.browser_config_id,
+                run_type=test_run.run_type.value,
+                origin=test_run.origin.value,
+                repair_was_needed=test_run.repair_was_needed,
+                current_state=test_run.current_state.value,
+                started_at=test_run.started_at,
+                finished_at=test_run.finished_at,
+                run_gif=test_run.run_gif,
+                browser_config=response_browser_config,
+                test_case=response_test_case,
+                brain_states=extended_brain_states,
+                passed_steps=passed_steps,
+                failed_steps=failed_steps,
+                total_steps=total_steps,
+            )
+            extended_test_runs.append(extended_test_run)
+
+        return extended_test_runs
+
+    @staticmethod
+    def count_by_project_id(db: Session, project_id: str) -> int:
+        """
+        Get the total number of test runs for a specific project.
+
+        This method uses an optimized count query with JOINs.
+
+        Args:
+            db: Database session
+            project_id: Project identifier
+
+        Returns:
+            int: Total number of test runs for the project
+        """
+        from app.db.test_case import TestCase
+        from app.db.test_traversal import TestTraversal
+
+        # Build optimized count query with JOINs
+        statement = (
+            select(TestRun)
+            .join(TestTraversal, col(TestRun.test_traversal_id) == col(TestTraversal.id))
+            .join(TestCase, col(TestTraversal.test_case_id) == col(TestCase.id))
+            .where(TestCase.project_id == project_id)
+        )
+
         test_runs = db.exec(statement).all()
         return len(test_runs)
 

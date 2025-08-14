@@ -99,7 +99,7 @@ export class TestCaseService {
       goal: backendTestCase.test_goal,
       createdAt: new Date(backendTestCase.created_at),
       updatedAt: new Date(backendTestCase.updated_at),
-      lastRunAt: undefined, // Could be populated from test runs
+      lastRunAt: backendTestCase.last_run_at ? new Date(backendTestCase.last_run_at) : undefined,
       passRate: backendTestCase.success_rate,
       totalRuns: backendTestCase.total_runs,
       passedRuns: backendTestCase.passed_runs,
@@ -138,6 +138,7 @@ export class TestCaseService {
       if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
       if (params?.sort_order) queryParams.append('sort_order', params.sort_order);
       if (params?.project_id) queryParams.append('project_id', params.project_id);
+      if (params?.search) queryParams.append('search', params.search);
 
       const url = `${this.ENDPOINTS.TEST_CASES}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       

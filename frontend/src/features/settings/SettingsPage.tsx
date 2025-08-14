@@ -5,6 +5,7 @@ import { SettingsNavigation, SettingsSection } from './components/SettingsNaviga
 import { ProjectSettingsSection } from './components/ProjectSettingsSection';
 import { BrowserConfigsSection } from './components/BrowserConfigsSection';
 import { SecretValuesSection } from './components/SecretValuesSection';
+import { ViewPreferencesSection } from './components/ViewPreferencesSection';
 
 const SettingsPage: React.FC = () => {
   const [activeSection, setActiveSection] = useState<SettingsSection>('project');
@@ -20,6 +21,9 @@ const SettingsPage: React.FC = () => {
 
       case 'secret-values':
         return <SecretValuesSection />;
+
+      case 'view-preferences':
+        return <ViewPreferencesSection />;
 
       default:
         return (
