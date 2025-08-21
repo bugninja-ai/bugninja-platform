@@ -181,6 +181,7 @@ class TestCaseRepo:
             ).ilike(search_term)
             filters.append(search_filter)  # type: ignore
 
+
         # Apply all filters
         if filters:
             base_statement = base_statement.where(*filters)
