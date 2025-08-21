@@ -51,6 +51,7 @@ services:
       - ./backend/app:/app/app
       - ./backend/dev:/app/dev
       - ./backend/content:/app/content:rw
+      - ./backend/screenshots:/app/screenshots:rw
     environment:
       - DATABASE_URL=postgresql+psycopg2://bugninja_user:bugninja_password@postgres:5432/bugninja
       - REDIS_URL=redis://redis:6379
@@ -60,7 +61,7 @@ services:
       - AZURE_OPENAI_KEY=${AZURE_OPENAI_KEY}
     command: >
       sh -c "
-        mkdir -p /app/content/run_gifs /app/content/run_he_screenshots
+        mkdir -p /app/content/run_gifs /app/content/run_he_screenshots /app/content/screenshots
       "
     depends_on:
       postgres:

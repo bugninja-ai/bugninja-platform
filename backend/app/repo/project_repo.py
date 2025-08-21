@@ -151,6 +151,20 @@ class ProjectRepo:
         return project
 
     @staticmethod
+    def count(db: Session) -> int:
+        """
+        Get the total number of projects.
+
+        Args:
+            db: Database session
+
+        Returns:
+            int: Total number of projects
+        """
+        statement = select(Project)
+        return len(db.exec(statement).all())
+
+    @staticmethod
     def delete(db: Session, project_id: str) -> bool:
         """
         Delete a project by its ID with comprehensive cascade deletion.
