@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
 from cuid2 import Cuid as CUID
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, delete, select
 
 from app.db.browser_config import BrowserConfig
 from app.db.test_case import TestCase
@@ -72,6 +72,12 @@ class TestTraversalRepo:
         """
         statement = select(TestTraversal).where(TestTraversal.id == test_traversal_id)
         return db.exec(statement).first()
+
+    @staticmethod
+    def delete_all(db: Session) -> bool:
+        db.exec(delete(TestTraversal))  # type: ignore
+        db.commit()
+        return True
 
     @staticmethod
     def get_all(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TestTraversal]:
@@ -162,30 +168,6 @@ class TestTraversalRepo:
         return db.exec(statement).all()
 
     @staticmethod
-    def get_by_browser_config_id(
-        db: Session, browser_config_id: str, skip: int = 0, limit: int = 100
-    ) -> Sequence[TestTraversal]:
-        """
-        Retrieve all test traversals for a specific browser configuration.
-
-        Args:
-            db: Database session
-            browser_config_id: Browser configuration identifier
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestTraversal]: List of test traversals for the browser configuration
-        """
-        statement = (
-            select(TestTraversal)
-            .where(TestTraversal.browser_config_id == browser_config_id)
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
     def update(
         db: Session, test_traversal_id: str, test_traversal_data: UpdateTestTraversal
     ) -> Optional[TestTraversal]:
@@ -233,45 +215,6 @@ class TestTraversalRepo:
         db.delete(test_traversal)
         db.commit()
         return True
-
-    @staticmethod
-    def get_by_name(db: Session, traversal_name: str) -> Optional[TestTraversal]:
-        """
-        Retrieve a test traversal by its name.
-
-        Args:
-            db: Database session
-            traversal_name: Test traversal name
-
-        Returns:
-            Optional[TestTraversal]: The test traversal if found, None otherwise
-        """
-        statement = select(TestTraversal).where(TestTraversal.traversal_name == traversal_name)
-        return db.exec(statement).first()
-
-    @staticmethod
-    def search_by_name(
-        db: Session, name_pattern: str, skip: int = 0, limit: int = 100
-    ) -> Sequence[TestTraversal]:
-        """
-        Search test traversals by name pattern.
-
-        Args:
-            db: Database session
-            name_pattern: Name pattern to search for (case-insensitive)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestTraversal]: List of matching test traversals
-        """
-        statement = (
-            select(TestTraversal)
-            .where(col(TestTraversal.traversal_name).ilike(f"%{name_pattern}%"))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
 
     @staticmethod
     def get_by_test_case_and_browser_config(
@@ -361,20 +304,6 @@ class TestTraversalRepo:
             int: Total number of test traversals for the test case
         """
         statement = select(TestTraversal).where(TestTraversal.test_case_id == test_case_id)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def count(db: Session) -> int:
-        """
-        Get the total number of test traversals.
-
-        Args:
-            db: Database session
-
-        Returns:
-            int: Total number of test traversals
-        """
-        statement = select(TestTraversal)
         return len(db.exec(statement).all())
 
     @staticmethod
@@ -541,31 +470,6 @@ class TestTraversalRepo:
 
         # Convert to extended responses
         extended_test_traversals = []
-        for test_traversal in test_traversals:
-            extended_test_traversal = TestTraversalRepo.get_extended_by_id(db, test_traversal.id)
-            if extended_test_traversal:
-                extended_test_traversals.append(extended_test_traversal)
-
-        return extended_test_traversals
-
-    @staticmethod
-    def get_all_extended(
-        db: Session, skip: int = 0, limit: int = 100
-    ) -> Sequence[ExtendedResponseTestTraversal]:
-        """
-        Retrieve all test traversals with extended responses including browser config, latest run, and secret values.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[ExtendedResponseTestTraversal]: List of extended test traversal responses
-        """
-        test_traversals = TestTraversalRepo.get_all(db, skip, limit)
-        extended_test_traversals = []
-
         for test_traversal in test_traversals:
             extended_test_traversal = TestTraversalRepo.get_extended_by_id(db, test_traversal.id)
             if extended_test_traversal:

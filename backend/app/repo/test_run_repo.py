@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from cuid2 import Cuid as CUID
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, delete, select
 
 from app.db.browser_config import BrowserConfig
 from app.db.history_element import HistoryElement
@@ -76,20 +76,10 @@ class TestRunRepo:
         return db.exec(statement).first()
 
     @staticmethod
-    def get_all(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TestRun]:
-        """
-        Retrieve all test runs with pagination.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestRun]: List of test runs
-        """
-        statement = select(TestRun).offset(skip).limit(limit)
-        return db.exec(statement).all()
+    def delete_all(db: Session) -> bool:
+        db.exec(delete(TestRun))  # type: ignore
+        db.commit()
+        return True
 
     @staticmethod
     def get_all_with_sorting_and_filter(
@@ -140,10 +130,10 @@ class TestRunRepo:
         if search:
             # Search in test case name and description
             search_term = f"%{search}%"
-            search_filter = TestCase.test_name.ilike(search_term) | TestCase.test_description.ilike(
-                search_term
-            )
-            filters.append(search_filter)
+            search_filter = col(TestCase.test_name).ilike(search_term) | col(
+                TestCase.test_description
+            ).ilike(search_term)
+            filters.append(search_filter)  # type: ignore
 
         if status:
             # Frontend now sends exact backend values (PENDING, FINISHED, FAILED)
@@ -217,105 +207,6 @@ class TestRunRepo:
         return db.exec(statement).all()
 
     @staticmethod
-    def get_by_state(
-        db: Session, state: RunState, skip: int = 0, limit: int = 100
-    ) -> Sequence[TestRun]:
-        """
-        Retrieve all test runs with a specific state.
-
-        Args:
-            db: Database session
-            state: Test run state to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestRun]: List of test runs with the specified state
-        """
-        statement = select(TestRun).where(TestRun.current_state == state).offset(skip).limit(limit)
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_by_run_type(
-        db: Session, run_type: RunType, skip: int = 0, limit: int = 100
-    ) -> Sequence[TestRun]:
-        """
-        Retrieve all test runs with a specific run type.
-
-        Args:
-            db: Database session
-            run_type: Test run type to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestRun]: List of test runs with the specified run type
-        """
-        statement = select(TestRun).where(TestRun.run_type == run_type).offset(skip).limit(limit)
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_by_origin(
-        db: Session, origin: RunOrigin, skip: int = 0, limit: int = 100
-    ) -> Sequence[TestRun]:
-        """
-        Retrieve all test runs with a specific origin.
-
-        Args:
-            db: Database session
-            origin: Test run origin to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestRun]: List of test runs with the specified origin
-        """
-        statement = select(TestRun).where(TestRun.origin == origin).offset(skip).limit(limit)
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_finished_runs(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TestRun]:
-        """
-        Retrieve all finished test runs.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestRun]: List of finished test runs
-        """
-        statement = (
-            select(TestRun)
-            .where(TestRun.current_state == RunState.FINISHED)
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_pending_runs(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TestRun]:
-        """
-        Retrieve all currently pending test runs.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestRun]: List of pending test runs
-        """
-        statement = (
-            select(TestRun)
-            .where(TestRun.current_state == RunState.PENDING)
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
     def update(db: Session, test_run_id: str, test_run_data: UpdateTestRun) -> Optional[TestRun]:
         """
         Update an existing test run.
@@ -341,32 +232,6 @@ class TestRunRepo:
         return test_run
 
     @staticmethod
-    def update_state(db: Session, test_run_id: str, new_state: RunState) -> Optional[TestRun]:
-        """
-        Update the state of a test run.
-
-        Args:
-            db: Database session
-            test_run_id: Unique test run identifier
-            new_state: New state for the test run
-
-        Returns:
-            Optional[TestRun]: The updated test run if found, None otherwise
-        """
-        test_run = TestRunRepo.get_by_id(db, test_run_id)
-        if not test_run:
-            return None
-
-        test_run.current_state = new_state
-        if new_state == RunState.FINISHED:
-            test_run.finished_at = datetime.now(timezone.utc)
-
-        db.add(test_run)
-        db.commit()
-        db.refresh(test_run)
-        return test_run
-
-    @staticmethod
     def delete(db: Session, test_run_id: str) -> bool:
         """
         Delete a test run by its ID.
@@ -385,50 +250,6 @@ class TestRunRepo:
         db.delete(test_run)
         db.commit()
         return True
-
-    @staticmethod
-    def count_by_test_traversal(db: Session, test_traversal_id: str) -> int:
-        """
-        Get the total number of test runs for a test traversal.
-
-        Args:
-            db: Database session
-            test_traversal_id: Test traversal identifier
-
-        Returns:
-            int: Total number of test runs for the test traversal
-        """
-        statement = select(TestRun).where(TestRun.test_traversal_id == test_traversal_id)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def count_by_state(db: Session, state: RunState) -> int:
-        """
-        Get the total number of test runs with a specific state.
-
-        Args:
-            db: Database session
-            state: Test run state to count
-
-        Returns:
-            int: Total number of test runs with the specified state
-        """
-        statement = select(TestRun).where(TestRun.current_state == state)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def count(db: Session) -> int:
-        """
-        Get the total number of test runs.
-
-        Args:
-            db: Database session
-
-        Returns:
-            int: Total number of test runs
-        """
-        statement = select(TestRun)
-        return len(db.exec(statement).all())
 
     @staticmethod
     def count_with_filter(
@@ -470,10 +291,10 @@ class TestRunRepo:
         if search:
             # Search in test case name and description
             search_term = f"%{search}%"
-            search_filter = TestCase.test_name.ilike(search_term) | TestCase.test_description.ilike(
-                search_term
-            )
-            filters.append(search_filter)
+            search_filter = col(TestCase.test_name).ilike(search_term) | col(
+                TestCase.test_description
+            ).ilike(search_term)
+            filters.append(search_filter)  # type: ignore
 
         if status:
             # Frontend now sends exact backend values (PENDING, FINISHED, FAILED)
@@ -485,28 +306,6 @@ class TestRunRepo:
             base_statement = base_statement.where(*filters)
 
         return len(db.exec(base_statement).all())
-
-    @staticmethod
-    def delete_by_test_traversal(db: Session, test_traversal_id: str) -> int:
-        """
-        Delete all test runs for a specific test traversal.
-
-        Args:
-            db: Database session
-            test_traversal_id: Test traversal identifier
-
-        Returns:
-            int: Number of test runs deleted
-        """
-        statement = select(TestRun).where(TestRun.test_traversal_id == test_traversal_id)
-        test_runs = db.exec(statement).all()
-        count = len(test_runs)
-
-        for test_run in test_runs:
-            db.delete(test_run)
-
-        db.commit()
-        return count
 
     @staticmethod
     def get_latest_by_test_traversal(db: Session, test_traversal_id: str) -> Optional[TestRun]:
@@ -611,6 +410,7 @@ class TestRunRepo:
             browser_config=response_browser_config,
             test_case=response_test_case,
             brain_states=extended_brain_states,
+            failed_at_launch=None,  # Default value for existing runs
         )
 
     @staticmethod
@@ -654,32 +454,6 @@ class TestRunRepo:
 
         # Convert to extended responses
         extended_test_runs = []
-        for test_run in test_runs:
-            extended_test_run = TestRunRepo.get_extended_by_id(db, test_run.id)
-            if extended_test_run:
-                extended_test_runs.append(extended_test_run)
-
-        return extended_test_runs
-
-    @staticmethod
-    def get_extended_by_test_traversal_id(
-        db: Session, test_traversal_id: str, skip: int = 0, limit: int = 100
-    ) -> List[ExtendedResponseTestRun]:
-        """
-        Retrieve all extended test runs for a specific test traversal.
-
-        Args:
-            db: Database session
-            test_traversal_id: Test traversal identifier
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List[ExtendedResponseTestRun]: List of extended test run responses
-        """
-        test_runs = TestRunRepo.get_by_test_traversal_id(db, test_traversal_id, skip, limit)
-        extended_test_runs = []
-
         for test_run in test_runs:
             extended_test_run = TestRunRepo.get_extended_by_id(db, test_run.id)
             if extended_test_run:
@@ -802,154 +576,6 @@ class TestRunRepo:
 
         # Count test runs for those traversals
         statement = select(TestRun).where(col(TestRun.test_traversal_id).in_(traversal_ids))
-        test_runs = db.exec(statement).all()
-        return len(test_runs)
-
-    @staticmethod
-    def get_all_extended_by_project_id_with_sorting_and_filter(
-        db: Session,
-        project_id: str,
-        page: int = 1,
-        page_size: int = 10,
-        sort_order: str = "desc",
-    ) -> List[ExtendedResponseTestRun]:
-        """
-        Retrieve all extended test runs for a specific project with pagination and sorting.
-
-        This method uses a single optimized query with JOINs to efficiently retrieve
-        all test runs for a project including browser config and history data.
-
-        Args:
-            db: Database session
-            project_id: Project identifier
-            page: Page number (1-based, default: 1)
-            page_size: Number of records per page (default: 10)
-            sort_order: Sort order - "asc" for ascending, "desc" for descending (default: "desc")
-
-        Returns:
-            List[ExtendedResponseTestRun]: List of extended test runs sorted by started_at date
-        """
-
-        # Build optimized query with JOINs for test runs and browser configs
-        statement = (
-            select(TestRun, BrowserConfig)
-            .join(TestTraversal, col(TestRun.test_traversal_id) == col(TestTraversal.id))
-            .join(TestCase, col(TestTraversal.test_case_id) == col(TestCase.id))
-            .outerjoin(BrowserConfig, col(TestRun.browser_config_id) == col(BrowserConfig.id))
-            .where(TestCase.project_id == project_id)
-        )
-
-        # Apply sorting
-        if sort_order.lower() == "desc":
-            statement = statement.order_by(col(TestRun.started_at).desc())
-        else:
-            statement = statement.order_by(col(TestRun.started_at).asc())
-
-        # Apply pagination
-        offset = (page - 1) * page_size
-        statement = statement.offset(offset).limit(page_size)
-
-        # Execute query
-        results = db.exec(statement).all()
-
-        # Convert to extended responses
-        extended_test_runs = []
-        for test_run, browser_config in results:
-            # Skip test runs without browser config (consistent with get_extended_by_id)
-            if not browser_config:
-                continue
-
-            # Build browser config response
-            response_browser_config = ResponseBrowserConfig(
-                id=browser_config.id,
-                project_id=browser_config.project_id,
-                created_at=browser_config.created_at,
-                updated_at=browser_config.updated_at,
-                browser_config=browser_config.browser_config,
-            )
-
-            # Get test case information through test traversal
-            test_case_statement = (
-                select(TestCase)
-                .join(TestTraversal)
-                .where(TestTraversal.id == test_run.test_traversal_id)
-            )
-            test_case = db.exec(test_case_statement).first()
-
-            # Convert test case to dict to avoid circular import
-            response_test_case = None
-            if test_case:
-                response_test_case = {
-                    "id": test_case.id,
-                    "project_id": test_case.project_id,
-                    "document_id": test_case.document_id,
-                    "created_at": (
-                        test_case.created_at.isoformat() if test_case.created_at else None
-                    ),
-                    "updated_at": (
-                        test_case.updated_at.isoformat() if test_case.updated_at else None
-                    ),
-                    "test_name": test_case.test_name,
-                    "test_description": test_case.test_description,
-                    "test_goal": test_case.test_goal,
-                    "extra_rules": test_case.extra_rules or [],
-                    "url_route": test_case.url_route,
-                    "allowed_domains": test_case.allowed_domains or [],
-                    "priority": test_case.priority.value if test_case.priority else None,
-                    "category": test_case.category,
-                }
-
-            # Get extended brain states for this test run
-            repo_instance = TestRunRepo()
-            extended_brain_states = repo_instance.get_extended_brain_states_by_test_traversal_id(
-                db, test_run.test_traversal_id
-            )
-
-            # Build extended test run response
-            extended_test_run = ExtendedResponseTestRun(
-                id=test_run.id,
-                test_traversal_id=test_run.test_traversal_id,
-                browser_config_id=test_run.browser_config_id,
-                run_type=test_run.run_type.value,
-                origin=test_run.origin.value,
-                repair_was_needed=test_run.repair_was_needed,
-                current_state=test_run.current_state.value,
-                started_at=test_run.started_at,
-                finished_at=test_run.finished_at,
-                run_gif=test_run.run_gif,
-                browser_config=response_browser_config,
-                test_case=response_test_case,
-                brain_states=extended_brain_states,
-            )
-            extended_test_runs.append(extended_test_run)
-
-        return extended_test_runs
-
-    @staticmethod
-    def count_by_project_id(db: Session, project_id: str) -> int:
-        """
-        Get the total number of test runs for a specific project.
-
-        This method uses an optimized count query with JOINs.
-
-        Args:
-            db: Database session
-            project_id: Project identifier
-
-        Returns:
-            int: Total number of test runs for the project
-        """
-        from app.db.test_case import TestCase
-        from app.db.test_traversal import TestTraversal
-
-        # Build optimized count query with JOINs
-        statement = (
-            select(TestRun)
-            .join(TestTraversal, col(TestRun.test_traversal_id) == col(TestTraversal.id))
-            .join(TestCase, col(TestTraversal.test_case_id) == col(TestCase.id))
-            .where(TestCase.project_id == project_id)
-        )
-
         test_runs = db.exec(statement).all()
         return len(test_runs)
 
@@ -1160,30 +786,29 @@ class TestRunRepo:
         return list(set(traversal_ids))  # Remove duplicates
 
     @staticmethod
-    def get_ongoing_test_runs_by_traversal_ids(db: Session, traversal_ids: List[str]) -> List[str]:
+    def get_ongoing_test_run_ids_by_traversal_ids(
+        db: Session, traversal_ids: List[str]
+    ) -> Sequence[str]:
         """
-        Get traversal IDs that have ongoing test runs.
+        Get ongoing test runs as extended responses for the specified traversal IDs.
 
         Args:
             db: Database session
             traversal_ids: List of test traversal IDs to check
 
         Returns:
-            List[str]: List of traversal IDs that have ongoing test runs
+            Sequence[str]: List of ongoing test run ids
         """
         if not traversal_ids:
             return []
 
-        statement = (
-            select(TestRun.test_traversal_id)
-            .where(
-                col(TestRun.test_traversal_id).in_(traversal_ids),
-                TestRun.current_state == RunState.PENDING,
-            )
-            .distinct()
+        statement = select(TestRun.id).where(
+            col(TestRun.test_traversal_id).in_(traversal_ids),
+            TestRun.current_state == RunState.PENDING,
         )
-        ongoing_traversal_ids = db.exec(statement).all()
-        return list(ongoing_traversal_ids)
+        ongoing_test_runs = db.exec(statement).all()
+
+        return ongoing_test_runs
 
     @staticmethod
     def get_traversal_ids_with_completed_runs(db: Session, traversal_ids: List[str]) -> List[str]:
@@ -1260,26 +885,53 @@ class TestRunRepo:
         return created_test_runs
 
     @staticmethod
-    def check_usage(db: Session, browser_config_id: str) -> Tuple[bool, str]:
+    def get_brain_states_for_replay(
+        db: Session, test_traversal_id: str
+    ) -> List[ExtendedResponseBrainState]:
         """
-        Check if a browser configuration is currently in use by any test run.
+        Get brain states from the most recent successful test run for replay purposes.
+        Returns brain states with empty history elements.
 
         Args:
             db: Database session
-            browser_config_id: Browser configuration identifier
+            test_traversal_id: Test traversal ID to get brain states for
 
         Returns:
-            Tuple[bool, str]: A tuple (is_in_use, reason) where is_in_use is True if in use,
-            False otherwise. reason is a string explaining why it's in use.
+            List[ExtendedResponseBrainState]: Brain states with empty history elements
         """
-        # Check if there are any test runs associated with the browser config
-        if TestRunRepo.get_by_browser_config_id(db, browser_config_id):
-            return True, "Browser configuration is currently in use by a test run."
+        # Get the most recent successful test run for this traversal
+        statement = (
+            select(TestRun)
+            .where(
+                TestRun.test_traversal_id == test_traversal_id,
+                TestRun.current_state == RunState.FINISHED,
+            )
+            .order_by(col(TestRun.started_at).desc())
+        )
+        latest_successful_run = db.exec(statement).first()
 
-        # Check if there are any ongoing test runs for this browser config
-        # This requires fetching all test runs for the browser config and checking their state
-        test_runs = TestRunRepo.get_by_browser_config_id(db, browser_config_id)
-        if any(test_run.current_state == RunState.PENDING for test_run in test_runs):
-            return True, "Browser configuration is currently in use by an ongoing test run."
+        if not latest_successful_run:
+            return []  # No previous successful run, return empty brain states
 
-        return False, "Browser configuration is not in use."
+        # Get brain states from the latest successful run
+        repo_instance = TestRunRepo()
+        original_brain_states = repo_instance.get_extended_brain_states_by_test_traversal_id(
+            db, test_traversal_id
+        )
+
+        # Copy brain states but clear history elements
+        replay_brain_states = []
+        for brain_state in original_brain_states:
+            replay_brain_state = ExtendedResponseBrainState(
+                id=brain_state.id,
+                test_traversal_id=brain_state.test_traversal_id,
+                idx_in_run=brain_state.idx_in_run,
+                valid=brain_state.valid,
+                evaluation_previous_goal=brain_state.evaluation_previous_goal,
+                memory=brain_state.memory,
+                next_goal=brain_state.next_goal,
+                history_elements=[],  # Empty history elements for replay
+            )
+            replay_brain_states.append(replay_brain_state)
+
+        return replay_brain_states

@@ -10,6 +10,8 @@ ENV PYTHONUNBUFFERED=1 \
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    && apt-get install -y --no-install-recommends \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv and poe
@@ -26,6 +28,15 @@ COPY backend/uv.lock ./
 
 # Install dependencies
 RUN uv sync
+
+RUN --mount=type=secret,id=GIT_TOKEN \
+    GIT_TOKEN=$(cat /run/secrets/GIT_TOKEN) && \
+    git config --global url."https://${GIT_TOKEN}@github.com/".insteadOf "https://github.com/" && \
+    uv add git+https://github.com/bugninja-ai/bugninja-experiment@akos/experimenting-with-browser-use
+
+RUN uv run playwright install
+RUN uv run playwright install-deps
+
 
 # Copy source code
 COPY backend/app ./app

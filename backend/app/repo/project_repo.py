@@ -9,7 +9,8 @@ from datetime import datetime, timezone
 from typing import Optional, Sequence
 
 from cuid2 import Cuid as CUID
-from sqlmodel import Session, col, select
+from sqlalchemy import UnaryExpression
+from sqlmodel import Session, col, delete, select
 
 from app.db.document import Document
 from app.db.project import Project
@@ -71,6 +72,12 @@ class ProjectRepo:
         return db.exec(statement).first()
 
     @staticmethod
+    def delete_all(db: Session) -> bool:
+        db.exec(delete(Project))  # type: ignore
+        db.commit()
+        return True
+
+    @staticmethod
     def get_all(db: Session, skip: int = 0, limit: int = 100) -> Sequence[Project]:
         """
         Retrieve all projects with pagination.
@@ -105,16 +112,16 @@ class ProjectRepo:
         # Calculate skip based on page and page_size
         skip = (page - 1) * page_size
 
+        order_by: UnaryExpression[datetime]
         if sort_order.lower() == "asc":
-            statement = (
-                select(Project).order_by(Project.created_at.asc()).offset(skip).limit(page_size)
-            )
-        else:
-            statement = (
-                select(Project).order_by(Project.created_at.desc()).offset(skip).limit(page_size)
-            )
+            order_by = col(Project.created_at).asc()
 
-        return db.exec(statement).all()
+        else:
+            order_by = col(Project.created_at).desc()
+
+        return db.exec(
+            statement=(select(Project).order_by(order_by).offset(skip).limit(page_size))
+        ).all()
 
     @staticmethod
     def update(db: Session, project_id: str, project_data: UpdateProject) -> Optional[Project]:
@@ -302,59 +309,6 @@ class ProjectRepo:
             db.rollback()
             raise e
 
-    @staticmethod
-    def get_by_name(db: Session, name: str) -> Optional[Project]:
-        """
-        Retrieve a project by its name.
-
-        Args:
-            db: Database session
-            name: Project name
-
-        Returns:
-            Optional[Project]: The project if found, None otherwise
-        """
-        statement = select(Project).where(Project.name == name)
-        return db.exec(statement).first()
-
-    @staticmethod
-    def search_by_name(
-        db: Session, name_pattern: str, skip: int = 0, limit: int = 100
-    ) -> Sequence[Project]:
-        """
-        Search projects by name pattern.
-
-        Args:
-            db: Database session
-            name_pattern: Name pattern to search for (case-insensitive)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[Project]: List of matching projects
-        """
-        statement = (
-            select(Project)
-            .where(col(Project.name).ilike(f"%{name_pattern}%"))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def count(db: Session) -> int:
-        """
-        Get the total number of projects.
-
-        Args:
-            db: Database session
-
-        Returns:
-            int: Total number of projects
-        """
-        statement = select(Project)
-        return len(db.exec(statement).all())
-
     # Extended Response Methods
 
     @staticmethod
@@ -458,28 +412,3 @@ class ProjectRepo:
             project_id=project_id,
             secret_list=response_secrets,
         )
-
-    @staticmethod
-    def get_all_extended(
-        db: Session, skip: int = 0, limit: int = 100
-    ) -> Sequence[ExtendedResponseProject]:
-        """
-        Retrieve all projects with extended responses including documents and test cases.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[ExtendedResponseProject]: List of extended project responses
-        """
-        projects = ProjectRepo.get_all(db, skip, limit)
-        extended_projects = []
-
-        for project in projects:
-            extended_project = ProjectRepo.get_extended_by_id(db, project.id)
-            if extended_project:
-                extended_projects.append(extended_project)
-
-        return extended_projects

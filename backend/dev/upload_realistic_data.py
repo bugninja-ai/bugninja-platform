@@ -23,6 +23,7 @@ import shutil
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
+from browser_use.browser.profile import BrowserChannel
 from rich import print as rich_print
 
 from app.db.action import Action
@@ -192,18 +193,18 @@ def create_realistic_browser_configs() -> List[Dict[str, Any]]:
         config = {
             "name": browser_channel,
             "browser_config": {
-                "browser_channel": browser_channel,
+                "channel": BrowserChannel.CHROME,
                 "user_agent": user_agent,
                 "viewport": viewport,
                 "device_scale_factor": None,
                 "color_scheme": "light" if i % 2 == 0 else "dark",
                 "accept_downloads": True,
-                "proxy": True,
+                "proxy": None,
                 "client_certificates": [],
                 "extra_http_headers": {},
                 "http_credentials": None,
                 "java_script_enabled": True,
-                "geolocation": "US",
+                "geolocation": None,
                 "timeout": 30000.0 + (i * 15000),  # Vary timeout
                 "headers": {
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -970,565 +971,633 @@ def upload_realistic_data() -> None:
 
             # Check if there are existing projects
             existing_projects = ProjectRepo.get_all(db)
-            if not existing_projects:
-                rich_print("✓ Database is empty, proceeding with realistic data upload...")
-
-                # Phase 1: Core entities
-                rich_print("Creating core entities...")
-
-                # Create Project
-                project_data = CreateProject(
-                    name="Web Service Testing Platform", default_start_url="https://www.google.com"
-                )
-                project = ProjectRepo.create(db, project_data)
-                rich_print(f"✓ Created project: {project.name}")
-                db.commit()
-
-                # Create Document
-                document_data = CreateDocument(
-                    project_id=project.id,
-                    name="Test Documentation",
-                    content="Comprehensive test documentation for web service testing including IMDB and Amazon scenarios.",
-                )
-                document = DocumentRepo.create(db, document_data)
-                rich_print(f"✓ Created document: {document.name}")
-                db.commit()
-
-                # Phase 2: Test Cases
-                rich_print("Creating test cases...")
-
-                # Create 4 Test Cases
-                test_cases: List[TestCase] = []
-
-                # IMDB Test Case
-                imdb_test_case = TestCaseRepo.create(
-                    db,
-                    CreateTestCase(
-                        project_id=project.id,
-                        document_id=document.id,
-                        test_name="IMDB Movie Search and Details",
-                        test_description="Search for a specific movie on IMDB, view its details, and verify ratings and plot information.",
-                        test_goal="Successfully navigate to IMDB, search for 'The Dark Knight', view movie details, and verify information.",
-                        extra_rules=[
-                            "Must verify the correct movie is found and check user ratings.",
-                            "Ensure movie details are accurate and up-to-date.",
-                        ],
-                        url_route="https://www.imdb.com",
-                        allowed_domains=["imdb.com", "www.imdb.com"],
-                        priority=TestCasePriority.HIGH,
-                        category="entertainment",
-                    ),
-                )
-                test_cases.append(imdb_test_case)
-                rich_print(f"✓ Created test case 1: {imdb_test_case.test_name}")
-
-                # Amazon Test Case
-                amazon_test_case = TestCaseRepo.create(
-                    db,
-                    CreateTestCase(
-                        project_id=project.id,
-                        document_id=None,
-                        test_name="Amazon Product Purchase Flow",
-                        test_description="Search for a product on Amazon, add it to cart, and proceed to checkout.",
-                        test_goal="Successfully navigate to Amazon, search for wireless headphones, add to cart, and reach checkout.",
-                        extra_rules=[
-                            "Must verify product details before adding to cart.",
-                            "Check product availability and pricing.",
-                        ],
-                        url_route="https://www.amazon.com",
-                        allowed_domains=["amazon.com", "www.amazon.com"],
-                        priority=TestCasePriority.MEDIUM,
-                        category="ecommerce",
-                    ),
-                )
-                test_cases.append(amazon_test_case)
-                rich_print(f"✓ Created test case 2: {amazon_test_case.test_name}")
-
-                # Netflix Test Case
-                netflix_test_case = TestCaseRepo.create(
-                    db,
-                    CreateTestCase(
-                        project_id=project.id,
-                        document_id=document.id,
-                        test_name="Netflix Content Search and Playback",
-                        test_description="Search for a specific show on Netflix and initiate playback.",
-                        test_goal="Successfully navigate to Netflix, search for 'Stranger Things', and start watching.",
-                        extra_rules=[
-                            "Must verify the correct show is found and playback begins.",
-                            "Ensure streaming quality is acceptable.",
-                        ],
-                        url_route="https://www.netflix.com",
-                        allowed_domains=["netflix.com", "www.netflix.com"],
-                        priority=TestCasePriority.LOW,
-                        category="streaming",
-                    ),
-                )
-                test_cases.append(netflix_test_case)
-                rich_print(f"✓ Created test case 3: {netflix_test_case.test_name}")
-
-                # GitHub Test Case
-                github_test_case = TestCaseRepo.create(
-                    db,
-                    CreateTestCase(
-                        project_id=project.id,
-                        document_id=None,
-                        test_name="GitHub Repository Exploration",
-                        test_description="Search for repositories on GitHub and examine their contents.",
-                        test_goal="Successfully navigate to GitHub, search for machine learning repositories, and explore code.",
-                        extra_rules=[
-                            "Must verify repository details and examine documentation.",
-                            "Check code quality and documentation completeness.",
-                        ],
-                        url_route="https://github.com",
-                        allowed_domains=["github.com", "www.github.com"],
-                        priority=TestCasePriority.CRITICAL,
-                        category="development",
-                    ),
-                )
-                test_cases.append(github_test_case)
-                rich_print(f"✓ Created test case 4: {github_test_case.test_name}")
-
-                db.commit()
-
-                # Create 3 Browser Configs
-                browser_configs: List[BrowserConfig] = []
-                browser_config_data = create_realistic_browser_configs()
-                for i, config in enumerate(browser_config_data):
-                    # Assign browser configs to specific test cases
-                    # Chromium for IMDB, Firefox for Amazon, Webkit for Netflix/GitHub
-                    if i == 0:  # Chromium
-                        test_case_id = imdb_test_case.id
-                    elif i == 1:  # Firefox
-                        test_case_id = amazon_test_case.id
-                    else:  # Webkit
-                        test_case_id = netflix_test_case.id
-
-                    browser_config = BrowserConfigRepo.create(
-                        db,
-                        CreateBrowserConfig(
-                            test_case_id=test_case_id, browser_config=config["browser_config"]
-                        ),
-                    )
-                    browser_configs.append(browser_config)
-                    rich_print(f"✓ Created browser config {i+1}: {config['name']}")
-                db.commit()
-
-                # Create 6 Secret Values
-                secret_values: List[SecretValue] = []
-                secret_data = create_realistic_secrets()
-                for i, secret in enumerate(secret_data):
-                    # Assign secrets to specific test cases based on the secret type
-                    if "IMDB" in secret["secret_name"]:
-                        test_case_id = imdb_test_case.id
-                    elif "AMAZON" in secret["secret_name"]:
-                        test_case_id = amazon_test_case.id
-                    elif "NETFLIX" in secret["secret_name"]:
-                        test_case_id = netflix_test_case.id
-                    elif "GITHUB" in secret["secret_name"]:
-                        test_case_id = github_test_case.id
-                    else:
-                        # Default to first test case if no match
-                        test_case_id = test_cases[0].id
-
-                    secret_value = SecretValueRepo.create(
-                        db,
-                        CreateSecretValue(
-                            test_case_id=test_case_id,
-                            secret_name=secret["secret_name"],
-                            secret_value=secret["secret_value"],
-                        ),
-                    )
-                    secret_values.append(secret_value)
-                    rich_print(f"✓ Created secret value {i+1}: {secret_value.secret_name}")
-
-                db.commit()
-                rich_print("✓ Committed Phase 2 entities")
-
-                # Create TestCase-BrowserConfig associations
-                rich_print("Creating test case - browser config associations...")
-                for test_case in test_cases:
-                    for browser_config in browser_configs:
-                        association = TestCaseBrowserConfig(
-                            test_case_id=test_case.id, browser_config_id=browser_config.id
-                        )
-                        db.add(association)
-                        rich_print(f"✓ Linked test case '{test_case.test_name}' to browser config")
-
-                db.commit()
-                rich_print("✓ Committed Phase 2 entities")
-
-                # Phase 3: Test Traversals
-                rich_print("Creating test traversals...")
-
-                # Create 12 Test Traversals (4×3 cross product)
-                traversals: List[TestTraversal] = []
-                for i, test_case in enumerate(test_cases):
-                    for j, browser_config in enumerate(browser_configs):
-                        traversal = TestTraversalRepo.create(
-                            db,
-                            CreateTestTraversal(
-                                test_case_id=test_case.id,
-                                browser_config_id=browser_config.id,
-                                traversal_name=f"{test_case.test_name} - {browser_config_data[j]['name']}",
-                            ),
-                        )
-                        traversals.append(traversal)
-                        rich_print(
-                            f"✓ Created traversal {len(traversals)}: {traversal.traversal_name}"
-                        )
-
-                db.commit()
-
-                # Link secret values to test cases
-                rich_print("Linking secret values to test cases...")
-                for test_case in test_cases:
-                    # Link relevant secrets based on test case
-                    if "IMDB" in test_case.test_name:
-                        # Link IMDB API key
-                        link = SecretValueTestCase(
-                            secret_value_id=secret_values[0].id, test_case_id=test_case.id
-                        )
-                        db.add(link)
-                        rich_print(f"✓ Linked IMDB API key to test case: {test_case.test_name}")
-                    elif "Amazon" in test_case.test_name:
-                        # Link Amazon credentials
-                        for secret in secret_values[1:4]:  # Amazon email, password, payment info
-                            link = SecretValueTestCase(
-                                secret_value_id=secret.id, test_case_id=test_case.id
-                            )
-                            db.add(link)
-                        rich_print(
-                            f"✓ Linked Amazon credentials to test case: {test_case.test_name}"
-                        )
-                    elif "Netflix" in test_case.test_name:
-                        # Link Netflix credentials
-                        link = SecretValueTestCase(
-                            secret_value_id=secret_values[4].id, test_case_id=test_case.id
-                        )
-                        db.add(link)
-                        rich_print(
-                            f"✓ Linked Netflix credentials to test case: {test_case.test_name}"
-                        )
-                    else:  # GitHub
-                        # Link GitHub token
-                        link = SecretValueTestCase(
-                            secret_value_id=secret_values[5].id, test_case_id=test_case.id
-                        )
-                        db.add(link)
-                        rich_print(f"✓ Linked GitHub token to test case: {test_case.test_name}")
-
-                db.commit()
-                rich_print("✓ Committed Phase 3 entities")
-
-                # Phase 4: Brain states and actions
-                rich_print("Creating brain states and actions...")
-
-                brain_states: List[BrainState] = []
-                actions: List[Action] = []
-
-                for traversal_idx, traversal in enumerate(traversals):
-                    # Determine scenario based on test case
-                    if "IMDB" in traversal.traversal_name:
-                        scenario = "imdb"
-                    elif "Amazon" in traversal.traversal_name:
-                        scenario = "amazon"
-                    elif "Netflix" in traversal.traversal_name:
-                        scenario = "netflix"
-                    else:  # GitHub
-                        scenario = "github"
-
-                    # Get brain states for this scenario
-                    if scenario == "imdb":
-                        brain_state_data = create_imdb_brain_states()
-                    elif scenario == "amazon":
-                        brain_state_data = create_amazon_brain_states()
-                    elif scenario == "netflix":
-                        brain_state_data = create_netflix_brain_states()
-                    else:  # github
-                        brain_state_data = create_github_brain_states()
-
-                    # Create brain states for this traversal
-                    for brain_state_idx, brain_state_info in enumerate(brain_state_data):
-                        brain_state = BrainStateRepo.create(
-                            db,
-                            CreateBrainState(
-                                test_traversal_id=traversal.id,
-                                idx_in_run=brain_state_idx,
-                                valid=True,
-                                evaluation_previous_goal=brain_state_info[
-                                    "evaluation_previous_goal"
-                                ],
-                                memory=brain_state_info["memory"],
-                                next_goal=brain_state_info["next_goal"],
-                            ),
-                        )
-                        brain_states.append(brain_state)
-
-                        # Create actions for this brain state
-                        action_data = create_realistic_actions(brain_state_data, scenario)
-                        if brain_state_idx < len(action_data):
-                            action_info = action_data[brain_state_idx]
-
-                            # Create action data structure matching the sample JSON format
-                            action_dict = {
-                                "done": None,
-                                "search_google": None,
-                                "go_to_url": None,
-                                "go_back": None,
-                                "wait": None,
-                                "click_element_by_index": None,
-                                "input_text": None,
-                                "save_pdf": None,
-                                "switch_tab": None,
-                                "open_tab": None,
-                                "close_tab": None,
-                                "extract_content": None,
-                                "get_ax_tree": None,
-                                "scroll_down": None,
-                                "scroll_up": None,
-                                "send_keys": None,
-                                "scroll_to_text": None,
-                                "get_dropdown_options": None,
-                                "select_dropdown_option": None,
-                                "drag_drop": None,
-                                "third_party_authentication_wait": None,
-                            }
-
-                            # Set the appropriate action type with complete data structure
-                            if action_info["action_type"] == "go_to_url":
-                                action_dict["go_to_url"] = action_info["action_data"]
-                            elif action_info["action_type"] == "input_text":
-                                action_dict["input_text"] = action_info["action_data"]
-                            elif action_info["action_type"] == "click_element_by_index":
-                                action_dict["click_element_by_index"] = action_info["action_data"]
-                            elif action_info["action_type"] == "done":
-                                action_dict["done"] = action_info["action_data"]
-
-                            # Create action with complete DOM element data
-                            action = ActionRepo.create(
-                                db,
-                                CreateAction(
-                                    brain_state_id=brain_state.id,
-                                    idx_in_brain_state=brain_state_idx,
-                                    action=action_dict,
-                                    dom_element_data=action_info["dom_element"] or {},
-                                    valid=True,
-                                ),
-                            )
-                            actions.append(action)
-
-                    rich_print(
-                        f"✓ Created {len(brain_state_data)} brain states and actions for traversal {traversal_idx + 1}"
-                    )
-
-                rich_print(
-                    f"✓ Created {len(brain_states)} brain states and {len(actions)} actions total"
-                )
-
-                db.commit()
-                rich_print("✓ Committed Phase 4 entities")
-
-                # Phase 5: Test execution
-                rich_print("Creating test execution data...")
-
-                # Generate IDs for test runs and history elements first
-                rich_print("Generating unique IDs for test runs and history elements...")
-
-                # Calculate total number of history elements
-                total_history_elements = 0
-                for traversal in traversals:
-                    # Count brain states for this traversal
-                    traversal_brain_states = [
-                        bs for bs in brain_states if bs.test_traversal_id == traversal.id
-                    ]
-                    # Each brain state has one action
-                    total_history_elements += len(traversal_brain_states)
-
-                # Generate IDs
-                test_run_ids = generate_unique_ids(len(traversals))
-                history_element_ids = generate_unique_ids(total_history_elements)
-
-                rich_print(
-                    f"✓ Generated {len(test_run_ids)} test run IDs and {len(history_element_ids)} history element IDs"
-                )
-
-                # Copy images for test runs and history elements
-                rich_print("Copying images for test runs and history elements...")
-                test_run_gif_mapping = copy_images_for_test_runs(test_run_ids)
-                history_element_image_mapping = copy_images_for_history_elements(
-                    history_element_ids
-                )
-
-                rich_print(
-                    f"✓ Copied {len(test_run_gif_mapping)} test run GIFs and {len(history_element_image_mapping)} history element images"
-                )
-
-                # Create Test Run for each traversal with varied data
-                test_runs: List[TestRun] = []
-                varied_run_data = create_varied_run_data()
-                for i, traversal in enumerate(traversals):
-                    run_data = varied_run_data[i % len(varied_run_data)]
-                    test_run_id = test_run_ids[i]
-                    gif_path = test_run_gif_mapping.get(
-                        test_run_id, f"content/run_gifs/{test_run_id}.gif"
-                    )
-
-                    test_run = TestRunRepo.create(
-                        db,
-                        CreateTestRun(
-                            test_traversal_id=traversal.id,
-                            browser_config_id=traversal.browser_config_id,
-                            run_type=run_data["run_type"],
-                            origin=run_data["origin"],
-                            repair_was_needed=run_data["repair_was_needed"],
-                            current_state=run_data["current_state"],
-                            run_gif=gif_path,
-                        ),
-                    )
-
-                    # Update the test run with realistic timestamps
-                    # Set the started_at time to a realistic past time
-                    test_run.started_at = run_data["started_at"]
-
-                    # Set finished_at for completed runs
-                    if run_data["finished_at"] is not None:
-                        test_run.finished_at = run_data["finished_at"]
-
-                    db.add(test_run)
-                    test_runs.append(test_run)
-
-                    duration_info = ""
-                    if run_data["finished_at"]:
-                        duration = (
-                            run_data["finished_at"] - run_data["started_at"]
-                        ).total_seconds()
-                        duration_info = f", {duration:.0f}s"
-
-                    rich_print(
-                        f"✓ Created test run: {test_run.id} ({run_data['run_type']}, {run_data['origin']}{duration_info})"
-                    )
-
-                db.commit()
-
-                # Create Cost records for each test run with varied data
-                varied_cost_data = create_varied_cost_data()
-                for i, test_run in enumerate(test_runs):
-                    cost_data = varied_cost_data[i % len(varied_cost_data)]
-                    cost = CostRepo.create(
-                        db,
-                        CreateCost(
-                            test_run_id=test_run.id,
-                            project_id=project.id,
-                            model_type=cost_data["model_type"],
-                            cost_per_token=cost_data["cost_per_token"],
-                            input_token_num=cost_data["input_token_num"],
-                            completion_token_num=cost_data["completion_token_num"],
-                            cost_in_dollars=cost_data["cost_in_dollars"],
-                        ),
-                    )
-                    rich_print(
-                        f"✓ Created cost record: ${cost.cost_in_dollars:.3f} ({cost_data['model_type']})"
-                    )
-
-                db.commit()
-
-                # Create History Elements for actions in test runs with varied states
-                history_count = 0
-                history_element_id_index = 0
-                history_states = [
-                    HistoryElementState.PASSED,
-                    HistoryElementState.FAILED,
-                    HistoryElementState.PASSED,
-                    HistoryElementState.PASSED,
-                    HistoryElementState.FAILED,
-                    HistoryElementState.PASSED,
-                ]
-
-                for test_run_idx, test_run in enumerate(test_runs):
-                    # Get actions for this test run's traversal
-                    traversal_actions = [
-                        a
-                        for a in actions
-                        if a.brain_state_id
-                        in [
-                            bs.id
-                            for bs in brain_states
-                            if bs.test_traversal_id == test_run.test_traversal_id
-                        ]
-                    ]
-
-                    # Calculate timing for history elements within the test run duration
-                    run_start = test_run.started_at
-                    run_end = test_run.finished_at or run_start + timedelta(
-                        minutes=1
-                    )  # Default 1 min for pending runs
-                    total_duration = (run_end - run_start).total_seconds()
-                    action_interval = total_duration / max(len(traversal_actions), 1)
-
-                    for i, action in enumerate(traversal_actions):
-                        # Vary the history element state
-                        state = history_states[(test_run_idx + i) % len(history_states)]
-
-                        # Calculate realistic timing for this action
-                        action_start = run_start + timedelta(seconds=i * action_interval)
-                        action_end = action_start + timedelta(
-                            seconds=min(action_interval * 0.8, 30)
-                        )  # Cap at 30 seconds per action
-
-                        # Get the history element ID and corresponding image path
-                        history_element_id = history_element_ids[history_element_id_index]
-                        screenshot_path = history_element_image_mapping.get(
-                            history_element_id,
-                            f"content/run_he_screenshots/{history_element_id}.jpg",
-                        )
-
-                        history_element = HistoryElementRepo.create(
-                            db,
-                            CreateHistoryElement(
-                                test_run_id=test_run.id,
-                                action_id=action.id,
-                                history_element_state=state,
-                                screenshot=screenshot_path,
-                            ),
-                        )
-
-                        # Update with realistic timestamps
-                        history_element.action_started_at = action_start
-                        if test_run.finished_at:  # Only set finish time for completed runs
-                            history_element.action_finished_at = action_end
-
-                        db.add(history_element)
-                        history_count += 1
-                        history_element_id_index += 1
-
-                rich_print(f"✓ Created {history_count} history elements with varied states")
-
-                # Final commit
-                db.commit()
-
-                rich_print("\n🎉 Realistic data upload completed successfully!")
-                rich_print("📊 Summary:")
-                rich_print(f"   • 1 Project: {project.name}")
-                rich_print(f"   • 1 Document: {document.name}")
-                rich_print("   • 4 Test Cases (IMDB, Amazon, Netflix, GitHub)")
-                rich_print("   • 3 Browser Configs (Chromium, Firefox, Webkit)")
-                rich_print("   • 6 Secret Values (API keys, credentials)")
-                rich_print("   • 12 Test Traversals")
-                rich_print(f"   • {len(brain_states)} Brain States")
-                rich_print(f"   • {len(actions)} Actions")
-                rich_print("   • 12 Test Runs")
-                rich_print("   • 12 Cost Records")
-                rich_print(f"   • {history_count} History Elements")
-                rich_print("   • 12 TestCase-BrowserConfig associations")
-                rich_print("   • SecretValue-TestCase associations")
-
-            else:
+            if existing_projects:
                 rich_print(
                     "❌ Error: Database already contains projects. Please clear the database first."
                 )
                 rich_print(f"   Found {len(existing_projects)} existing project(s):")
                 for project in existing_projects:
                     rich_print(f"   • {project.name} (ID: {project.id})")
+
+            rich_print("✓ Database is empty, proceeding with realistic data upload...")
+
+            # Phase 1: Core entities
+            rich_print("Creating core entities...")
+
+            # Create Project
+            project_data = CreateProject(
+                name="Web Service Testing Platform", default_start_url="https://www.google.com"
+            )
+            project = ProjectRepo.create(db, project_data)
+            rich_print(f"✓ Created project: {project.name}")
+            db.commit()
+
+            # Create Document
+            document_data = CreateDocument(
+                project_id=project.id,
+                name="Test Documentation",
+                content="Comprehensive test documentation for web service testing including IMDB and Amazon scenarios.",
+            )
+            document = DocumentRepo.create(db, document_data)
+            rich_print(f"✓ Created document: {document.name}")
+            db.commit()
+
+            # Phase 2: Test Cases
+            rich_print("Creating test cases...")
+
+            # Create 4 Test Cases
+            test_cases: List[TestCase] = []
+
+            # IMDB Test Case
+            imdb_test_case = TestCaseRepo.create(
+                db,
+                CreateTestCase(
+                    project_id=project.id,
+                    document_id=document.id,
+                    test_name="IMDB Movie Search and Details",
+                    test_description="Search for a specific movie on IMDB, view its details, and verify ratings and plot information.",
+                    test_goal="Successfully navigate to IMDB, search for 'The Dark Knight', view movie details, and verify information.",
+                    extra_rules=[
+                        "Must verify the correct movie is found and check user ratings.",
+                        "Ensure movie details are accurate and up-to-date.",
+                    ],
+                    url_route="https://www.imdb.com",
+                    allowed_domains=["imdb.com", "www.imdb.com"],
+                    priority=TestCasePriority.HIGH,
+                    category="entertainment",
+                ),
+            )
+            test_cases.append(imdb_test_case)
+            rich_print(f"✓ Created test case 1: {imdb_test_case.test_name}")
+
+            # Amazon Test Case
+            amazon_test_case = TestCaseRepo.create(
+                db,
+                CreateTestCase(
+                    project_id=project.id,
+                    document_id=None,
+                    test_name="Amazon Product Purchase Flow",
+                    test_description="Search for a product on Amazon, add it to cart, and proceed to checkout.",
+                    test_goal="Successfully navigate to Amazon, search for wireless headphones, add to cart, and reach checkout.",
+                    extra_rules=[
+                        "Must verify product details before adding to cart.",
+                        "Check product availability and pricing.",
+                    ],
+                    url_route="https://www.amazon.com",
+                    allowed_domains=["amazon.com", "www.amazon.com"],
+                    priority=TestCasePriority.MEDIUM,
+                    category="ecommerce",
+                ),
+            )
+            test_cases.append(amazon_test_case)
+            rich_print(f"✓ Created test case 2: {amazon_test_case.test_name}")
+
+            # Netflix Test Case
+            netflix_test_case = TestCaseRepo.create(
+                db,
+                CreateTestCase(
+                    project_id=project.id,
+                    document_id=document.id,
+                    test_name="Netflix Content Search and Playback",
+                    test_description="Search for a specific show on Netflix and initiate playback.",
+                    test_goal="Successfully navigate to Netflix, search for 'Stranger Things', and start watching.",
+                    extra_rules=[
+                        "Must verify the correct show is found and playback begins.",
+                        "Ensure streaming quality is acceptable.",
+                    ],
+                    url_route="https://www.netflix.com",
+                    allowed_domains=["netflix.com", "www.netflix.com"],
+                    priority=TestCasePriority.LOW,
+                    category="streaming",
+                ),
+            )
+            test_cases.append(netflix_test_case)
+            rich_print(f"✓ Created test case 3: {netflix_test_case.test_name}")
+
+            # GitHub Test Case
+            github_test_case = TestCaseRepo.create(
+                db,
+                CreateTestCase(
+                    project_id=project.id,
+                    document_id=None,
+                    test_name="GitHub Repository Exploration",
+                    test_description="Search for repositories on GitHub and examine their contents.",
+                    test_goal="Successfully navigate to GitHub, search for machine learning repositories, and explore code.",
+                    extra_rules=[
+                        "Must verify repository details and examine documentation.",
+                        "Check code quality and documentation completeness.",
+                    ],
+                    url_route="https://github.com",
+                    allowed_domains=["github.com", "www.github.com"],
+                    priority=TestCasePriority.CRITICAL,
+                    category="development",
+                ),
+            )
+            test_cases.append(github_test_case)
+            rich_print(f"✓ Created test case 4: {github_test_case.test_name}")
+
+            db.commit()
+
+            # Create 3 Browser Configs
+            browser_configs: List[BrowserConfig] = []
+            browser_config_data = create_realistic_browser_configs()
+            for i, config in enumerate(browser_config_data):
+                # Assign browser configs to specific test cases
+                # Chromium for IMDB, Firefox for Amazon, Webkit for Netflix/GitHub
+                if i == 0:  # Chromium
+                    test_case_id = imdb_test_case.id
+                elif i == 1:  # Firefox
+                    test_case_id = amazon_test_case.id
+                else:  # Webkit
+                    test_case_id = netflix_test_case.id
+
+                browser_config = BrowserConfigRepo.create(
+                    db,
+                    CreateBrowserConfig(
+                        test_case_id=test_case_id, browser_config=config["browser_config"]
+                    ),
+                )
+                browser_configs.append(browser_config)
+                rich_print(f"✓ Created browser config {i+1}: {config['name']}")
+            db.commit()
+
+            # Create 6 Secret Values
+            secret_values: List[SecretValue] = []
+            secret_data = create_realistic_secrets()
+            for i, secret in enumerate(secret_data):
+                # Assign secrets to specific test cases based on the secret type
+                if "IMDB" in secret["secret_name"]:
+                    test_case_id = imdb_test_case.id
+                elif "AMAZON" in secret["secret_name"]:
+                    test_case_id = amazon_test_case.id
+                elif "NETFLIX" in secret["secret_name"]:
+                    test_case_id = netflix_test_case.id
+                elif "GITHUB" in secret["secret_name"]:
+                    test_case_id = github_test_case.id
+                else:
+                    # Default to first test case if no match
+                    test_case_id = test_cases[0].id
+
+                secret_value = SecretValueRepo.create(
+                    db,
+                    CreateSecretValue(
+                        test_case_id=test_case_id,
+                        secret_name=secret["secret_name"],
+                        secret_value=secret["secret_value"],
+                    ),
+                )
+                secret_values.append(secret_value)
+                rich_print(f"✓ Created secret value {i+1}: {secret_value.secret_name}")
+
+            db.commit()
+            rich_print("✓ Committed Phase 2 entities")
+
+            # Create TestCase-BrowserConfig associations
+            rich_print("Creating test case - browser config associations...")
+            for test_case in test_cases:
+                for browser_config in browser_configs:
+                    association = TestCaseBrowserConfig(
+                        test_case_id=test_case.id, browser_config_id=browser_config.id
+                    )
+                    db.add(association)
+                    rich_print(f"✓ Linked test case '{test_case.test_name}' to browser config")
+
+            db.commit()
+            rich_print("✓ Committed Phase 2 entities")
+
+            # Phase 3: Test Traversals
+            rich_print("Creating test traversals...")
+
+            # Create 12 Test Traversals (4×3 cross product)
+            traversals: List[TestTraversal] = []
+            for i, test_case in enumerate(test_cases):
+                for j, browser_config in enumerate(browser_configs):
+                    traversal = TestTraversalRepo.create(
+                        db,
+                        CreateTestTraversal(
+                            test_case_id=test_case.id,
+                            browser_config_id=browser_config.id,
+                            traversal_name=f"{test_case.test_name} - {browser_config_data[j]['name']}",
+                        ),
+                    )
+                    traversals.append(traversal)
+                    rich_print(f"✓ Created traversal {len(traversals)}: {traversal.traversal_name}")
+
+            db.commit()
+
+            # Link secret values to test cases
+            rich_print("Linking secret values to test cases...")
+            for test_case in test_cases:
+                # Link relevant secrets based on test case
+                if "IMDB" in test_case.test_name:
+                    # Link IMDB API key
+                    link = SecretValueTestCase(
+                        secret_value_id=secret_values[0].id, test_case_id=test_case.id
+                    )
+                    db.add(link)
+                    rich_print(f"✓ Linked IMDB API key to test case: {test_case.test_name}")
+                elif "Amazon" in test_case.test_name:
+                    # Link Amazon credentials
+                    for secret in secret_values[1:4]:  # Amazon email, password, payment info
+                        link = SecretValueTestCase(
+                            secret_value_id=secret.id, test_case_id=test_case.id
+                        )
+                        db.add(link)
+                    rich_print(f"✓ Linked Amazon credentials to test case: {test_case.test_name}")
+                elif "Netflix" in test_case.test_name:
+                    # Link Netflix credentials
+                    link = SecretValueTestCase(
+                        secret_value_id=secret_values[4].id, test_case_id=test_case.id
+                    )
+                    db.add(link)
+                    rich_print(f"✓ Linked Netflix credentials to test case: {test_case.test_name}")
+                else:  # GitHub
+                    # Link GitHub token
+                    link = SecretValueTestCase(
+                        secret_value_id=secret_values[5].id, test_case_id=test_case.id
+                    )
+                    db.add(link)
+                    rich_print(f"✓ Linked GitHub token to test case: {test_case.test_name}")
+
+            db.commit()
+            rich_print("✓ Committed Phase 3 entities")
+
+            # Phase 4: Brain states and actions
+            rich_print("Creating brain states and actions...")
+
+            brain_states: List[BrainState] = []
+            actions: List[Action] = []
+
+            for traversal_idx, traversal in enumerate(traversals):
+                # Determine scenario based on test case
+                if "IMDB" in traversal.traversal_name:
+                    scenario = "imdb"
+                elif "Amazon" in traversal.traversal_name:
+                    scenario = "amazon"
+                elif "Netflix" in traversal.traversal_name:
+                    scenario = "netflix"
+                else:  # GitHub
+                    scenario = "github"
+
+                # Get brain states for this scenario
+                if scenario == "imdb":
+                    brain_state_data = create_imdb_brain_states()
+                elif scenario == "amazon":
+                    brain_state_data = create_amazon_brain_states()
+                elif scenario == "netflix":
+                    brain_state_data = create_netflix_brain_states()
+                else:  # github
+                    brain_state_data = create_github_brain_states()
+
+                # Create brain states for this traversal
+                for brain_state_idx, brain_state_info in enumerate(brain_state_data):
+                    brain_state = BrainStateRepo.create(
+                        db,
+                        CreateBrainState(
+                            test_traversal_id=traversal.id,
+                            idx_in_run=brain_state_idx,
+                            valid=True,
+                            evaluation_previous_goal=brain_state_info["evaluation_previous_goal"],
+                            memory=brain_state_info["memory"],
+                            next_goal=brain_state_info["next_goal"],
+                        ),
+                    )
+                    brain_states.append(brain_state)
+
+                    # Create actions for this brain state
+                    action_data = create_realistic_actions(brain_state_data, scenario)
+                    if brain_state_idx < len(action_data):
+                        action_info = action_data[brain_state_idx]
+
+                        # Create action data structure matching the sample JSON format
+                        action_dict = {
+                            "done": None,
+                            "search_google": None,
+                            "go_to_url": None,
+                            "go_back": None,
+                            "wait": None,
+                            "click_element_by_index": None,
+                            "input_text": None,
+                            "save_pdf": None,
+                            "switch_tab": None,
+                            "open_tab": None,
+                            "close_tab": None,
+                            "extract_content": None,
+                            "get_ax_tree": None,
+                            "scroll_down": None,
+                            "scroll_up": None,
+                            "send_keys": None,
+                            "scroll_to_text": None,
+                            "get_dropdown_options": None,
+                            "select_dropdown_option": None,
+                            "drag_drop": None,
+                            "third_party_authentication_wait": None,
+                        }
+
+                        # Set the appropriate action type with complete data structure
+                        if action_info["action_type"] == "go_to_url":
+                            action_dict["go_to_url"] = action_info["action_data"]
+                        elif action_info["action_type"] == "input_text":
+                            action_dict["input_text"] = action_info["action_data"]
+                        elif action_info["action_type"] == "click_element_by_index":
+                            action_dict["click_element_by_index"] = action_info["action_data"]
+                        elif action_info["action_type"] == "done":
+                            action_dict["done"] = action_info["action_data"]
+
+                        # Create action with complete DOM element data
+                        action = ActionRepo.create(
+                            db,
+                            CreateAction(
+                                brain_state_id=brain_state.id,
+                                idx_in_brain_state=brain_state_idx,
+                                action=action_dict,
+                                dom_element_data=action_info["dom_element"] or {},
+                                valid=True,
+                            ),
+                        )
+                        actions.append(action)
+
+                rich_print(
+                    f"✓ Created {len(brain_state_data)} brain states and actions for traversal {traversal_idx + 1}"
+                )
+
+            rich_print(
+                f"✓ Created {len(brain_states)} brain states and {len(actions)} actions total"
+            )
+
+            db.commit()
+            rich_print("✓ Committed Phase 4 entities")
+
+            # Phase 5: Test execution
+            rich_print("Creating test execution data...")
+
+            # Generate IDs for test runs and history elements first
+            rich_print("Generating unique IDs for test runs and history elements...")
+
+            # Calculate total number of history elements
+            total_history_elements = 0
+            for traversal in traversals:
+                # Count brain states for this traversal
+                traversal_brain_states = [
+                    bs for bs in brain_states if bs.test_traversal_id == traversal.id
+                ]
+                # Each brain state has one action
+                total_history_elements += len(traversal_brain_states)
+
+            # Generate IDs
+            test_run_ids = generate_unique_ids(len(traversals))
+            history_element_ids = generate_unique_ids(total_history_elements)
+
+            rich_print(
+                f"✓ Generated {len(test_run_ids)} test run IDs and {len(history_element_ids)} history element IDs"
+            )
+
+            # Copy images for test runs and history elements
+            rich_print("Copying images for test runs and history elements...")
+            test_run_gif_mapping = copy_images_for_test_runs(test_run_ids)
+            history_element_image_mapping = copy_images_for_history_elements(history_element_ids)
+
+            rich_print(
+                f"✓ Copied {len(test_run_gif_mapping)} test run GIFs and {len(history_element_image_mapping)} history element images"
+            )
+
+            # Create Test Run for each traversal with varied data
+            test_runs: List[TestRun] = []
+            varied_run_data = create_varied_run_data()
+            for i, traversal in enumerate(traversals):
+                run_data = varied_run_data[i % len(varied_run_data)]
+                test_run_id = test_run_ids[i]
+                gif_path = test_run_gif_mapping.get(
+                    test_run_id, f"content/run_gifs/{test_run_id}.gif"
+                )
+
+                test_run = TestRunRepo.create(
+                    db,
+                    CreateTestRun(
+                        test_traversal_id=traversal.id,
+                        browser_config_id=traversal.browser_config_id,
+                        run_type=run_data["run_type"],
+                        origin=run_data["origin"],
+                        repair_was_needed=run_data["repair_was_needed"],
+                        current_state=run_data["current_state"],
+                        run_gif=gif_path,
+                    ),
+                )
+
+                # Update the test run with realistic timestamps
+                # Set the started_at time to a realistic past time
+                test_run.started_at = run_data["started_at"]
+
+                # Set finished_at for completed runs
+                if run_data["finished_at"] is not None:
+                    test_run.finished_at = run_data["finished_at"]
+
+                db.add(test_run)
+                test_runs.append(test_run)
+
+                duration_info = ""
+                if run_data["finished_at"]:
+                    duration = (run_data["finished_at"] - run_data["started_at"]).total_seconds()
+                    duration_info = f", {duration:.0f}s"
+
+                rich_print(
+                    f"✓ Created test run: {test_run.id} ({run_data['run_type']}, {run_data['origin']}{duration_info})"
+                )
+
+            db.commit()
+
+            # Create Cost records for each test run with varied data
+            varied_cost_data = create_varied_cost_data()
+            for i, test_run in enumerate(test_runs):
+                cost_data = varied_cost_data[i % len(varied_cost_data)]
+                cost = CostRepo.create(
+                    db,
+                    CreateCost(
+                        test_run_id=test_run.id,
+                        project_id=project.id,
+                        model_type=cost_data["model_type"],
+                        cost_per_token=cost_data["cost_per_token"],
+                        input_token_num=cost_data["input_token_num"],
+                        completion_token_num=cost_data["completion_token_num"],
+                        cost_in_dollars=cost_data["cost_in_dollars"],
+                    ),
+                )
+                rich_print(
+                    f"✓ Created cost record: ${cost.cost_in_dollars:.3f} ({cost_data['model_type']})"
+                )
+
+            db.commit()
+
+            # Create History Elements for actions in test runs with varied states
+            history_count = 0
+            history_element_id_index = 0
+            history_states = [
+                HistoryElementState.PASSED,
+                HistoryElementState.FAILED,
+                HistoryElementState.PASSED,
+                HistoryElementState.PASSED,
+                HistoryElementState.FAILED,
+                HistoryElementState.PASSED,
+            ]
+
+            for test_run_idx, test_run in enumerate(test_runs):
+                # Get actions for this test run's traversal
+                traversal_actions = [
+                    a
+                    for a in actions
+                    if a.brain_state_id
+                    in [
+                        bs.id
+                        for bs in brain_states
+                        if bs.test_traversal_id == test_run.test_traversal_id
+                    ]
+                ]
+
+                # Calculate timing for history elements within the test run duration
+                run_start = test_run.started_at
+                run_end = test_run.finished_at or run_start + timedelta(
+                    minutes=1
+                )  # Default 1 min for pending runs
+                total_duration = (run_end - run_start).total_seconds()
+                action_interval = total_duration / max(len(traversal_actions), 1)
+
+                for i, action in enumerate(traversal_actions):
+                    # Vary the history element state
+                    state = history_states[(test_run_idx + i) % len(history_states)]
+
+                    # Calculate realistic timing for this action
+                    action_start = run_start + timedelta(seconds=i * action_interval)
+                    action_end = action_start + timedelta(
+                        seconds=min(action_interval * 0.8, 30)
+                    )  # Cap at 30 seconds per action
+
+                    # Get the history element ID and corresponding image path
+                    history_element_id = history_element_ids[history_element_id_index]
+                    screenshot_path = history_element_image_mapping.get(
+                        history_element_id,
+                        f"content/run_he_screenshots/{history_element_id}.jpg",
+                    )
+
+                    history_element = HistoryElementRepo.create(
+                        db,
+                        CreateHistoryElement(
+                            test_run_id=test_run.id,
+                            action_id=action.id,
+                            history_element_state=state,
+                            screenshot=screenshot_path,
+                            action_finished_at=datetime.now(),
+                        ),
+                    )
+
+                    # Update with realistic timestamps
+                    history_element.action_started_at = action_start
+                    if test_run.finished_at:  # Only set finish time for completed runs
+                        history_element.action_finished_at = action_end
+
+                    db.add(history_element)
+                    history_count += 1
+                    history_element_id_index += 1
+
+            rich_print(f"✓ Created {history_count} history elements with varied states")
+
+            # Final commit
+            db.commit()
+
+            rich_print("\n🎉 Realistic data upload completed successfully!")
+            rich_print("📊 Summary:")
+            rich_print(f"   • 1 Project: {project.name}")
+            rich_print(f"   • 1 Document: {document.name}")
+            rich_print("   • 4 Test Cases (IMDB, Amazon, Netflix, GitHub)")
+            rich_print("   • 3 Browser Configs (Chromium, Firefox, Webkit)")
+            rich_print("   • 6 Secret Values (API keys, credentials)")
+            rich_print("   • 12 Test Traversals")
+            rich_print(f"   • {len(brain_states)} Brain States")
+            rich_print(f"   • {len(actions)} Actions")
+            rich_print("   • 12 Test Runs")
+            rich_print("   • 12 Cost Records")
+            rich_print(f"   • {history_count} History Elements")
+            rich_print("   • 12 TestCase-BrowserConfig associations")
+            rich_print("   • SecretValue-TestCase associations")
+
+            #! here we will create Bugninja specific testcase, browser_config, secret values and traversals
+
+            bacprep_test_case_id: str = "bacprep_test_case_id"
+            bacprep_browser_config_id: str = "bacprep_browser_config_id"
+
+            bugninja_test_case = TestCaseRepo.create(
+                db,
+                CreateTestCase(
+                    project_id=project.id,
+                    document_id=None,
+                    test_name="Bugninja Platform Test Case",
+                    test_description="Go to app.bacprep.ro/en, login to the platform via email authentication with the \nprovided credentials and edit the name of the user based on the provided information. \nIf successful log out and close the browser.",
+                    test_goal="Verify that the Bugninja platform allows user login and name editing.",
+                    extra_rules=[],
+                    url_route="app.bacprep.ro",
+                    allowed_domains=["app.bacprep.ro"],
+                    priority=TestCasePriority.CRITICAL,
+                    category="platform",
+                ),
+                overwrite_test_case_id=bacprep_test_case_id,
+            )
+
+            rich_print(f"✓ Created Bugninja test case: {bugninja_test_case.test_name}")
+
+            for k, v in {
+                "credential_email": "feligaf715@lewou.com",
+                "credential_password": "9945504JA",
+                "new_username": "Gary Bruce",
+            }.items():
+                sv = SecretValueRepo.create(
+                    db,
+                    CreateSecretValue(
+                        test_case_id=bacprep_test_case_id, secret_name=k, secret_value=v
+                    ),
+                )
+                SecretValueRepo.associate_with_test_case(
+                    db=db, test_case_id=bacprep_test_case_id, secret_value_id=sv.id
+                )
+
+            rich_print("✓ Created secret values for Bugninja test case")
+
+            browser_config = BrowserConfigRepo.create(
+                db,
+                CreateBrowserConfig(
+                    test_case_id=bacprep_test_case_id,
+                    browser_config={
+                        "viewport": {"width": 800, "height": 1200},
+                        "channel": "chromium",
+                        "user_data_dir": "/home/arathus/.config/browseruse/profiles/default/run_yrxzukvt7jfvj1hsqdbtoqa6",
+                        "user_agent": None,
+                        "device_scale_factor": None,
+                        "color_scheme": "light",
+                        "accept_downloads": True,
+                        "proxy": None,
+                        "client_certificates": [],
+                        "extra_http_headers": {},
+                        "http_credentials": None,
+                        "java_script_enabled": True,
+                        "geolocation": None,
+                        "timeout": 30000.0,
+                        "headers": None,
+                        "allowed_domains": ["app.bacprep.ro"],
+                    },
+                ),
+                overwrite_browser_config_id=bacprep_browser_config_id,
+            )
+
+            rich_print(f"✓ Created Bugninja browser config: '{browser_config.id}'")
+
+            test_traversal = TestTraversalRepo.create(
+                db,
+                CreateTestTraversal(
+                    test_case_id=bacprep_test_case_id,
+                    browser_config_id=bacprep_browser_config_id,
+                    traversal_name="Bugninja Platform Test Traversal",
+                ),
+            )
+
+            rich_print(f"✓ Created Bugninja test traversal: '{test_traversal.traversal_name}'")
 
         except Exception as e:
             rich_print(f"❌ Error during realistic data upload: {e}")

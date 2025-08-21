@@ -7,7 +7,7 @@ This module defines the communication schemas for test run operations.
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.crud.browser_config import ResponseBrowserConfig
 
@@ -144,6 +144,9 @@ class ExtendedResponseTestRun(BaseModel):
     browser_config: Optional[ResponseBrowserConfig]
     test_case: Optional[Dict[str, Any]]  # Using Dict to avoid circular import
     brain_states: List[ExtendedResponseBrainState]
+    failed_at_launch: Optional[bool] = Field(
+        default=None, description="Whether the run failed at launch"
+    )
 
     class Config:
         """Pydantic config."""
@@ -187,6 +190,7 @@ class ExtendedResponseTestRun(BaseModel):
             browser_config=ResponseBrowserConfig.sample_factory_build(),
             test_case=None,  # Will be populated with real test case data
             brain_states=brain_states,
+            failed_at_launch=None,  # Default value for sample data
         )
 
 

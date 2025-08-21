@@ -36,6 +36,7 @@ class CreateHistoryElement(CreationModel):
     action_id: str
     history_element_state: HistoryElementState
     screenshot: str
+    action_finished_at: Optional[datetime]
 
     @classmethod
     def sample_factory_build(

@@ -332,55 +332,6 @@ class PaginatedResponseExtendedTestRun(PaginatedResponse[ExtendedResponseTestRun
         )
 
 
-# Test Run Execution Schemas
-class RerunTestRunsRequest(BaseModel):
-    """
-    Request schema for rerunning existing test runs.
-
-    Args:
-        test_run_ids: List of test run IDs to rerun
-    """
-
-    test_run_ids: List[str] = Field(default=[], description="List of test run IDs to rerun")
-
-
-class TestRunExecutionResponse(BaseModel):
-    """
-    Response schema for test run execution endpoints.
-
-    All execution endpoints return this response with details about what was created or skipped.
-
-    Args:
-        message: Human-readable message about the operation
-        created_test_runs: List of newly created test run IDs
-        skipped_traversals: List of traversal IDs that were skipped due to ongoing runs
-        initial_traversals_processed: Initial traversal IDs that were processed
-        replay_traversals_processed: Replay traversal IDs that were processed
-        initial_traversals_skipped: Initial traversal IDs that were skipped
-        replay_traversals_skipped: Replay traversal IDs that were skipped
-    """
-
-    message: str
-    created_test_runs: List[str] = Field(
-        default_factory=list, description="IDs of newly created test runs"
-    )
-    skipped_traversals: List[str] = Field(
-        default_factory=list, description="Traversal IDs skipped due to ongoing runs"
-    )
-    initial_traversals_processed: List[str] = Field(
-        default_factory=list, description="Initial traversal IDs that were processed"
-    )
-    replay_traversals_processed: List[str] = Field(
-        default_factory=list, description="Replay traversal IDs that were processed"
-    )
-    initial_traversals_skipped: List[str] = Field(
-        default_factory=list, description="Initial traversal IDs that were skipped"
-    )
-    replay_traversals_skipped: List[str] = Field(
-        default_factory=list, description="Replay traversal IDs that were skipped"
-    )
-
-
 class PaginatedResponseTestRunsByTestCase(PaginatedResponse[ExtendedResponseTestRun]):
     """
     Paginated response schema for test runs by test case.

@@ -1,14 +1,25 @@
+import asyncio
+from concurrent.futures import ProcessPoolExecutor
 from typing import List, Optional, Tuple
 
+from bugninja import (  # type: ignore
+    BugninjaClient,
+    BugninjaConfig,
+    BugninjaTask,
+    Traversal,
+)
+from bugninja.events.manager import EventPublisherManager  # type: ignore
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
+from rich import print as rich_print
 from sqlmodel import Session
 
 from app.api.v1.endpoints.utils import COMMON_ERROR_RESPONSES, create_success_response
 from app.db.base import get_db
-from app.db.project import Project
 from app.db.test_case import TestCase
-from app.repo.project_repo import ProjectRepo
+from app.db.test_run import RunOrigin, RunType
+from app.interface.bugninja_db_write_publisher import DBWriteEventPublisher
+from app.interface.bugninja_interface import BugninjaInterface
 from app.repo.test_case_repo import TestCaseRepo
 from app.repo.test_run_repo import TestRunRepo
 from app.repo.test_traversal_repo import TestTraversalRepo
@@ -18,13 +29,12 @@ from app.schemas.communication.test_run import (
 )
 from app.schemas.crud.test_run import (
     CreateTestRun,
-    RerunTestRunsRequest,
     ResponseTestRun,
-    TestRunExecutionResponse,
     UpdateTestRun,
 )
 
 test_runs_router = APIRouter(prefix="/test-runs", tags=["Test Runs"])
+pp_executor = ProcessPoolExecutor()
 
 
 # Helper functions for execution endpoints
@@ -37,60 +47,6 @@ def _validate_test_case_exists(test_case_id: str, db_session: Session) -> TestCa
             detail=f"Test case with id {test_case_id} not found",
         )
     return test_case
-
-
-def _validate_project_exists(project_id: str, db_session: Session) -> Project:
-    """Validate that a project exists and return it."""
-    project = ProjectRepo.get_by_id(db=db_session, project_id=project_id)
-    if not project:
-        raise HTTPException(
-            status_code=http_status.HTTP_404_NOT_FOUND,
-            detail=f"Project with id {project_id} not found",
-        )
-    return project
-
-
-def _get_eligible_traversals(
-    traversal_ids: List[str], db_session: Session
-) -> Tuple[List[str], List[str]]:
-    """Get eligible traversal IDs and skipped traversal IDs based on ongoing runs."""
-    if not traversal_ids:
-        return [], []
-
-    ongoing_traversal_ids = TestRunRepo.get_ongoing_test_runs_by_traversal_ids(
-        db=db_session, traversal_ids=traversal_ids
-    )
-
-    eligible_traversal_ids = [
-        traversal_id for traversal_id in traversal_ids if traversal_id not in ongoing_traversal_ids
-    ]
-    skipped_traversal_ids = ongoing_traversal_ids
-
-    return eligible_traversal_ids, skipped_traversal_ids
-
-
-def _process_traversal_execution(
-    traversal_ids: List[str], context_message: str, db_session: Session
-) -> TestRunExecutionResponse:
-    """Process traversal execution and return standardized response."""
-    eligible_traversal_ids, skipped_traversal_ids = _get_eligible_traversals(
-        traversal_ids, db_session
-    )
-
-    # TODO: Implement actual test run creation
-    # created_test_runs = TestRunRepo.create_test_runs_for_traversals(
-    #     db=db_session, traversal_ids=eligible_traversal_ids
-    # )
-    # created_test_run_ids = [test_run.id for test_run in created_test_runs]
-
-    # Placeholder implementation
-    created_test_run_ids = [f"placeholder_{i}" for i in range(len(eligible_traversal_ids))]
-
-    return TestRunExecutionResponse(
-        message=f"{context_message} - Successfully queued {len(created_test_run_ids)} test runs",
-        created_test_runs=created_test_run_ids,
-        skipped_traversals=skipped_traversal_ids,
-    )
 
 
 def _categorize_traversals(
@@ -107,55 +63,31 @@ def _categorize_traversals(
     return categories["initial"], categories["replay"]
 
 
-def _process_initial_traversals(initial_ids: List[str], db_session: Session) -> List[str]:
-    """Placeholder for initial traversal processing."""
-    # TODO: Implement different strategy for initial traversals
-    # For now, use the same placeholder logic
-    return [f"initial_placeholder_{i}" for i in range(len(initial_ids))]
+def _run_specific_task(run_id: str, traversal_to_do: Traversal) -> None:
+    # TODO! important  distinction: here we are only using the viewport sizes from the browserconfig
+    #! there has to be a way in the future to map each and every single browserconfig aspect to the client
+    #! but for testing purposes we will stick to this solution for now
 
+    rich_print(traversal_to_do)
 
-def _process_replay_traversals(replay_ids: List[str], db_session: Session) -> List[str]:
-    """Placeholder for replay traversal processing."""
-    # TODO: Implement different strategy for replay traversals
-    # For now, use the same placeholder logic
-    return [f"replay_placeholder_{i}" for i in range(len(replay_ids))]
-
-
-def _categorize_and_process_traversals(
-    traversal_ids: List[str], context_message: str, db_session: Session
-) -> TestRunExecutionResponse:
-    """Categorize traversals and process them with different strategies."""
-    if not traversal_ids:
-        return TestRunExecutionResponse(
-            message=f"{context_message} - No traversals to process",
-            created_test_runs=[],
-            skipped_traversals=[],
-        )
-
-    # Categorize traversals
-    initial_traversal_ids, replay_traversal_ids = _categorize_traversals(traversal_ids, db_session)
-
-    # Check for ongoing runs for each category
-    initial_eligible, initial_skipped = _get_eligible_traversals(initial_traversal_ids, db_session)
-    replay_eligible, replay_skipped = _get_eligible_traversals(replay_traversal_ids, db_session)
-
-    # Process each category with different strategies
-    initial_created = _process_initial_traversals(initial_eligible, db_session)
-    replay_created = _process_replay_traversals(replay_eligible, db_session)
-
-    # Combine results
-    all_created = initial_created + replay_created
-    all_skipped = initial_skipped + replay_skipped
-
-    return TestRunExecutionResponse(
-        message=f"{context_message} - Successfully queued {len(all_created)} test runs",
-        created_test_runs=all_created,
-        skipped_traversals=all_skipped,
-        initial_traversals_processed=initial_eligible,
-        replay_traversals_processed=replay_eligible,
-        initial_traversals_skipped=initial_skipped,
-        replay_traversals_skipped=replay_skipped,
+    client = BugninjaClient(
+        config=BugninjaConfig(
+            headless=True,
+            viewport_height=traversal_to_do.browser_config.viewport.get("height", 800),
+            viewport_width=traversal_to_do.browser_config.viewport.get("width", 1280),
+        ),
+        event_manager=EventPublisherManager([DBWriteEventPublisher()]),
     )
+
+    task = BugninjaTask(
+        run_id=run_id,
+        description=traversal_to_do.test_case,
+        max_steps=150,
+        allowed_domains=traversal_to_do.browser_config.allowed_domains,
+        secrets=traversal_to_do.secrets,
+    )
+
+    asyncio.run(client.run_task(task))
 
 
 @test_runs_router.post(
@@ -477,112 +409,12 @@ async def delete_test_run(
 
 
 @test_runs_router.post(
-    "/rerun",
-    response_model=TestRunExecutionResponse,
-    summary="Rerun Existing Test Runs",
-    description="Create new test runs for the test traversals of existing test runs",
-    responses={
-        200: create_success_response("Test runs queued for rerun", TestRunExecutionResponse),
-        **COMMON_ERROR_RESPONSES,
-    },
-)
-async def rerun_test_runs(
-    request: RerunTestRunsRequest,
-    db_session: Session = Depends(get_db),
-) -> TestRunExecutionResponse:
-    """
-    Rerun existing test runs by creating new test runs for their test traversals.
-
-    This endpoint takes a list of test run IDs, extracts their test traversal IDs,
-    and creates new test runs for those traversals (if they don't have ongoing runs).
-    """
-    try:
-        # Get test traversal IDs from the provided test run IDs
-        traversal_ids = TestRunRepo.get_test_traversal_ids_from_test_runs(
-            db=db_session, test_run_ids=request.test_run_ids
-        )
-
-        if not traversal_ids:
-            raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail="No valid test traversals found for the provided test run IDs",
-            )
-
-        return _categorize_and_process_traversals(
-            traversal_ids=traversal_ids,
-            context_message="Rerun operation",
-            db_session=db_session,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to rerun test runs: {str(e)}",
-        )
-
-
-@test_runs_router.post(
-    "/execute-test-case/{test_case_id}",
-    response_model=TestRunExecutionResponse,
-    summary="Execute All Test Runs for Test Case",
-    description="Create new test runs for all test traversals of a specific test case",
-    responses={
-        200: create_success_response("Test runs queued for execution", TestRunExecutionResponse),
-        **COMMON_ERROR_RESPONSES,
-    },
-)
-async def execute_test_case(
-    test_case_id: str,
-    db_session: Session = Depends(get_db),
-) -> TestRunExecutionResponse:
-    """
-    Execute all test runs for a specific test case by creating new test runs
-    for all its test traversals.
-
-    This endpoint gets all test traversals for the given test case and creates
-    new test runs for those traversals (if they don't have ongoing runs).
-    """
-    try:
-        # Validate that the test case exists
-        _validate_test_case_exists(test_case_id, db_session)
-
-        # Get all test traversals for this test case
-        test_traversals = TestTraversalRepo.get_by_test_case_id(
-            db=db_session, test_case_id=test_case_id
-        )
-
-        if not test_traversals:
-            raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail=f"No test traversals found for test case {test_case_id}",
-            )
-
-        traversal_ids = [traversal.id for traversal in test_traversals]
-
-        return _categorize_and_process_traversals(
-            traversal_ids=traversal_ids,
-            context_message=f"Test case execution for {test_case_id}",
-            db_session=db_session,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to execute test case: {str(e)}",
-        )
-
-
-@test_runs_router.post(
-    "/execute-configuration/{test_case_id}/{browser_config_id}",
-    response_model=TestRunExecutionResponse,
+    "/execute-configuration/{test_case_id:str}/{browser_config_id:str}",
+    response_model=ExtendedResponseTestRun,
     summary="Execute Test Run for Specific Configuration",
     description="Create new test run for a specific test case and browser configuration combination",
     responses={
-        200: create_success_response("Test run queued for execution", TestRunExecutionResponse),
+        200: create_success_response("Test run queued for execution", ExtendedResponseTestRun),
         **COMMON_ERROR_RESPONSES,
     },
 )
@@ -590,90 +422,301 @@ async def execute_configuration(
     test_case_id: str,
     browser_config_id: str,
     db_session: Session = Depends(get_db),
-) -> TestRunExecutionResponse:
+) -> ExtendedResponseTestRun:
     """
     Execute test run for a specific test case and browser configuration combination.
 
     This endpoint finds the test traversal for the given test case and browser config,
     then creates a new test run for that traversal (if it doesn't have ongoing runs).
     """
-    try:
-        # Validate that the test case exists
-        _validate_test_case_exists(test_case_id, db_session)
+    # Validate that the test case exists
+    _validate_test_case_exists(test_case_id, db_session)
 
-        # Get the specific test traversal
-        test_traversal = TestTraversalRepo.get_by_test_case_and_browser_config(
-            db=db_session, test_case_id=test_case_id, browser_config_id=browser_config_id
+    # Get the specific test traversal
+    test_traversal = TestTraversalRepo.get_by_test_case_and_browser_config(
+        db=db_session, test_case_id=test_case_id, browser_config_id=browser_config_id
+    )
+
+    if not test_traversal:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail=f"No test traversal found for test case with id '{test_case_id}' and browser config  with id '{browser_config_id}'",
         )
 
-        if not test_traversal:
-            raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail=f"No test traversal found for test case {test_case_id} and browser config {browser_config_id}",
-            )
+    initial_traversal_ids, _ = _categorize_traversals([test_traversal.id], db_session)
 
-        return _categorize_and_process_traversals(
-            traversal_ids=[test_traversal.id],
-            context_message=f"Configuration execution for test case {test_case_id} and browser config {browser_config_id}",
-            db_session=db_session,
+    if not initial_traversal_ids:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail=f"The test traversal id '{test_traversal.id}' that you have provided is not an initial run!",
         )
 
-    except HTTPException:
-        raise
-    except Exception as e:
+    traversal_id_to_use: str = initial_traversal_ids[0]
+
+    ongoing_test_runs_ids = TestRunRepo.get_ongoing_test_run_ids_by_traversal_ids(
+        db=db_session, traversal_ids=[traversal_id_to_use]
+    )
+
+    if traversal_id_to_use in ongoing_test_runs_ids:
+        raise HTTPException(
+            status_code=http_status.HTTP_409_CONFLICT,
+            detail=f"Test traversal (not run) with id '{traversal_id_to_use}' already has an ongoing test run, therefore a new cannot be started!",
+        )
+
+    traversal_to_do: Optional[Traversal] = BugninjaInterface.get_traversal_data(
+        db=db_session, traversal_id=traversal_id_to_use
+    )
+
+    if not traversal_to_do:
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail=f"There has been an error while fetching the traversal data for id '{traversal_id_to_use}'",
+        )
+
+    # ? here we should create the test run with the specified traversal and browser config
+    created_test_runs = TestRunRepo.create_test_runs_for_traversals(
+        db=db_session,
+        traversal_ids=[traversal_id_to_use],
+    )
+
+    if not created_test_runs:
         raise HTTPException(
             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to execute configuration: {str(e)}",
+            detail=f"Failed to create test run for traversal id '{traversal_id_to_use}'",
         )
 
+    created_test_run_id: str = created_test_runs[0].id
 
-@test_runs_router.post(
-    "/execute-project/{project_id}",
-    response_model=TestRunExecutionResponse,
-    summary="Execute All Test Runs in Project",
-    description="Create new test runs for all test traversals in a project",
-    responses={
-        200: create_success_response("Test runs queued for execution", TestRunExecutionResponse),
-        **COMMON_ERROR_RESPONSES,
-    },
-)
-async def execute_project(
-    project_id: str,
-    db_session: Session = Depends(get_db),
-) -> TestRunExecutionResponse:
-    """
-    Execute all test runs in a project by creating new test runs for all test traversals.
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(
+        pp_executor,
+        _run_specific_task,
+        created_test_run_id,
+        traversal_to_do,
+    )
 
-    This endpoint gets all test traversals for all test cases in the project and creates
-    new test runs for those traversals (if they don't have ongoing runs).
-    """
-    try:
-        # Validate that the project exists
-        _validate_project_exists(project_id, db_session)
+    return_val: Optional[ExtendedResponseTestRun] = TestRunRepo.get_extended_by_id(
+        db=db_session, test_run_id=created_test_run_id
+    )
 
-        # Get all test traversals for this project
-        test_traversals = TestTraversalRepo.get_all_by_project_id(
-            db=db_session, project_id=project_id
-        )
-
-        if not test_traversals:
-            raise HTTPException(
-                status_code=http_status.HTTP_404_NOT_FOUND,
-                detail=f"No test traversals found for project {project_id}",
-            )
-
-        traversal_ids = [traversal.id for traversal in test_traversals]
-
-        return _categorize_and_process_traversals(
-            traversal_ids=traversal_ids,
-            context_message=f"Project execution for {project_id}",
-            db_session=db_session,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
+    if not return_val:
         raise HTTPException(
-            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to execute project: {str(e)}",
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail=f"Test run with id '{created_test_runs[0].id}' not found after creation",
         )
+
+    return_val.failed_at_launch = False
+
+    # Return single test run (should be only one for configuration execution)
+    return return_val
+
+
+# TODO! needs further testing and validation
+# @test_runs_router.post(
+#     "/rerun",
+#     response_model=PaginatedResponseExtendedTestRun,
+#     summary="Rerun Existing Test Runs",
+#     description="Create new test runs for the test traversals of existing test runs",
+#     responses={
+#         200: create_success_response(
+#             "Test runs queued for rerun", PaginatedResponseExtendedTestRun
+#         ),
+#         **COMMON_ERROR_RESPONSES,
+#     },
+# )
+# async def rerun_test_runs(
+#     test_run_ids: List[str],
+#     db_session: Session = Depends(get_db),
+# ) -> PaginatedResponseExtendedTestRun:
+#     """
+#     Rerun existing test runs by creating new test runs for their test traversals.
+
+#     This endpoint takes a list of test run IDs, extracts their test traversal IDs,
+#     and creates new test runs for those traversals (if they don't have ongoing runs).
+#     """
+#     try:
+#         # Get test traversal IDs from the provided test run IDs
+#         traversal_ids = TestRunRepo.get_test_traversal_ids_from_test_runs(
+#             db=db_session, test_run_ids=test_run_ids
+#         )
+
+#         if not traversal_ids:
+#             raise HTTPException(
+#                 status_code=http_status.HTTP_404_NOT_FOUND,
+#                 detail="No valid test traversals found for the provided test run IDs",
+#             )
+
+#         extended_test_runs = _categorize_and_process_traversals(
+#             traversal_ids=traversal_ids,
+#             context_message="Rerun operation",
+#             db_session=db_session,
+#         )
+
+#         if not extended_test_runs:
+#             raise HTTPException(
+#                 status_code=http_status.HTTP_404_NOT_FOUND,
+#                 detail="No test runs could be created or found for the provided test run IDs",
+#             )
+
+#         # Return paginated response with all results in single page
+#         total_count = len(extended_test_runs)
+#         return PaginatedResponseExtendedTestRun(
+#             items=extended_test_runs,
+#             total_count=total_count,
+#             page=1,
+#             page_size=total_count,
+#             total_pages=1,
+#             has_next=False,
+#             has_previous=False,
+#         )
+
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Failed to rerun test runs: {str(e)}",
+# )
+
+
+# TODO! needs further testing and validation
+# @test_runs_router.post(
+#     "/execute-test-case/{test_case_id}",
+#     response_model=PaginatedResponseExtendedTestRun,
+#     summary="Execute All Test Runs for Test Case",
+#     description="Create new test runs for all test traversals of a specific test case",
+#     responses={
+#         200: create_success_response("Test runs queued for execution", PaginatedResponseExtendedTestRun),
+#         **COMMON_ERROR_RESPONSES,
+#     },
+# )
+# async def execute_test_case(
+#     test_case_id: str,
+#     db_session: Session = Depends(get_db),
+# ) -> PaginatedResponseExtendedTestRun:
+#     """
+#     Execute all test runs for a specific test case by creating new test runs
+#     for all its test traversals.
+
+#     This endpoint gets all test traversals for the given test case and creates
+#     new test runs for those traversals (if they don't have ongoing runs).
+#     """
+#     try:
+#         # Validate that the test case exists
+#         _validate_test_case_exists(test_case_id, db_session)
+
+#         # Get all test traversals for this test case
+#         test_traversals = TestTraversalRepo.get_by_test_case_id(
+#             db=db_session, test_case_id=test_case_id
+#         )
+
+#         if not test_traversals:
+#             raise HTTPException(
+#                 status_code=http_status.HTTP_404_NOT_FOUND,
+#                 detail=f"No test traversals found for test case {test_case_id}",
+#             )
+
+#         traversal_ids = [traversal.id for traversal in test_traversals]
+
+#         extended_test_runs = _categorize_and_process_traversals(
+#             traversal_ids=traversal_ids,
+#             context_message=f"Test case execution for {test_case_id}",
+#             db_session=db_session,
+#         )
+
+#         if not extended_test_runs:
+#             raise HTTPException(
+#                 status_code=http_status.HTTP_404_NOT_FOUND,
+#                 detail=f"No test runs could be created or found for test case {test_case_id}",
+#             )
+
+#         # Return paginated response with all results in single page
+#         total_count = len(extended_test_runs)
+#         return PaginatedResponseExtendedTestRun(
+#             items=extended_test_runs,
+#             total_count=total_count,
+#             page=1,
+#             page_size=total_count,
+#             total_pages=1,
+#             has_next=False,
+#             has_previous=False,
+#         )
+
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Failed to execute test case: {str(e)}",
+#         )
+
+
+# TODO! needs further testing and validation
+# @test_runs_router.post(
+#     "/execute-project/{project_id}",
+#     response_model=PaginatedResponseExtendedTestRun,
+#     summary="Execute All Test Runs in Project",
+#     description="Create new test runs for all test traversals in a project",
+#     responses={
+#         200: create_success_response("Test runs queued for execution", PaginatedResponseExtendedTestRun),
+#         **COMMON_ERROR_RESPONSES,
+#     },
+# )
+# async def execute_project(
+#     project_id: str,
+#     db_session: Session = Depends(get_db),
+# ) -> PaginatedResponseExtendedTestRun:
+#     """
+#     Execute all test runs in a project by creating new test runs for all test traversals.
+
+#     This endpoint gets all test traversals for all test cases in the project and creates
+#     new test runs for those traversals (if they don't have ongoing runs).
+#     """
+#     try:
+#         # Validate that the project exists
+#         _validate_project_exists(project_id, db_session)
+
+#         # Get all test traversals for this project
+#         test_traversals = TestTraversalRepo.get_all_by_project_id(
+#             db=db_session, project_id=project_id
+#         )
+
+#         if not test_traversals:
+#             raise HTTPException(
+#                 status_code=http_status.HTTP_404_NOT_FOUND,
+#                 detail=f"No test traversals found for project {project_id}",
+#             )
+
+#         traversal_ids = [traversal.id for traversal in test_traversals]
+
+#         extended_test_runs = _categorize_and_process_traversals(
+#             traversal_ids=traversal_ids,
+#             context_message=f"Project execution for {project_id}",
+#             db_session=db_session,
+#         )
+
+#         if not extended_test_runs:
+#             raise HTTPException(
+#                 status_code=http_status.HTTP_404_NOT_FOUND,
+#                 detail=f"No test runs could be created or found for project {project_id}",
+#             )
+
+#         # Return paginated response with all results in single page
+#         total_count = len(extended_test_runs)
+#         return PaginatedResponseExtendedTestRun(
+#             items=extended_test_runs,
+#             total_count=total_count,
+#             page=1,
+#             page_size=total_count,
+#             total_pages=1,
+#             has_next=False,
+#             has_previous=False,
+#         )
+
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Failed to execute project: {str(e)}",
+#         )
