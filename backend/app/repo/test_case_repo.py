@@ -176,10 +176,10 @@ class TestCaseRepo:
         if search:
             # Search in test case name and description
             search_term = f"%{search}%"
-            search_filter = TestCase.test_name.ilike(search_term) | TestCase.test_description.ilike(
-                search_term
-            )
-            filters.append(search_filter)
+            search_filter = col(TestCase.test_name).ilike(search_term) | col(
+                TestCase.test_description
+            ).ilike(search_term)
+            filters.append(search_filter)  # type: ignore
 
         # Apply all filters
         if filters:
@@ -457,10 +457,10 @@ class TestCaseRepo:
         if search:
             # Search in test case name and description
             search_term = f"%{search}%"
-            search_filter = TestCase.test_name.ilike(search_term) | TestCase.test_description.ilike(
-                search_term
-            )
-            filters.append(search_filter)
+            search_filter = col(TestCase.test_name).ilike(search_term) | col(
+                TestCase.test_description
+            ).ilike(search_term)
+            filters.append(search_filter)  # type: ignore
 
         # Apply all filters
         if filters:

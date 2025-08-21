@@ -10,7 +10,7 @@ from typing import Optional, Sequence
 from cuid2 import Cuid as CUID
 from sqlmodel import Session, delete, select
 
-from app.db.history_element import HistoryElement
+from app.db.history_element import HistoryElement, HistoryElementState
 from app.schemas.crud.history_element import (
     CreateHistoryElement,
     UpdateHistoryElement,
@@ -139,3 +139,54 @@ class HistoryElementRepo:
         db.delete(history_element)
         db.commit()
         return True
+
+    @staticmethod
+    def count_passed_by_test_run(db: Session, test_run_id: str) -> int:
+        """
+        Get the total number of passed history elements for a test run.
+
+        Args:
+            db: Database session
+            test_run_id: Test run identifier
+
+        Returns:
+            int: Total number of passed history elements for the test run
+        """
+        statement = select(HistoryElement).where(
+            HistoryElement.test_run_id == test_run_id,
+            HistoryElement.history_element_state == HistoryElementState.PASSED,
+        )
+        return len(db.exec(statement).all())
+
+    @staticmethod
+    def count_failed_by_test_run(db: Session, test_run_id: str) -> int:
+        """
+        Get the total number of failed history elements for a test run.
+
+        Args:
+            db: Database session
+            test_run_id: Test run identifier
+
+        Returns:
+            int: Total number of failed history elements for the test run
+        """
+        statement = select(HistoryElement).where(
+            HistoryElement.test_run_id == test_run_id,
+            HistoryElement.history_element_state == HistoryElementState.FAILED,
+        )
+        return len(db.exec(statement).all())
+
+    @staticmethod
+    def count_by_test_run(db: Session, test_run_id: str) -> int:
+        """
+        Get the total number of history elements for a test run.
+
+        Args:
+            db: Database session
+            test_run_id: Test run identifier
+
+        Returns:
+            int: Total number of history elements for the test run
+        """
+        statement = select(HistoryElement).where(HistoryElement.test_run_id == test_run_id)
+        return len(db.exec(statement).all())

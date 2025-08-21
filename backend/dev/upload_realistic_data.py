@@ -1524,14 +1524,14 @@ def upload_realistic_data() -> None:
             bacprep_test_case_id: str = "bacprep_test_case_id"
             bacprep_browser_config_id: str = "bacprep_browser_config_id"
 
-            bugninja_test_case = TestCaseRepo.create(
+            bacprep_test_Case = TestCaseRepo.create(
                 db,
                 CreateTestCase(
                     project_id=project.id,
                     document_id=None,
-                    test_name="Bugninja Platform Test Case",
+                    test_name="Bacprep Platform Test Case",
                     test_description="Go to app.bacprep.ro/en, login to the platform via email authentication with the \nprovided credentials and edit the name of the user based on the provided information. \nIf successful log out and close the browser.",
-                    test_goal="Verify that the Bugninja platform allows user login and name editing.",
+                    test_goal="Verify that the Bacprep platform allows user login and name editing.",
                     extra_rules=[],
                     url_route="app.bacprep.ro",
                     allowed_domains=["app.bacprep.ro"],
@@ -1541,7 +1541,7 @@ def upload_realistic_data() -> None:
                 overwrite_test_case_id=bacprep_test_case_id,
             )
 
-            rich_print(f"✓ Created Bugninja test case: {bugninja_test_case.test_name}")
+            rich_print(f"✓ Created Bacprep test case: {bacprep_test_Case.test_name}")
 
             for k, v in {
                 "credential_email": "feligaf715@lewou.com",
@@ -1558,7 +1558,7 @@ def upload_realistic_data() -> None:
                     db=db, test_case_id=bacprep_test_case_id, secret_value_id=sv.id
                 )
 
-            rich_print("✓ Created secret values for Bugninja test case")
+            rich_print("✓ Created secret values for Bacprep test case")
 
             browser_config = BrowserConfigRepo.create(
                 db,
@@ -1586,18 +1586,25 @@ def upload_realistic_data() -> None:
                 overwrite_browser_config_id=bacprep_browser_config_id,
             )
 
-            rich_print(f"✓ Created Bugninja browser config: '{browser_config.id}'")
+            db.add(
+                TestCaseBrowserConfig(
+                    test_case_id=bacprep_test_case_id, browser_config_id=bacprep_browser_config_id
+                )
+            )
+            db.commit()
+
+            rich_print(f"✓ Created Bacprep browser config: '{browser_config.id}'")
 
             test_traversal = TestTraversalRepo.create(
                 db,
                 CreateTestTraversal(
                     test_case_id=bacprep_test_case_id,
                     browser_config_id=bacprep_browser_config_id,
-                    traversal_name="Bugninja Platform Test Traversal",
+                    traversal_name="Bacprep Platform Test Traversal",
                 ),
             )
 
-            rich_print(f"✓ Created Bugninja test traversal: '{test_traversal.traversal_name}'")
+            rich_print(f"✓ Created Bacprep test traversal: '{test_traversal.traversal_name}'")
 
         except Exception as e:
             rich_print(f"❌ Error during realistic data upload: {e}")
