@@ -505,8 +505,6 @@ async def execute_configuration(
             detail=f"Test run with id '{created_test_runs[0].id}' not found after creation",
         )
 
-    return_val.failed_at_launch = False
-
     # Return single test run (should be only one for configuration execution)
     return return_val
 
