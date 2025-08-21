@@ -288,6 +288,7 @@ class PaginatedResponseExtendedTestRun(PaginatedResponse[ExtendedResponseTestRun
         page: int = 1,
         page_size: int = 10,
         test_traversal_id: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> "PaginatedResponseExtendedTestRun":
         """
         Generate a sample PaginatedResponseExtendedTestRun instance for testing and documentation.
@@ -297,6 +298,7 @@ class PaginatedResponseExtendedTestRun(PaginatedResponse[ExtendedResponseTestRun
             page: Page number (1-based, default: 1)
             page_size: Number of records per page (default: 10)
             test_traversal_id: Optional test traversal ID for filtering (default: None)
+            project_id: Optional project ID for filtering (default: None)
 
         Returns:
             PaginatedResponseExtendedTestRun: A sample paginated response with fake extended test run data
@@ -310,9 +312,7 @@ class PaginatedResponseExtendedTestRun(PaginatedResponse[ExtendedResponseTestRun
         extended_test_run_items = [
             ExtendedResponseTestRun.sample_factory_build(
                 test_traversal_id=test_traversal_id or CUID().generate(),
-                project_id=CUID().generate(),
-                include_brain_states=True,
-                brain_state_count=3,
+                project_id=project_id or CUID().generate(),
             )
             for _ in range(items_in_page)
         ]

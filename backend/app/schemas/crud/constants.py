@@ -51,23 +51,6 @@ DOM_ELEMENT_TYPES = {
     "form": ["submit", "button", "text", "email"],
 }
 
-# Browser configuration field names
-BROWSER_CONFIG_FIELDS = [
-    "user_agent",
-    "viewport",
-    "device_scale_factor",
-    "color_scheme",
-    "accept_downloads",
-    "proxy",
-    "client_certificates",
-    "extra_http_headers",
-    "http_credentials",
-    "java_script_enabled",
-    "geolocation",
-    "timeout",
-    "headers",
-    "allowed_domains",
-]
 
 # Browser configuration templates
 BROWSER_CONFIG_TEMPLATES = {

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from cuid2 import Cuid as CUID
-from sqlmodel import Session, col, select
+from sqlmodel import Session, delete, select
 
 from app.db.browser_config import BrowserConfig
 from app.db.test_traversal import TestTraversal
@@ -29,7 +29,11 @@ class BrowserConfigRepo:
     """
 
     @staticmethod
-    def create(db: Session, browser_config_data: CreateBrowserConfig) -> BrowserConfig:
+    def create(
+        db: Session,
+        browser_config_data: CreateBrowserConfig,
+        overwrite_browser_config_id: Optional[str] = None,
+    ) -> BrowserConfig:
         """
         Create a new browser configuration in the database and create a test traversal for it.
 
@@ -49,7 +53,11 @@ class BrowserConfigRepo:
             raise ValueError(f"Test case with id {browser_config_data.test_case_id} not found")
 
         browser_config = BrowserConfig(
-            id=CUID().generate(),
+            id=(
+                CUID().generate()
+                if not overwrite_browser_config_id
+                else overwrite_browser_config_id
+            ),
             project_id=test_case.project_id,
             browser_config=browser_config_data.browser_config,
             created_at=datetime.now(timezone.utc),
@@ -80,20 +88,10 @@ class BrowserConfigRepo:
         return db.exec(statement).first()
 
     @staticmethod
-    def get_all(db: Session, skip: int = 0, limit: int = 100) -> Sequence[BrowserConfig]:
-        """
-        Retrieve all browser configurations with pagination.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[BrowserConfig]: List of browser configurations
-        """
-        statement = select(BrowserConfig).offset(skip).limit(limit)
-        return db.exec(statement).all()
+    def delete_all(db: Session) -> bool:
+        db.exec(delete(BrowserConfig))  # type: ignore
+        db.commit()
+        return True
 
     @staticmethod
     def get_by_project_id(
@@ -167,156 +165,6 @@ class BrowserConfigRepo:
         db.delete(browser_config)
         db.commit()
         return True
-
-    @staticmethod
-    def search_by_config_key(
-        db: Session, key: str, value: Any, skip: int = 0, limit: int = 100
-    ) -> Sequence[BrowserConfig]:
-        """
-        Search browser configurations by a specific config key and value.
-
-        Args:
-            db: Database session
-            key: Configuration key to search for
-            value: Value to match
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[BrowserConfig]: List of matching browser configurations
-        """
-        # Note: This is a simplified search. For more complex JSON queries,
-        # you might need to use database-specific JSON operators
-        statement = (
-            select(BrowserConfig)
-            .where(col(BrowserConfig.browser_config).contains({key: value}))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_by_browser_type(
-        db: Session, browser_type: str, skip: int = 0, limit: int = 100
-    ) -> Sequence[BrowserConfig]:
-        """
-        Retrieve browser configurations by browser type.
-
-        Args:
-            db: Database session
-            browser_type: Browser type (e.g., 'chrome', 'firefox', 'safari')
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[BrowserConfig]: List of browser configurations for the specified browser type
-        """
-        statement = (
-            select(BrowserConfig)
-            .where(col(BrowserConfig.browser_config).contains({"browser": browser_type}))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_headless_configs(
-        db: Session, skip: int = 0, limit: int = 100
-    ) -> Sequence[BrowserConfig]:
-        """
-        Retrieve browser configurations that are configured for headless mode.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[BrowserConfig]: List of headless browser configurations
-        """
-        statement = (
-            select(BrowserConfig)
-            .where(col(BrowserConfig.browser_config).contains({"headless": True}))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def count_by_project(db: Session, project_id: str) -> int:
-        """
-        Get the total number of browser configurations for a project.
-
-        Args:
-            db: Database session
-            project_id: Project identifier
-
-        Returns:
-            int: Total number of browser configurations for the project
-        """
-        statement = select(BrowserConfig).where(BrowserConfig.project_id == project_id)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def count(db: Session) -> int:
-        """
-        Get the total number of browser configurations.
-
-        Args:
-            db: Database session
-
-        Returns:
-            int: Total number of browser configurations
-        """
-        statement = select(BrowserConfig)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def delete_by_project(db: Session, project_id: str) -> int:
-        """
-        Delete all browser configurations for a specific project.
-
-        Args:
-            db: Database session
-            project_id: Project identifier
-
-        Returns:
-            int: Number of browser configurations deleted
-        """
-        statement = select(BrowserConfig).where(BrowserConfig.project_id == project_id)
-        browser_configs = db.exec(statement).all()
-        count = len(browser_configs)
-
-        for browser_config in browser_configs:
-            db.delete(browser_config)
-
-        db.commit()
-        return count
-
-    @staticmethod
-    def get_default_configs(
-        db: Session, skip: int = 0, limit: int = 100
-    ) -> Sequence[BrowserConfig]:
-        """
-        Retrieve browser configurations with common default settings.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[BrowserConfig]: List of default browser configurations
-        """
-        # This is a simplified approach. You might want to define specific criteria
-        # for what constitutes a "default" configuration
-        statement = (
-            select(BrowserConfig)
-            .where(col(BrowserConfig.browser_config).contains({"headless": True}))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
 
     @staticmethod
     def _create_test_traversal_for_browser_config(

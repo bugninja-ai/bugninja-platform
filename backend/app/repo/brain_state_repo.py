@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Optional, Sequence
 
 from cuid2 import Cuid as CUID
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, delete, select
 
 from app.db.brain_state import BrainState
 from app.schemas.crud.brain_state import CreateBrainState, UpdateBrainState
@@ -66,20 +66,10 @@ class BrainStateRepo:
         return db.exec(statement).first()
 
     @staticmethod
-    def get_all(db: Session, skip: int = 0, limit: int = 100) -> Sequence[BrainState]:
-        """
-        Retrieve all brain states with pagination.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[BrainState]: List of brain states
-        """
-        statement = select(BrainState).offset(skip).limit(limit)
-        return db.exec(statement).all()
+    def delete_all(db: Session) -> bool:
+        db.exec(delete(BrainState))  # type: ignore
+        db.commit()
+        return True
 
     @staticmethod
     def get_by_test_traversal_id(
@@ -107,40 +97,9 @@ class BrainStateRepo:
         return db.exec(statement).all()
 
     @staticmethod
-    def get_valid_brain_states(
-        db: Session, skip: int = 0, limit: int = 100
-    ) -> Sequence[BrainState]:
-        """
-        Retrieve all valid brain states.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[BrainState]: List of valid brain states
-        """
-        statement = select(BrainState).where(BrainState.valid).offset(skip).limit(limit)
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_invalid_brain_states(
-        db: Session, skip: int = 0, limit: int = 100
-    ) -> Sequence[BrainState]:
-        """
-        Retrieve all invalid brain states.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[BrainState]: List of invalid brain states
-        """
-        statement = select(BrainState).where(not BrainState.valid).offset(skip).limit(limit)
-        return db.exec(statement).all()
+    def get_number_of_brainstates_for_test_traversal(db: Session, test_traversal_id: str) -> int:
+        statement = select(BrainState.id).where(BrainState.test_traversal_id == test_traversal_id)
+        return len(db.exec(statement).all())
 
     @staticmethod
     def update(
@@ -190,175 +149,3 @@ class BrainStateRepo:
         db.delete(brain_state)
         db.commit()
         return True
-
-    @staticmethod
-    def get_by_index_in_run(db: Session, test_traversal_id: str, idx: int) -> Optional[BrainState]:
-        """
-        Retrieve a brain state by its index within a test run.
-
-        Args:
-            db: Database session
-            test_traversal_id: Test traversal identifier
-            idx: Index within the test run
-
-        Returns:
-            Optional[BrainState]: The brain state if found, None otherwise
-        """
-        statement = select(BrainState).where(
-            BrainState.test_traversal_id == test_traversal_id, BrainState.idx_in_run == idx
-        )
-        return db.exec(statement).first()
-
-    @staticmethod
-    def search_by_goal(
-        db: Session, goal_pattern: str, skip: int = 0, limit: int = 100
-    ) -> Sequence[BrainState]:
-        """
-        Search brain states by goal pattern.
-
-        Args:
-            db: Database session
-            goal_pattern: Goal pattern to search for (case-insensitive)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[BrainState]: List of matching brain states
-        """
-        statement = (
-            select(BrainState)
-            .where(col(BrainState.next_goal).ilike(f"%{goal_pattern}%"))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def search_by_memory(
-        db: Session, memory_pattern: str, skip: int = 0, limit: int = 100
-    ) -> Sequence[BrainState]:
-        """
-        Search brain states by memory pattern.
-
-        Args:
-            db: Database session
-            memory_pattern: Memory pattern to search for (case-insensitive)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[BrainState]: List of matching brain states
-        """
-        statement = (
-            select(BrainState)
-            .where(col(BrainState.memory).ilike(f"%{memory_pattern}%"))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def count_by_test_traversal(db: Session, test_traversal_id: str) -> int:
-        """
-        Get the total number of brain states for a test traversal.
-
-        Args:
-            db: Database session
-            test_traversal_id: Test traversal identifier
-
-        Returns:
-            int: Total number of brain states for the test traversal
-        """
-        statement = select(BrainState).where(BrainState.test_traversal_id == test_traversal_id)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def count_valid_by_test_traversal(db: Session, test_traversal_id: str) -> int:
-        """
-        Get the total number of valid brain states for a test traversal.
-
-        Args:
-            db: Database session
-            test_traversal_id: Test traversal identifier
-
-        Returns:
-            int: Total number of valid brain states for the test traversal
-        """
-        statement = select(BrainState).where(
-            BrainState.test_traversal_id == test_traversal_id, BrainState.valid
-        )
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def count(db: Session) -> int:
-        """
-        Get the total number of brain states.
-
-        Args:
-            db: Database session
-
-        Returns:
-            int: Total number of brain states
-        """
-        statement = select(BrainState)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def delete_by_test_traversal(db: Session, test_traversal_id: str) -> int:
-        """
-        Delete all brain states for a specific test traversal.
-
-        Args:
-            db: Database session
-            test_traversal_id: Test traversal identifier
-
-        Returns:
-            int: Number of brain states deleted
-        """
-        statement = select(BrainState).where(BrainState.test_traversal_id == test_traversal_id)
-        brain_states = db.exec(statement).all()
-        count = len(brain_states)
-
-        for brain_state in brain_states:
-            db.delete(brain_state)
-
-        db.commit()
-        return count
-
-    @staticmethod
-    def get_latest_by_test_traversal(db: Session, test_traversal_id: str) -> Optional[BrainState]:
-        """
-        Get the latest brain state for a specific test traversal.
-
-        Args:
-            db: Database session
-            test_traversal_id: Test traversal identifier
-
-        Returns:
-            Optional[BrainState]: The latest brain state if found, None otherwise
-        """
-        statement = (
-            select(BrainState)
-            .where(BrainState.test_traversal_id == test_traversal_id)
-            .order_by(col(BrainState.idx_in_run).desc())
-        )
-        return db.exec(statement).first()
-
-    @staticmethod
-    def get_first_by_test_traversal(db: Session, test_traversal_id: str) -> Optional[BrainState]:
-        """
-        Get the first brain state for a specific test traversal.
-
-        Args:
-            db: Database session
-            test_traversal_id: Test traversal identifier
-
-        Returns:
-            Optional[BrainState]: The first brain state if found, None otherwise
-        """
-        statement = (
-            select(BrainState)
-            .where(BrainState.test_traversal_id == test_traversal_id)
-            .order_by(col(BrainState.idx_in_run))
-        )
-        return db.exec(statement).first()

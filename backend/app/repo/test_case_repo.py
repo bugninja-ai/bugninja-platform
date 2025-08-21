@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
 from cuid2 import Cuid as CUID
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, delete, select
 
 from app.db.action import Action
 from app.db.brain_state import BrainState
@@ -50,7 +50,9 @@ class TestCaseRepo:
     """
 
     @staticmethod
-    def create(db: Session, test_case_data: CreateTestCase) -> TestCase:
+    def create(
+        db: Session, test_case_data: CreateTestCase, overwrite_test_case_id: Optional[str] = None
+    ) -> TestCase:
         """
         Create a new test case in the database.
 
@@ -71,9 +73,13 @@ class TestCaseRepo:
         existing_test_cases_count = TestCaseRepo.count_by_project(db, test_case_data.project_id)
 
         # Generate ID following the template: {project_name}-TC-{number_of_Test_cases_in_project+1}-{generated_CUID}
-        test_case_number = existing_test_cases_count + 1
-        generated_cuid = CUID().generate()
-        test_case_id = f"{project.name}-TC-{test_case_number}-{generated_cuid}"
+
+        if not overwrite_test_case_id:
+            test_case_number = existing_test_cases_count + 1
+            generated_cuid = CUID().generate()
+            test_case_id = f"{project.name}-TC-{test_case_number}-{generated_cuid}"
+        else:
+            test_case_id = overwrite_test_case_id
 
         test_case = TestCase(
             id=test_case_id,
@@ -109,6 +115,12 @@ class TestCaseRepo:
         """
         statement = select(TestCase).where(TestCase.id == test_case_id)
         return db.exec(statement).first()
+
+    @staticmethod
+    def delete_all(db: Session) -> bool:
+        db.exec(delete(TestCase))  # type: ignore
+        db.commit()
+        return True
 
     @staticmethod
     def get_all(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TestCase]:
@@ -164,10 +176,11 @@ class TestCaseRepo:
         if search:
             # Search in test case name and description
             search_term = f"%{search}%"
-            search_filter = TestCase.test_name.ilike(search_term) | TestCase.test_description.ilike(
-                search_term
-            )
-            filters.append(search_filter)
+            search_filter = col(TestCase.test_name).ilike(search_term) | col(
+                TestCase.test_description
+            ).ilike(search_term)
+            filters.append(search_filter)  # type: ignore
+
 
         # Apply all filters
         if filters:
@@ -209,21 +222,6 @@ class TestCaseRepo:
             select(TestCase).where(TestCase.project_id == project_id).offset(skip).limit(limit)
         )
         return db.exec(statement).all()
-
-    @staticmethod
-    def get_by_document_id(db: Session, document_id: str) -> Optional[TestCase]:
-        """
-        Retrieve a test case by its associated document ID.
-
-        Args:
-            db: Database session
-            document_id: Document identifier
-
-        Returns:
-            Optional[TestCase]: The test case if found, None otherwise
-        """
-        statement = select(TestCase).where(TestCase.document_id == document_id)
-        return db.exec(statement).first()
 
     @staticmethod
     def update(
@@ -405,84 +403,6 @@ class TestCaseRepo:
             raise e
 
     @staticmethod
-    def get_by_name(db: Session, test_name: str) -> Optional[TestCase]:
-        """
-        Retrieve a test case by its name.
-
-        Args:
-            db: Database session
-            test_name: Test case name
-
-        Returns:
-            Optional[TestCase]: The test case if found, None otherwise
-        """
-        statement = select(TestCase).where(TestCase.test_name == test_name)
-        return db.exec(statement).first()
-
-    @staticmethod
-    def search_by_name(
-        db: Session, name_pattern: str, skip: int = 0, limit: int = 100
-    ) -> Sequence[TestCase]:
-        """
-        Search test cases by name pattern.
-
-        Args:
-            db: Database session
-            name_pattern: Name pattern to search for (case-insensitive)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestCase]: List of matching test cases
-        """
-        statement = (
-            select(TestCase)
-            .where(col(TestCase.test_name).ilike(f"%{name_pattern}%"))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def search_by_description(
-        db: Session, description_pattern: str, skip: int = 0, limit: int = 100
-    ) -> Sequence[TestCase]:
-        """
-        Search test cases by description pattern.
-
-        Args:
-            db: Database session
-            description_pattern: Description pattern to search for (case-insensitive)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestCase]: List of matching test cases
-        """
-        statement = (
-            select(TestCase)
-            .where(col(TestCase.test_description).ilike(f"%{description_pattern}%"))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_by_url_route(db: Session, url_route: str) -> Sequence[TestCase]:
-        """
-        Retrieve test cases by URL route.
-
-        Args:
-            db: Database session
-            url_route: URL route to search for
-
-        Returns:
-            Sequence[TestCase]: List of test cases with matching URL route
-        """
-        statement = select(TestCase).where(TestCase.url_route == url_route)
-        return db.exec(statement).all()
-
-    @staticmethod
     def count_by_project(db: Session, project_id: str) -> int:
         """
         Get the total number of test cases for a project.
@@ -538,10 +458,10 @@ class TestCaseRepo:
         if search:
             # Search in test case name and description
             search_term = f"%{search}%"
-            search_filter = TestCase.test_name.ilike(search_term) | TestCase.test_description.ilike(
-                search_term
-            )
-            filters.append(search_filter)
+            search_filter = col(TestCase.test_name).ilike(search_term) | col(
+                TestCase.test_description
+            ).ilike(search_term)
+            filters.append(search_filter)  # type: ignore
 
         # Apply all filters
         if filters:
@@ -1003,11 +923,10 @@ class TestCaseRepo:
             # Lazy import to avoid circular dependency
             from app.repo.browser_config_repo import BrowserConfigRepo
 
-            created_browser_configs = []
+            created_browser_configs: List[BrowserConfig] = []
             if test_case_data.new_browser_configs:
                 for browser_config_data in test_case_data.new_browser_configs:
                     # Ensure project_id matches
-                    browser_config_data.project_id = test_case_data.project_id
                     browser_config = BrowserConfigRepo.create(db, browser_config_data)
                     created_browser_configs.append(browser_config)
 
@@ -1018,11 +937,10 @@ class TestCaseRepo:
                 )
 
             # Create new secret values
-            created_secret_values = []
+            created_secret_values: List[SecretValue] = []
             if test_case_data.new_secret_values:
                 for secret_value_data in test_case_data.new_secret_values:
                     # Ensure project_id matches
-                    secret_value_data.project_id = test_case_data.project_id
                     secret_value = SecretValueRepo.create(db, secret_value_data)
                     created_secret_values.append(secret_value)
 
@@ -1031,7 +949,7 @@ class TestCaseRepo:
             all_secret_values = created_secret_values + existing_secret_values
 
             # Create test traversals
-            created_test_traversals = []
+            created_test_traversals: List[TestTraversal] = []
             if all_browser_configs:
                 created_test_traversals = TestCaseRepo._create_test_traversals_with_secrets(
                     db, test_case.id, all_browser_configs, all_secret_values

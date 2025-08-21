@@ -5,7 +5,13 @@ This module contains common functions and constants used across multiple endpoin
 to reduce boilerplate and ensure consistency in API responses.
 """
 
+import logging
 from typing import Any, Dict, Optional, Union
+
+from app.logger import set_logger_config
+
+set_logger_config()
+logger = logging.getLogger(__name__)
 
 # Common response definitions to reduce boilerplate
 COMMON_ERROR_RESPONSES: Dict[Union[int, str], Dict[str, Any]] = {
@@ -35,30 +41,37 @@ def create_success_response(description: str, example_model: Any) -> Dict[str, A
     Returns:
         Dict containing the standardized success response structure
     """
-    # Handle special cases where sample_factory_build requires parameters
-    if hasattr(example_model, "__name__"):
-        if example_model.__name__ == "ExtendedResponseTestRun":
-            # ExtendedResponseTestRun requires test_traversal_id and project_id
-            from cuid2 import Cuid as CUID
+    try:
 
-            example_data = example_model.sample_factory_build(
-                test_traversal_id=CUID().generate(),
-                project_id=CUID().generate(),
-            ).model_dump()
-        elif example_model.__name__ == "PaginatedResponseExtendedTestRun":
-            # PaginatedResponseExtendedTestRun requires test_traversal_id and project_id
-            from cuid2 import Cuid as CUID
+        # Handle special cases where sample_factory_build requires parameters
+        if hasattr(example_model, "__name__"):
+            if example_model.__name__ == "ExtendedResponseTestRun":
+                # ExtendedResponseTestRun requires test_traversal_id and project_id
+                from cuid2 import Cuid as CUID
 
-            example_data = example_model.sample_factory_build(
-                test_traversal_id=CUID().generate(),
-                project_id=CUID().generate(),
-            ).model_dump()
+                example_data = example_model.sample_factory_build(
+                    test_traversal_id=CUID().generate(),
+                    project_id=CUID().generate(),
+                ).model_dump()
+            elif example_model.__name__ == "PaginatedResponseExtendedTestRun":
+                # PaginatedResponseExtendedTestRun requires test_traversal_id and project_id
+                from cuid2 import Cuid as CUID
+
+                example_data = example_model.sample_factory_build(
+                    test_traversal_id=CUID().generate(),
+                    project_id=CUID().generate(),
+                ).model_dump()
+            else:
+                # Default case for other schemas
+                example_data = example_model.sample_factory_build().model_dump()
         else:
             # Default case for other schemas
             example_data = example_model.sample_factory_build().model_dump()
-    else:
-        # Default case for other schemas
-        example_data = example_model.sample_factory_build().model_dump()
+    except Exception as e:
+        logger.exception(
+            f"Error generating example data for object: {example_model.__name__ if hasattr(example_model, '__name__') else 'Unknown'}"
+        )
+        raise e
 
     return {
         "description": description,

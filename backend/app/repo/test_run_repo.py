@@ -6,10 +6,10 @@ All methods work with the provided database session and use SQLModel table defin
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from cuid2 import Cuid as CUID
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, delete, select
 
 from app.db.browser_config import BrowserConfig
 from app.db.history_element import HistoryElement
@@ -76,20 +76,10 @@ class TestRunRepo:
         return db.exec(statement).first()
 
     @staticmethod
-    def get_all(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TestRun]:
-        """
-        Retrieve all test runs with pagination.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestRun]: List of test runs
-        """
-        statement = select(TestRun).offset(skip).limit(limit)
-        return db.exec(statement).all()
+    def delete_all(db: Session) -> bool:
+        db.exec(delete(TestRun))  # type: ignore
+        db.commit()
+        return True
 
     @staticmethod
     def get_all_with_sorting_and_filter(
@@ -140,10 +130,10 @@ class TestRunRepo:
         if search:
             # Search in test case name and description
             search_term = f"%{search}%"
-            search_filter = TestCase.test_name.ilike(search_term) | TestCase.test_description.ilike(
-                search_term
-            )
-            filters.append(search_filter)
+            search_filter = col(TestCase.test_name).ilike(search_term) | col(
+                TestCase.test_description
+            ).ilike(search_term)
+            filters.append(search_filter)  # type: ignore
 
         if status:
             # Frontend now sends exact backend values (PENDING, FINISHED, FAILED)
@@ -217,105 +207,6 @@ class TestRunRepo:
         return db.exec(statement).all()
 
     @staticmethod
-    def get_by_state(
-        db: Session, state: RunState, skip: int = 0, limit: int = 100
-    ) -> Sequence[TestRun]:
-        """
-        Retrieve all test runs with a specific state.
-
-        Args:
-            db: Database session
-            state: Test run state to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestRun]: List of test runs with the specified state
-        """
-        statement = select(TestRun).where(TestRun.current_state == state).offset(skip).limit(limit)
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_by_run_type(
-        db: Session, run_type: RunType, skip: int = 0, limit: int = 100
-    ) -> Sequence[TestRun]:
-        """
-        Retrieve all test runs with a specific run type.
-
-        Args:
-            db: Database session
-            run_type: Test run type to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestRun]: List of test runs with the specified run type
-        """
-        statement = select(TestRun).where(TestRun.run_type == run_type).offset(skip).limit(limit)
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_by_origin(
-        db: Session, origin: RunOrigin, skip: int = 0, limit: int = 100
-    ) -> Sequence[TestRun]:
-        """
-        Retrieve all test runs with a specific origin.
-
-        Args:
-            db: Database session
-            origin: Test run origin to filter by
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestRun]: List of test runs with the specified origin
-        """
-        statement = select(TestRun).where(TestRun.origin == origin).offset(skip).limit(limit)
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_finished_runs(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TestRun]:
-        """
-        Retrieve all finished test runs.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestRun]: List of finished test runs
-        """
-        statement = (
-            select(TestRun)
-            .where(TestRun.current_state == RunState.FINISHED)
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_pending_runs(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TestRun]:
-        """
-        Retrieve all currently pending test runs.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[TestRun]: List of pending test runs
-        """
-        statement = (
-            select(TestRun)
-            .where(TestRun.current_state == RunState.PENDING)
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
     def update(db: Session, test_run_id: str, test_run_data: UpdateTestRun) -> Optional[TestRun]:
         """
         Update an existing test run.
@@ -341,32 +232,6 @@ class TestRunRepo:
         return test_run
 
     @staticmethod
-    def update_state(db: Session, test_run_id: str, new_state: RunState) -> Optional[TestRun]:
-        """
-        Update the state of a test run.
-
-        Args:
-            db: Database session
-            test_run_id: Unique test run identifier
-            new_state: New state for the test run
-
-        Returns:
-            Optional[TestRun]: The updated test run if found, None otherwise
-        """
-        test_run = TestRunRepo.get_by_id(db, test_run_id)
-        if not test_run:
-            return None
-
-        test_run.current_state = new_state
-        if new_state == RunState.FINISHED:
-            test_run.finished_at = datetime.now(timezone.utc)
-
-        db.add(test_run)
-        db.commit()
-        db.refresh(test_run)
-        return test_run
-
-    @staticmethod
     def delete(db: Session, test_run_id: str) -> bool:
         """
         Delete a test run by its ID.
@@ -385,50 +250,6 @@ class TestRunRepo:
         db.delete(test_run)
         db.commit()
         return True
-
-    @staticmethod
-    def count_by_test_traversal(db: Session, test_traversal_id: str) -> int:
-        """
-        Get the total number of test runs for a test traversal.
-
-        Args:
-            db: Database session
-            test_traversal_id: Test traversal identifier
-
-        Returns:
-            int: Total number of test runs for the test traversal
-        """
-        statement = select(TestRun).where(TestRun.test_traversal_id == test_traversal_id)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def count_by_state(db: Session, state: RunState) -> int:
-        """
-        Get the total number of test runs with a specific state.
-
-        Args:
-            db: Database session
-            state: Test run state to count
-
-        Returns:
-            int: Total number of test runs with the specified state
-        """
-        statement = select(TestRun).where(TestRun.current_state == state)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def count(db: Session) -> int:
-        """
-        Get the total number of test runs.
-
-        Args:
-            db: Database session
-
-        Returns:
-            int: Total number of test runs
-        """
-        statement = select(TestRun)
-        return len(db.exec(statement).all())
 
     @staticmethod
     def count_with_filter(
@@ -470,10 +291,10 @@ class TestRunRepo:
         if search:
             # Search in test case name and description
             search_term = f"%{search}%"
-            search_filter = TestCase.test_name.ilike(search_term) | TestCase.test_description.ilike(
-                search_term
-            )
-            filters.append(search_filter)
+            search_filter = col(TestCase.test_name).ilike(search_term) | col(
+                TestCase.test_description
+            ).ilike(search_term)
+            filters.append(search_filter)  # type: ignore
 
         if status:
             # Frontend now sends exact backend values (PENDING, FINISHED, FAILED)
@@ -485,28 +306,6 @@ class TestRunRepo:
             base_statement = base_statement.where(*filters)
 
         return len(db.exec(base_statement).all())
-
-    @staticmethod
-    def delete_by_test_traversal(db: Session, test_traversal_id: str) -> int:
-        """
-        Delete all test runs for a specific test traversal.
-
-        Args:
-            db: Database session
-            test_traversal_id: Test traversal identifier
-
-        Returns:
-            int: Number of test runs deleted
-        """
-        statement = select(TestRun).where(TestRun.test_traversal_id == test_traversal_id)
-        test_runs = db.exec(statement).all()
-        count = len(test_runs)
-
-        for test_run in test_runs:
-            db.delete(test_run)
-
-        db.commit()
-        return count
 
     @staticmethod
     def get_latest_by_test_traversal(db: Session, test_traversal_id: str) -> Optional[TestRun]:
@@ -664,32 +463,6 @@ class TestRunRepo:
 
         # Convert to extended responses
         extended_test_runs = []
-        for test_run in test_runs:
-            extended_test_run = TestRunRepo.get_extended_by_id(db, test_run.id)
-            if extended_test_run:
-                extended_test_runs.append(extended_test_run)
-
-        return extended_test_runs
-
-    @staticmethod
-    def get_extended_by_test_traversal_id(
-        db: Session, test_traversal_id: str, skip: int = 0, limit: int = 100
-    ) -> List[ExtendedResponseTestRun]:
-        """
-        Retrieve all extended test runs for a specific test traversal.
-
-        Args:
-            db: Database session
-            test_traversal_id: Test traversal identifier
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            List[ExtendedResponseTestRun]: List of extended test run responses
-        """
-        test_runs = TestRunRepo.get_by_test_traversal_id(db, test_traversal_id, skip, limit)
-        extended_test_runs = []
-
         for test_run in test_runs:
             extended_test_run = TestRunRepo.get_extended_by_id(db, test_run.id)
             if extended_test_run:
@@ -1057,3 +830,275 @@ class TestRunRepo:
             extended_brain_states.append(extended_brain_state)
 
         return extended_brain_states
+
+    @staticmethod
+    def get_extended_brain_states_by_traversal_ids(
+        db: Session, traversal_ids: List[str]
+    ) -> Dict[str, List[ExtendedResponseBrainState]]:
+        """
+        Get extended brain states for multiple traversals in a single optimized query.
+
+        Args:
+            db: Database session
+            traversal_ids: List of test traversal IDs
+
+        Returns:
+            Dict[str, List[ExtendedResponseBrainState]]: Dictionary mapping traversal_id to brain states
+        """
+        if not traversal_ids:
+            return {}
+
+        from sqlmodel import col, select
+
+        from app.db.action import Action
+        from app.db.brain_state import BrainState
+        from app.db.history_element import HistoryElement
+        from app.schemas.communication.test_run import (
+            ExtendedResponseBrainState,
+            ExtendedResponseHistoryElement,
+        )
+
+        # Get brain states with their history elements and action data for all traversals
+        statement = (
+            select(BrainState, HistoryElement, Action)
+            .join(Action, col(BrainState.id) == col(Action.brain_state_id))
+            .join(HistoryElement, col(Action.id) == col(HistoryElement.action_id))
+            .where(col(BrainState.test_traversal_id).in_(traversal_ids))
+            .order_by(
+                col(BrainState.test_traversal_id).asc(),
+                col(BrainState.idx_in_run).asc(),
+                col(HistoryElement.action_started_at).asc(),
+            )
+        )
+
+        results = db.exec(statement).all()
+
+        # Group history elements by brain state, then by traversal
+        brain_state_history_map: Dict[str, Dict[str, Any]] = {}
+        brain_state: BrainState
+
+        for brain_state, history_element, action in results:
+            brain_state_id = brain_state.id
+            traversal_id = brain_state.test_traversal_id
+
+            if brain_state_id not in brain_state_history_map:
+                brain_state_history_map[brain_state_id] = {
+                    "brain_state": brain_state,
+                    "traversal_id": traversal_id,
+                    "history_elements": [],
+                }
+
+            # Create extended history element with both history and action data
+            extended_history_element = ExtendedResponseHistoryElement(
+                # History element fields
+                id=history_element.id,
+                test_run_id=history_element.test_run_id,
+                action_id=history_element.action_id,
+                action_started_at=history_element.action_started_at,
+                action_finished_at=history_element.action_finished_at,
+                history_element_state=history_element.history_element_state.value,
+                screenshot=history_element.screenshot,
+                # Action fields
+                action=action.action,
+                dom_element_data=action.dom_element_data,
+                valid=action.valid,
+                idx_in_brain_state=action.idx_in_brain_state,
+            )
+            brain_state_history_map[brain_state_id]["history_elements"].append(
+                extended_history_element
+            )
+
+        # Convert to response schemas grouped by traversal
+        brain_states_by_traversal: Dict[str, List[ExtendedResponseBrainState]] = {}
+
+        for brain_state_data in brain_state_history_map.values():
+            brain_state = brain_state_data["brain_state"]  # type: ignore
+            traversal_id = brain_state_data["traversal_id"]  # type: ignore
+            history_elements: List[ExtendedResponseHistoryElement] = brain_state_data["history_elements"]  # type: ignore
+
+            extended_brain_state = ExtendedResponseBrainState(
+                id=brain_state.id,
+                test_traversal_id=brain_state.test_traversal_id,
+                idx_in_run=brain_state.idx_in_run,
+                valid=brain_state.valid,
+                evaluation_previous_goal=brain_state.evaluation_previous_goal,
+                memory=brain_state.memory,
+                next_goal=brain_state.next_goal,
+                history_elements=history_elements,
+            )
+
+            if traversal_id not in brain_states_by_traversal:
+                brain_states_by_traversal[traversal_id] = []
+            brain_states_by_traversal[traversal_id].append(extended_brain_state)
+
+        return brain_states_by_traversal
+
+    @staticmethod
+    def get_test_traversal_ids_from_test_runs(db: Session, test_run_ids: List[str]) -> List[str]:
+        """
+        Get test traversal IDs from a list of test run IDs.
+
+        Args:
+            db: Database session
+            test_run_ids: List of test run IDs
+
+        Returns:
+            List[str]: List of unique test traversal IDs
+        """
+        if not test_run_ids:
+            return []
+
+        statement = select(TestRun.test_traversal_id).where(col(TestRun.id).in_(test_run_ids))
+        traversal_ids = db.exec(statement).all()
+        return list(set(traversal_ids))  # Remove duplicates
+
+    @staticmethod
+    def get_ongoing_test_run_ids_by_traversal_ids(
+        db: Session, traversal_ids: List[str]
+    ) -> Sequence[str]:
+        """
+        Get ongoing test runs as extended responses for the specified traversal IDs.
+
+        Args:
+            db: Database session
+            traversal_ids: List of test traversal IDs to check
+
+        Returns:
+            Sequence[str]: List of ongoing test run ids
+        """
+        if not traversal_ids:
+            return []
+
+        statement = select(TestRun.id).where(
+            col(TestRun.test_traversal_id).in_(traversal_ids),
+            TestRun.current_state == RunState.PENDING,
+        )
+        ongoing_test_runs = db.exec(statement).all()
+
+        return ongoing_test_runs
+
+    @staticmethod
+    def get_traversal_ids_with_completed_runs(db: Session, traversal_ids: List[str]) -> List[str]:
+        """
+        Get traversal IDs that have at least one completed test run.
+
+        Args:
+            db: Database session
+            traversal_ids: List of test traversal IDs to check
+
+        Returns:
+            List[str]: List of traversal IDs that have completed test runs
+        """
+        if not traversal_ids:
+            return []
+
+        statement = (
+            select(TestRun.test_traversal_id)
+            .where(
+                col(TestRun.test_traversal_id).in_(traversal_ids),
+                TestRun.current_state == RunState.FINISHED,
+            )
+            .distinct()
+        )
+        completed_traversal_ids = db.exec(statement).all()
+        return list(completed_traversal_ids)
+
+    @staticmethod
+    def create_test_runs_for_traversals(
+        db: Session,
+        traversal_ids: List[str],
+        run_type: RunType = RunType.AGENTIC,
+        origin: RunOrigin = RunOrigin.USER,
+    ) -> List[TestRun]:
+        """
+        Create new test runs for the specified test traversals.
+
+        Args:
+            db: Database session
+            traversal_ids: List of test traversal IDs to create test runs for
+            run_type: Type of test run to create (default: AGENTIC)
+            origin: Origin of the test run (default: USER)
+
+        Returns:
+            List[TestRun]: List of created test runs
+        """
+        if not traversal_ids:
+            return []
+
+        created_test_runs = []
+
+        for traversal_id in traversal_ids:
+            # Get the test traversal to get browser config ID
+            from app.repo.test_traversal_repo import TestTraversalRepo
+
+            test_traversal = TestTraversalRepo.get_by_id(db, traversal_id)
+            if not test_traversal:
+                continue
+
+            # Create new test run
+            test_run_data = CreateTestRun(
+                test_traversal_id=traversal_id,
+                browser_config_id=test_traversal.browser_config_id,
+                run_type=run_type,
+                origin=origin,
+                repair_was_needed=False,
+                current_state=RunState.PENDING,
+                run_gif="",  # Will be populated during execution
+            )
+
+            test_run = TestRunRepo.create(db, test_run_data)
+            created_test_runs.append(test_run)
+
+        return created_test_runs
+
+    @staticmethod
+    def get_brain_states_for_replay(
+        db: Session, test_traversal_id: str
+    ) -> List[ExtendedResponseBrainState]:
+        """
+        Get brain states from the most recent successful test run for replay purposes.
+        Returns brain states with empty history elements.
+
+        Args:
+            db: Database session
+            test_traversal_id: Test traversal ID to get brain states for
+
+        Returns:
+            List[ExtendedResponseBrainState]: Brain states with empty history elements
+        """
+        # Get the most recent successful test run for this traversal
+        statement = (
+            select(TestRun)
+            .where(
+                TestRun.test_traversal_id == test_traversal_id,
+                TestRun.current_state == RunState.FINISHED,
+            )
+            .order_by(col(TestRun.started_at).desc())
+        )
+        latest_successful_run = db.exec(statement).first()
+
+        if not latest_successful_run:
+            return []  # No previous successful run, return empty brain states
+
+        # Get brain states from the latest successful run
+        repo_instance = TestRunRepo()
+        original_brain_states = repo_instance.get_extended_brain_states_by_test_traversal_id(
+            db, test_traversal_id
+        )
+
+        # Copy brain states but clear history elements
+        replay_brain_states = []
+        for brain_state in original_brain_states:
+            replay_brain_state = ExtendedResponseBrainState(
+                id=brain_state.id,
+                test_traversal_id=brain_state.test_traversal_id,
+                idx_in_run=brain_state.idx_in_run,
+                valid=brain_state.valid,
+                evaluation_previous_goal=brain_state.evaluation_previous_goal,
+                memory=brain_state.memory,
+                next_goal=brain_state.next_goal,
+                history_elements=[],  # Empty history elements for replay
+            )
+            replay_brain_states.append(replay_brain_state)
+
+        return replay_brain_states

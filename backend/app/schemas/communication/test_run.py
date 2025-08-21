@@ -7,7 +7,7 @@ This module defines the communication schemas for test run operations.
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.crud.browser_config import ResponseBrowserConfig
 

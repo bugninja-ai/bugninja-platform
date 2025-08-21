@@ -14,6 +14,7 @@ from dev.upload_realistic_data import setup_content_folders, upload_realistic_da
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # TODO! REENABLE THESE!!!
     delete_all_data(force=True)
     setup_content_folders()
     upload_realistic_data()
@@ -46,6 +47,7 @@ app.add_middleware(
 
 # Mount static files for content access
 app.mount("/content", StaticFiles(directory="content"), name="content")
+app.mount("/screenshots", StaticFiles(directory="screenshots"), name="screenshots")
 
 # Include API router
 app.include_router(api_router, prefix="/api/v1")

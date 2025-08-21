@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from cuid2 import Cuid as CUID
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, delete, select
 
 from app.db.secret_value import SecretValue
 from app.db.secret_value_test_case import SecretValueTestCase
@@ -55,6 +55,7 @@ class SecretValueRepo:
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
+
         db.add(secret_value)
         db.commit()
         db.refresh(secret_value)
@@ -76,20 +77,10 @@ class SecretValueRepo:
         return db.exec(statement).first()
 
     @staticmethod
-    def get_all(db: Session, skip: int = 0, limit: int = 100) -> Sequence[SecretValue]:
-        """
-        Retrieve all secret values with pagination.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[SecretValue]: List of secret values
-        """
-        statement = select(SecretValue).offset(skip).limit(limit)
-        return db.exec(statement).all()
+    def delete_all(db: Session) -> bool:
+        db.exec(delete(SecretValue))  # type: ignore
+        db.commit()
+        return True
 
     @staticmethod
     def get_by_project_id(
@@ -165,21 +156,6 @@ class SecretValueRepo:
         return True
 
     @staticmethod
-    def get_by_name(db: Session, secret_name: str) -> Optional[SecretValue]:
-        """
-        Retrieve a secret value by its name.
-
-        Args:
-            db: Database session
-            secret_name: Secret value name
-
-        Returns:
-            Optional[SecretValue]: The secret value if found, None otherwise
-        """
-        statement = select(SecretValue).where(SecretValue.secret_name == secret_name)
-        return db.exec(statement).first()
-
-    @staticmethod
     def get_by_name_and_project(
         db: Session, secret_name: str, project_id: str
     ) -> Optional[SecretValue]:
@@ -198,109 +174,6 @@ class SecretValueRepo:
             SecretValue.secret_name == secret_name, SecretValue.project_id == project_id
         )
         return db.exec(statement).first()
-
-    @staticmethod
-    def search_by_name(
-        db: Session, name_pattern: str, skip: int = 0, limit: int = 100
-    ) -> Sequence[SecretValue]:
-        """
-        Search secret values by name pattern.
-
-        Args:
-            db: Database session
-            name_pattern: Name pattern to search for (case-insensitive)
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[SecretValue]: List of matching secret values
-        """
-        statement = (
-            select(SecretValue)
-            .where(col(SecretValue.secret_name).ilike(f"%{name_pattern}%"))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def search_by_name_in_project(
-        db: Session, name_pattern: str, project_id: str, skip: int = 0, limit: int = 100
-    ) -> Sequence[SecretValue]:
-        """
-        Search secret values by name pattern within a specific project.
-
-        Args:
-            db: Database session
-            name_pattern: Name pattern to search for (case-insensitive)
-            project_id: Project identifier
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[SecretValue]: List of matching secret values in the project
-        """
-        statement = (
-            select(SecretValue)
-            .where(
-                col(SecretValue.secret_name).ilike(f"%{name_pattern}%"),
-                SecretValue.project_id == project_id,
-            )
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def count_by_project(db: Session, project_id: str) -> int:
-        """
-        Get the total number of secret values for a project.
-
-        Args:
-            db: Database session
-            project_id: Project identifier
-
-        Returns:
-            int: Total number of secret values for the project
-        """
-        statement = select(SecretValue).where(SecretValue.project_id == project_id)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def count(db: Session) -> int:
-        """
-        Get the total number of secret values.
-
-        Args:
-            db: Database session
-
-        Returns:
-            int: Total number of secret values
-        """
-        statement = select(SecretValue)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def delete_by_project(db: Session, project_id: str) -> int:
-        """
-        Delete all secret values for a specific project.
-
-        Args:
-            db: Database session
-            project_id: Project identifier
-
-        Returns:
-            int: Number of secret values deleted
-        """
-        statement = select(SecretValue).where(SecretValue.project_id == project_id)
-        secret_values = db.exec(statement).all()
-        count = len(secret_values)
-
-        for secret_value in secret_values:
-            db.delete(secret_value)
-
-        db.commit()
-        return count
 
     @staticmethod
     def get_by_test_case_id(db: Session, test_case_id: str) -> Sequence[SecretValue]:
@@ -323,6 +196,41 @@ class SecretValueRepo:
             )
         )
         return db.exec(statement).all()
+
+    @staticmethod
+    def get_by_test_case_ids(db: Session, test_case_ids: List[str]) -> Dict[str, List[SecretValue]]:
+        """
+        Get secrets for multiple test cases in a single optimized query.
+
+        Args:
+            db: Database session
+            test_case_ids: List of test case IDs to retrieve secrets for
+
+        Returns:
+            Dict[str, List[SecretValue]]: Dictionary mapping test_case_id to list of secrets
+        """
+        if not test_case_ids:
+            return {}
+
+        # Single query to get all secrets for the test cases
+        statement = (
+            select(SecretValue, SecretValueTestCase.test_case_id)
+            .join(
+                SecretValueTestCase, col(SecretValue.id) == col(SecretValueTestCase.secret_value_id)
+            )
+            .where(col(SecretValueTestCase.test_case_id).in_(test_case_ids))
+        )
+
+        results = db.exec(statement).all()
+
+        # Group secrets by test case ID
+        secrets_by_test_case: Dict[str, List[SecretValue]] = {}
+        for secret_value, test_case_id in results:
+            if test_case_id not in secrets_by_test_case:
+                secrets_by_test_case[test_case_id] = []
+            secrets_by_test_case[test_case_id].append(secret_value)
+
+        return secrets_by_test_case
 
     @staticmethod
     def associate_with_test_case(db: Session, secret_value_id: str, test_case_id: str) -> bool:
@@ -354,33 +262,6 @@ class SecretValueRepo:
             test_case_id=test_case_id,
         )
         db.add(association)
-        db.commit()
-        return True
-
-    @staticmethod
-    def disassociate_from_test_case(db: Session, secret_value_id: str, test_case_id: str) -> bool:
-        """
-        Remove association between a secret value and a test case.
-
-        Args:
-            db: Database session
-            secret_value_id: Secret value identifier
-            test_case_id: Test case identifier
-
-        Returns:
-            bool: True if association was removed, False if it didn't exist
-        """
-        association = db.exec(
-            select(SecretValueTestCase).where(
-                SecretValueTestCase.secret_value_id == secret_value_id,
-                SecretValueTestCase.test_case_id == test_case_id,
-            )
-        ).first()
-
-        if not association:
-            return False
-
-        db.delete(association)
         db.commit()
         return True
 
@@ -662,6 +543,7 @@ class SecretValueRepo:
                     test_case_id=test_case_id,
                 )
                 db.add(association)
+                db.commit()
 
     @staticmethod
     def check_usage(db: Session, secret_value_id: str) -> Tuple[bool, str]:

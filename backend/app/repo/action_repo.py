@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Optional, Sequence
 
 from cuid2 import Cuid as CUID
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, delete, select
 
 from app.db.action import Action
 from app.schemas.crud.action import CreateAction, UpdateAction
@@ -65,22 +65,6 @@ class ActionRepo:
         return db.exec(statement).first()
 
     @staticmethod
-    def get_all(db: Session, skip: int = 0, limit: int = 100) -> Sequence[Action]:
-        """
-        Retrieve all actions with pagination.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[Action]: List of actions
-        """
-        statement = select(Action).offset(skip).limit(limit)
-        return db.exec(statement).all()
-
-    @staticmethod
     def get_by_brain_state_id(
         db: Session, brain_state_id: str, skip: int = 0, limit: int = 100
     ) -> Sequence[Action]:
@@ -103,38 +87,6 @@ class ActionRepo:
             .offset(skip)
             .limit(limit)
         )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_valid_actions(db: Session, skip: int = 0, limit: int = 100) -> Sequence[Action]:
-        """
-        Retrieve all valid actions.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[Action]: List of valid actions
-        """
-        statement = select(Action).where(Action.valid).offset(skip).limit(limit)
-        return db.exec(statement).all()
-
-    @staticmethod
-    def get_invalid_actions(db: Session, skip: int = 0, limit: int = 100) -> Sequence[Action]:
-        """
-        Retrieve all invalid actions.
-
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[Action]: List of invalid actions
-        """
-        statement = select(Action).where(not Action.valid).offset(skip).limit(limit)
         return db.exec(statement).all()
 
     @staticmethod
@@ -185,137 +137,13 @@ class ActionRepo:
         return True
 
     @staticmethod
-    def get_by_index_in_brain_state(db: Session, brain_state_id: str, idx: int) -> Optional[Action]:
+    def delete_all(db: Session) -> bool:
         """
-        Retrieve an action by its index within a brain state.
-
-        Args:
-            db: Database session
-            brain_state_id: Brain state identifier
-            idx: Index within the brain state
+        Delete every action in the database.
 
         Returns:
-            Optional[Action]: The action if found, None otherwise
+            bool: True if every action was deleted, False if not found
         """
-        statement = select(Action).where(
-            Action.brain_state_id == brain_state_id, Action.idx_in_brain_state == idx
-        )
-        return db.exec(statement).first()
-
-    @staticmethod
-    def search_by_action_type(
-        db: Session, action_type: str, skip: int = 0, limit: int = 100
-    ) -> Sequence[Action]:
-        """
-        Search actions by action type.
-
-        Args:
-            db: Database session
-            action_type: Action type to search for
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[Action]: List of matching actions
-        """
-        # Note: This is a simplified search. For more complex JSON queries,
-        # you might need to use database-specific JSON operators
-        statement = (
-            select(Action)
-            .where(col(Action.action).contains({"type": action_type}))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
-
-    @staticmethod
-    def count_by_brain_state(db: Session, brain_state_id: str) -> int:
-        """
-        Get the total number of actions for a brain state.
-
-        Args:
-            db: Database session
-            brain_state_id: Brain state identifier
-
-        Returns:
-            int: Total number of actions for the brain state
-        """
-        statement = select(Action).where(Action.brain_state_id == brain_state_id)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def count_valid_by_brain_state(db: Session, brain_state_id: str) -> int:
-        """
-        Get the total number of valid actions for a brain state.
-
-        Args:
-            db: Database session
-            brain_state_id: Brain state identifier
-
-        Returns:
-            int: Total number of valid actions for the brain state
-        """
-        statement = select(Action).where(Action.brain_state_id == brain_state_id, Action.valid)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def count(db: Session) -> int:
-        """
-        Get the total number of actions.
-
-        Args:
-            db: Database session
-
-        Returns:
-            int: Total number of actions
-        """
-        statement = select(Action)
-        return len(db.exec(statement).all())
-
-    @staticmethod
-    def delete_by_brain_state(db: Session, brain_state_id: str) -> int:
-        """
-        Delete all actions for a specific brain state.
-
-        Args:
-            db: Database session
-            brain_state_id: Brain state identifier
-
-        Returns:
-            int: Number of actions deleted
-        """
-        statement = select(Action).where(Action.brain_state_id == brain_state_id)
-        actions = db.exec(statement).all()
-        count = len(actions)
-
-        for action in actions:
-            db.delete(action)
-
+        db.exec(delete(Action))  # type: ignore
         db.commit()
-        return count
-
-    @staticmethod
-    def get_actions_by_dom_element(
-        db: Session, element_selector: str, skip: int = 0, limit: int = 100
-    ) -> Sequence[Action]:
-        """
-        Retrieve actions that target a specific DOM element.
-
-        Args:
-            db: Database session
-            element_selector: DOM element selector to search for
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-
-        Returns:
-            Sequence[Action]: List of actions targeting the specified DOM element
-        """
-        # Note: This is a simplified search. For more complex JSON queries,
-        # you might need to use database-specific JSON operators
-        statement = (
-            select(Action)
-            .where(col(Action.dom_element_data).contains({"selector": element_selector}))
-            .offset(skip)
-            .limit(limit)
-        )
-        return db.exec(statement).all()
+        return True

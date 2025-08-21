@@ -40,6 +40,8 @@ services:
     build:
       context: .
       dockerfile: infrastructure/docker/backend.Dockerfile
+      secrets:
+        - GIT_TOKEN
     container_name: bugninja-backend
     restart: unless-stopped
     ports:
@@ -49,20 +51,27 @@ services:
       - ./backend/app:/app/app
       - ./backend/dev:/app/dev
       - ./backend/content:/app/content:rw
+      - ./backend/screenshots:/app/screenshots:rw
     environment:
       - DATABASE_URL=postgresql+psycopg2://bugninja_user:bugninja_password@postgres:5432/bugninja
       - REDIS_URL=redis://redis:6379
       - API_DEBUG=true
       - API_CORS_ORIGINS=["http://localhost:3000"]
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_KEY=${AZURE_OPENAI_KEY}
     command: >
       sh -c "
-        mkdir -p /app/content/run_gifs /app/content/run_he_screenshots
+        mkdir -p /app/content/run_gifs /app/content/run_he_screenshots /app/content/screenshots
       "
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    secrets:
+      - GIT_TOKEN
+      - AZURE_OPENAI_ENDPOINT
+      - AZURE_OPENAI_KEY
 
   # Frontend React Application
   frontend:
@@ -92,4 +101,12 @@ volumes:
 
 networks:
   default:
-    name: bugninja-network 
+    name: bugninja-network
+
+secrets:
+  GIT_TOKEN:
+    file: ./infrastructure/secrets/GIT_TOKEN
+  AZURE_OPENAI_ENDPOINT:
+    file: ./infrastructure/secrets/AZURE_OPENAI_ENDPOINT
+  AZURE_OPENAI_KEY:
+    file: ./infrastructure/secrets/AZURE_OPENAI_KEY
