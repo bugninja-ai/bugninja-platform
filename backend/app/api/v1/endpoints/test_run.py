@@ -73,8 +73,8 @@ def _run_specific_task(run_id: str, traversal_to_do: Traversal) -> None:
     client = BugninjaClient(
         config=BugninjaConfig(
             headless=True,
-            viewport_height=traversal_to_do.browser_config.viewport.get("height", 800),
-            viewport_width=traversal_to_do.browser_config.viewport.get("width", 1280),
+            viewport_height=traversal_to_do.browser_config.viewport.get("height", 1920),
+            viewport_width=traversal_to_do.browser_config.viewport.get("width", 768),
         ),
         event_manager=EventPublisherManager([DBWriteEventPublisher()]),
     )

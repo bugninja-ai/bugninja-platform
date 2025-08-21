@@ -1565,7 +1565,7 @@ def upload_realistic_data() -> None:
                 CreateBrowserConfig(
                     test_case_id=bacprep_test_case_id,
                     browser_config={
-                        "viewport": {"width": 800, "height": 1200},
+                        "viewport": {"width": 1920, "height": 768},
                         "channel": "chromium",
                         "user_data_dir": "/home/arathus/.config/browseruse/profiles/default/run_yrxzukvt7jfvj1hsqdbtoqa6",
                         "user_agent": None,

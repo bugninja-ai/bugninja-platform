@@ -94,7 +94,7 @@ class DBWriteEventPublisher(EventPublisher):
             )
 
             rich_print(
-                f"DB WRITE EVENT COMPLETED: {run_id} -> {brain_state_id} -> {action.id} -> {history_element.id}"
+                f"DB WRITE EVENT COMPLETED:\n Run id: '{run_id}'\n -> Brain state id: '{brain_state_id}'\n -> Action id: '{action.id}'\n -> History element id: '{history_element.id}'"
             )
 
     def _get_or_create_brain_state(
