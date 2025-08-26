@@ -5,17 +5,18 @@ This script creates comprehensive realistic test data based on actual web servic
 It creates a complete hierarchy of entities with proper relationships:
 - 1 Project (IMDB & Amazon Testing)
 - 1 Document
-- 2 Test Cases (IMDB movie search, Amazon product purchase)
+- 4 Test Cases (IMDB movie search, Amazon product purchase, Netflix content, GitHub repos)
 - 3 Browser Configs (Chromium, Firefox, Webkit)
 - 6 Secret Values (credentials, API keys)
-- 6 Test Traversals (2×3 cross product)
-- 30-36 Brain States (5-6 per traversal)
-- 90-108 Actions (3 per brain state)
-- 6 Test Runs (one per traversal)
-- 6 Cost records
-- 90-108 History Elements (one per action in test runs)
+- 12 Test Traversals (4×3 cross product)
+- 60 Brain States (5 per traversal)
+- 60 Actions (1 per brain state)
+- 12 Test Runs (one per traversal, all FINISHED or FAILED - no PENDING states)
+- 12 Cost records
+- 60 History Elements (one per action in test runs)
 - TestCase-BrowserConfig associations
 - SecretValue-TestCase associations
+- Additional Bacprep platform test case with credentials
 """
 
 import os
@@ -23,7 +24,6 @@ import shutil
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
-from browser_use.browser.profile import BrowserChannel
 from rich import print as rich_print
 
 from app.db.action import Action
@@ -193,7 +193,7 @@ def create_realistic_browser_configs() -> List[Dict[str, Any]]:
         config = {
             "name": browser_channel,
             "browser_config": {
-                "channel": BrowserChannel.CHROME,
+                "browser_channel": browser_channel,  # Use the string from constants
                 "user_agent": user_agent,
                 "viewport": viewport,
                 "device_scale_factor": None,
@@ -412,7 +412,11 @@ def create_varied_cost_data() -> List[Dict[str, Any]]:
 
 
 def create_varied_run_data() -> List[Dict[str, Any]]:
-    """Create varied test run data with realistic durations."""
+    """Create varied test run data with realistic durations.
+
+    All runs are either FINISHED or FAILED since PENDING states
+    are only valid for actively running tests, not mock data.
+    """
     base_time = datetime.now(timezone.utc) - timedelta(days=7)  # Start a week ago
 
     return [
@@ -447,10 +451,10 @@ def create_varied_run_data() -> List[Dict[str, Any]]:
             "run_type": RunType.AGENTIC,
             "origin": RunOrigin.CICD,
             "repair_was_needed": False,
-            "current_state": RunState.PENDING,
+            "current_state": RunState.FINISHED,
             "started_at": base_time + timedelta(hours=12),
-            "finished_at": None,  # Pending runs don't have finish time
-            "duration_seconds": 0,
+            "finished_at": base_time + timedelta(hours=12, minutes=4, seconds=15),
+            "duration_seconds": 255,
         },
         {
             "run_type": RunType.REPLAY,
@@ -465,10 +469,10 @@ def create_varied_run_data() -> List[Dict[str, Any]]:
             "run_type": RunType.REPLAY_WITH_HEALING,
             "origin": RunOrigin.CICD,
             "repair_was_needed": True,
-            "current_state": RunState.PENDING,
+            "current_state": RunState.FINISHED,
             "started_at": base_time + timedelta(days=1),
-            "finished_at": None,  # Pending runs don't have finish time
-            "duration_seconds": 0,
+            "finished_at": base_time + timedelta(days=1, minutes=5, seconds=30),
+            "duration_seconds": 330,
         },
     ]
 
@@ -1388,9 +1392,8 @@ def upload_realistic_data() -> None:
                 # Set the started_at time to a realistic past time
                 test_run.started_at = run_data["started_at"]
 
-                # Set finished_at for completed runs
-                if run_data["finished_at"] is not None:
-                    test_run.finished_at = run_data["finished_at"]
+                # Set finished_at - all mock runs should have finish times
+                test_run.finished_at = run_data["finished_at"]
 
                 db.add(test_run)
                 test_runs.append(test_run)
@@ -1455,9 +1458,7 @@ def upload_realistic_data() -> None:
 
                 # Calculate timing for history elements within the test run duration
                 run_start = test_run.started_at
-                run_end = test_run.finished_at or run_start + timedelta(
-                    minutes=1
-                )  # Default 1 min for pending runs
+                run_end = test_run.finished_at  # All runs have finish times now
                 total_duration = (run_end - run_start).total_seconds()
                 action_interval = total_duration / max(len(traversal_actions), 1)
 
@@ -1491,8 +1492,7 @@ def upload_realistic_data() -> None:
 
                     # Update with realistic timestamps
                     history_element.action_started_at = action_start
-                    if test_run.finished_at:  # Only set finish time for completed runs
-                        history_element.action_finished_at = action_end
+                    history_element.action_finished_at = action_end  # All runs are completed
 
                     db.add(history_element)
                     history_count += 1
@@ -1513,7 +1513,7 @@ def upload_realistic_data() -> None:
             rich_print("   • 12 Test Traversals")
             rich_print(f"   • {len(brain_states)} Brain States")
             rich_print(f"   • {len(actions)} Actions")
-            rich_print("   • 12 Test Runs")
+            rich_print("   • 12 Test Runs (all FINISHED or FAILED)")
             rich_print("   • 12 Cost Records")
             rich_print(f"   • {history_count} History Elements")
             rich_print("   • 12 TestCase-BrowserConfig associations")
@@ -1566,9 +1566,9 @@ def upload_realistic_data() -> None:
                     test_case_id=bacprep_test_case_id,
                     browser_config={
                         "viewport": {"width": 1920, "height": 768},
-                        "channel": "chromium",
+                        "browser_channel": "Chromium",
                         "user_data_dir": "/home/arathus/.config/browseruse/profiles/default/run_yrxzukvt7jfvj1hsqdbtoqa6",
-                        "user_agent": None,
+                        "user_agent": USER_AGENTS[0],  # Chrome user agent from constants
                         "device_scale_factor": None,
                         "color_scheme": "light",
                         "accept_downloads": True,

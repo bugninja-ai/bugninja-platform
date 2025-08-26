@@ -69,6 +69,7 @@ class ExtendedResponseTestcase(BaseModel):
     total_runs: int
     passed_runs: int
     failed_runs: int
+    pending_runs: int
     success_rate: float
     last_run_at: Optional[datetime]
 

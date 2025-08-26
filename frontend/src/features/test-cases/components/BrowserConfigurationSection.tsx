@@ -104,6 +104,27 @@ export const BrowserConfigurationSection: React.FC<BrowserConfigurationSectionPr
     }
   };
 
+  const removeExistingConfig = (configId: string) => {
+    if (editableTestCase && editableTestCase.existingBrowserConfigIds) {
+      const updatedIds = editableTestCase.existingBrowserConfigIds.filter(id => id !== configId);
+      onExistingConfigAdd(updatedIds);
+    }
+  };
+
+  const getBrowserChannelDisplay = (config: BrowserConfigData) => {
+    // Prefer browser_channel field, then extract from user agent
+    if (config.browser_config?.browser_channel) {
+      return config.browser_config.browser_channel;
+    }
+    
+    const userAgent = config.browser_config?.user_agent || '';
+    if (userAgent.includes('Chrome') && !userAgent.includes('Edg')) return 'Chromium';
+    if (userAgent.includes('Firefox')) return 'Firefox';
+    if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) return 'Webkit';
+    if (userAgent.includes('Edg')) return 'Microsoft Edge';
+    return 'Unknown';
+  };
+
   return (
     <EditableSection
       title="Browser configurations"
@@ -127,17 +148,10 @@ export const BrowserConfigurationSection: React.FC<BrowserConfigurationSectionPr
           ) : (
             <CustomDropdown
               options={existingBrowserConfigs
-                .filter(config => !editableTestCase?.browserConfigs.some(existing => existing.id === config.id))
+                .filter(config => !editableTestCase?.existingBrowserConfigIds?.includes(config.id))
                 .map(config => {
                   const viewport = config.browser_config?.viewport;
-                  const userAgent = config.browser_config?.user_agent || '';
-                  
-                  // Extract browser type from user agent
-                  let browserType = 'Unknown';
-                  if (userAgent.includes('Chrome') && !userAgent.includes('Edg')) browserType = 'Chromium';
-                  else if (userAgent.includes('Firefox')) browserType = 'Firefox';
-                  else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) browserType = 'Webkit';
-                  else if (userAgent.includes('Edg')) browserType = 'Microsoft Edge';
+                  const browserType = getBrowserChannelDisplay(config);
                   
                   return {
                     value: config.id,
@@ -158,6 +172,61 @@ export const BrowserConfigurationSection: React.FC<BrowserConfigurationSectionPr
       <div className="space-y-4">
         {isEditing ? (
           <>
+            {/* Existing Browser Configurations (Non-editable) - Linked from project */}
+            {editableTestCase?.existingBrowserConfigIds?.map((configId) => {
+              const config = existingBrowserConfigs.find(c => c.id === configId);
+              if (!config) return null;
+              
+              const viewport = config.browser_config?.viewport;
+              const browserChannel = getBrowserChannelDisplay(config);
+              const userAgent = config.browser_config?.user_agent || 'Not specified';
+              
+              return (
+                <div key={configId} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      <Monitor className="w-5 h-5 text-gray-400" />
+                      <span className="font-medium text-gray-700">{browserChannel} (Existing)</span>
+                    </div>
+                    <button
+                      onClick={() => removeExistingConfig(configId)}
+                      className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Browser Channel</label>
+                      <div className="px-3 py-2 bg-white border border-gray-200 rounded text-gray-600">
+                        {browserChannel}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Viewport</label>
+                      <div className="px-3 py-2 bg-white border border-gray-200 rounded text-gray-600">
+                        {viewport?.width || 1920} × {viewport?.height || 1080}
+                      </div>
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">User Agent</label>
+                      <div className="px-3 py-2 bg-white border border-gray-200 rounded text-gray-600 font-mono text-xs break-all">
+                        {userAgent.length > 80 ? `${userAgent.slice(0, 80)}...` : userAgent}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-2 text-xs text-gray-500">
+                    This configuration will be reused from existing setup
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* New Browser Configurations (Editable) */}
             {editableTestCase?.browserConfigs.map((config, index) => (
               <div key={config.id} className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">

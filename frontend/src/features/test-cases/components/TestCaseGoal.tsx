@@ -24,16 +24,18 @@ export const TestCaseGoal: React.FC<TestCaseGoalProps> = ({
 }) => {
   return (
     <EditableSection
-      title="Test goal"
+      title={
+        <div className="flex items-center space-x-2">
+          <Target className="h-5 w-5 text-blue-600" />
+          <span>Test goal</span>
+        </div>
+      }
       isEditing={isEditing}
       onEdit={onEdit}
       onSave={onSave}
       onCancel={onCancel}
       editTitle="Edit goal"
     >
-      <div className="flex items-center space-x-2 mb-4">
-        <Target className="h-5 w-5 text-blue-600" />
-      </div>
       {isEditing ? (
         <textarea
           value={editableTestCase?.goal || ''}

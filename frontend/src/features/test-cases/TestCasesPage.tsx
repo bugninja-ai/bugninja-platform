@@ -90,16 +90,39 @@ const TestCasesPage: React.FC = () => {
   };
 
   // Calculate statistics from test cases
-  // Note: Test case status comes from test runs, not test cases themselves
-  // For now, showing basic counts until we integrate test run data
-  const stats = {
-    totalTests: totalCount,
-    passedTests: 0, // TODO: Calculate from latest test runs
-    failedTests: 0, // TODO: Calculate from latest test runs  
-    pendingTests: totalCount, // All test cases are "ready to run" until we have run data
-    skippedTests: 0,
-    passRate: 0 // TODO: Calculate from test run success rate
-  };
+  const stats = React.useMemo(() => {
+    if (!testCases || testCases.length === 0) {
+      return {
+        totalTests: totalCount,
+        passedTests: 0, // Keep passedTests for backward compatibility with UI components
+        failedTests: 0,
+        pendingTests: totalCount,
+        skippedTests: 0,
+        passRate: 0
+      };
+    }
+
+    const finishedTests = testCases.filter(tc => tc.status === 'finished').length;
+    const failedTests = testCases.filter(tc => tc.status === 'failed').length;
+    const pendingTests = testCases.filter(tc => tc.status === 'pending').length;
+    const skippedTests = testCases.filter(tc => tc.status === 'skipped').length;
+    
+    // Calculate overall pass rate from all test cases
+    const totalRunsAcrossAllCases = testCases.reduce((sum, tc) => sum + tc.totalRuns, 0);
+    const totalPassedRunsAcrossAllCases = testCases.reduce((sum, tc) => sum + tc.passedRuns, 0);
+    const passRate = totalRunsAcrossAllCases > 0 
+      ? Math.round((totalPassedRunsAcrossAllCases / totalRunsAcrossAllCases) * 100)
+      : 0;
+
+    return {
+      totalTests: totalCount,
+      passedTests: finishedTests, // Keep passedTests for backward compatibility with UI components
+      failedTests,
+      pendingTests,
+      skippedTests,
+      passRate
+    };
+  }, [testCases, totalCount]);
 
   const renderContent = () => {
     if (!selectedProject) {
@@ -220,7 +243,7 @@ const TestCasesPage: React.FC = () => {
         />
 
         <StatsCard
-          title="Passed"
+          title="Finished"
           value={stats.passedTests}
           icon={CheckCircle}
           iconColor="text-emerald-600"

@@ -181,7 +181,6 @@ class TestCaseRepo:
             ).ilike(search_term)
             filters.append(search_filter)  # type: ignore
 
-
         # Apply all filters
         if filters:
             base_statement = base_statement.where(*filters)
@@ -581,6 +580,7 @@ class TestCaseRepo:
             total_runs=execution_stats["total_runs"],
             passed_runs=execution_stats["passed_runs"],
             failed_runs=execution_stats["failed_runs"],
+            pending_runs=execution_stats["pending_runs"],
             success_rate=execution_stats["success_rate"],
             last_run_at=latest_run_date,
         )
@@ -651,14 +651,17 @@ class TestCaseRepo:
         # Count different states: FINISHED = passed, FAILED = failed, PENDING = in progress
         passed_runs = len([run for run in test_runs if run.current_state == RunState.FINISHED])
         failed_runs = len([run for run in test_runs if run.current_state == RunState.FAILED])
+        pending_runs = len([run for run in test_runs if run.current_state == RunState.PENDING])
 
-        # Calculate success rate
-        success_rate = (passed_runs / total_runs * 100) if total_runs > 0 else 0.0
+        # Calculate success rate based on completed runs only
+        completed_runs = passed_runs + failed_runs
+        success_rate = (passed_runs / completed_runs * 100) if completed_runs > 0 else 0.0
 
         return {
             "total_runs": total_runs,
             "passed_runs": passed_runs,
             "failed_runs": failed_runs,
+            "pending_runs": pending_runs,
             "success_rate": round(success_rate, 1),
         }
 

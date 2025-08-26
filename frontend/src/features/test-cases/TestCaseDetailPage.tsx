@@ -15,6 +15,7 @@ import { RecentTestRuns } from './components/RecentTestRuns';
 import { ExecutionSummary } from './components/ExecutionSummary';
 import { DeleteTestCaseSection } from './components/DeleteTestCaseSection';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
+import { RunTestModal } from './components/RunTestModal';
 
 const TestCaseDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -73,6 +74,9 @@ const TestCaseDetailPage: React.FC = () => {
     deleteLoading,
     deleteError,
     
+    // Run test modal
+    showRunTestModal,
+    
     // Handlers
     handleGoalChange,
     handleCategoryChange,
@@ -100,6 +104,11 @@ const TestCaseDetailPage: React.FC = () => {
     handleDeleteTestCase,
     confirmDeleteTestCase,
     cancelDeleteTestCase,
+    
+    // Run test handlers
+    handleRunTest,
+    handleCloseRunTestModal,
+    handleTestStarted,
     
     // Reload function
     loadTestCase
@@ -164,7 +173,7 @@ const TestCaseDetailPage: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <TestCaseHeader testCase={testCase} />
+      <TestCaseHeader testCase={testCase} onRunTest={handleRunTest} />
 
       {/* Test Goal */}
       <TestCaseGoal
@@ -281,6 +290,14 @@ const TestCaseDetailPage: React.FC = () => {
         error={deleteError}
         onConfirm={confirmDeleteTestCase}
         onCancel={cancelDeleteTestCase}
+      />
+
+      {/* Run Test Modal */}
+      <RunTestModal
+        isOpen={showRunTestModal}
+        onClose={handleCloseRunTestModal}
+        testCase={testCase}
+        onTestStarted={handleTestStarted}
       />
     </div>
   );

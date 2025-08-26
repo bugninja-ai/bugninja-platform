@@ -49,6 +49,9 @@ export const useTestCaseDetail = (testCaseId: string | undefined) => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Run test modal
+  const [showRunTestModal, setShowRunTestModal] = useState(false);
+
   // Load functions
   const loadTestCase = useCallback(async (id: string) => {
     try {
@@ -539,6 +542,23 @@ export const useTestCaseDetail = (testCaseId: string | undefined) => {
     setDeleteError(null);
   }, []);
 
+  // Run test handlers
+  const handleRunTest = useCallback(() => {
+    setShowRunTestModal(true);
+  }, []);
+
+  const handleCloseRunTestModal = useCallback(() => {
+    setShowRunTestModal(false);
+  }, []);
+
+  const handleTestStarted = useCallback((testRunId: string) => {
+    console.log('Test started with ID:', testRunId);
+    // Optionally refresh recent test runs
+    if (testCase?.id) {
+      loadRecentTestRuns(testCase.id);
+    }
+  }, [testCase?.id, loadRecentTestRuns]);
+
   // Effects
   useEffect(() => {
     if (testCaseId) {
@@ -604,6 +624,9 @@ export const useTestCaseDetail = (testCaseId: string | undefined) => {
     showDeleteModal,
     deleteLoading,
     deleteError,
+
+    // Run test modal
+    showRunTestModal,
     
     // Handlers
     handleGoalChange,
@@ -632,6 +655,11 @@ export const useTestCaseDetail = (testCaseId: string | undefined) => {
     handleDeleteTestCase,
     confirmDeleteTestCase,
     cancelDeleteTestCase,
+
+    // Run test handlers
+    handleRunTest,
+    handleCloseRunTestModal,
+    handleTestStarted,
     
     // Reload function
     loadTestCase

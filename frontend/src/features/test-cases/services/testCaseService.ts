@@ -5,6 +5,7 @@ import {
   FrontendTestCase, 
   TestPriority,
   TestCategory,
+  TestStatus,
   ExtraRule,
   BrowserConfig,
   TestSecret
@@ -87,6 +88,27 @@ export class TestCaseService {
       value: secret.secret_value
     }));
 
+    // Calculate test case status based on test run data
+    let status: TestStatus = 'pending';
+    
+    if (backendTestCase.total_runs === 0 || !backendTestCase.last_run_at) {
+      // No runs yet - status is pending
+      status = 'pending';
+    } else if (backendTestCase.pending_runs > 0) {
+      // If there are any pending runs, the test case is currently running - status is pending
+      status = 'pending';
+    } else if (backendTestCase.success_rate >= 100) {
+      // All completed runs passed - status is finished
+      status = 'finished';
+    } else if (backendTestCase.success_rate === 0) {
+      // All completed runs failed - status is failed
+      status = 'failed';
+    } else {
+      // Mixed results - use the most recent run result
+      // If we have more passed than failed runs, consider it finished
+      status = backendTestCase.passed_runs > backendTestCase.failed_runs ? 'finished' : 'failed';
+    }
+
     return {
       id: backendTestCase.id,
       code,
@@ -95,7 +117,7 @@ export class TestCaseService {
       description: backendTestCase.test_description,
       priority: priorityMap[backendTestCase.priority] || 'medium',
       category: categoryMap[backendTestCase.category || ''] || 'general',
-      status: 'pending', // Note: Test case status should come from latest test runs, not test case itself
+      status,
       goal: backendTestCase.test_goal,
       createdAt: new Date(backendTestCase.created_at),
       updatedAt: new Date(backendTestCase.updated_at),
@@ -104,6 +126,7 @@ export class TestCaseService {
       totalRuns: backendTestCase.total_runs,
       passedRuns: backendTestCase.passed_runs,
       failedRuns: backendTestCase.failed_runs,
+      pendingRuns: backendTestCase.pending_runs,
       startingUrl: backendTestCase.url_routes || backendTestCase.url_route || '',
       allowedDomains: backendTestCase.allowed_domains,
       extraRules,
@@ -413,6 +436,24 @@ export class TestCaseService {
     } catch (error: any) {
       const apiError: ApiError = {
         message: error.response?.data?.detail || error.message || 'Failed to fetch test runs',
+        status: error.response?.status,
+        code: error.code,
+      };
+      throw apiError;
+    }
+  }
+
+  /**
+   * Execute a test configuration
+   */
+  static async executeTestConfiguration(testCaseId: string, browserConfigId: string): Promise<any> {
+    try {
+      const url = `/test-runs/execute-configuration/${testCaseId}/${browserConfigId}`;
+      const response = await apiClient.post(url);
+      return response.data;
+    } catch (error: any) {
+      const apiError: ApiError = {
+        message: error.response?.data?.detail || error.message || 'Failed to execute test configuration',
         status: error.response?.status,
         code: error.code,
       };

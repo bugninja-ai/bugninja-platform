@@ -328,13 +328,51 @@ class BugninjaInterface:
                 }
                 action_counter += 1
 
+                # Ensure browser_config has the required field mapping for bugninja
+        browser_config_data = browser_config.browser_config.copy()
+
+        # Map browser_channel to channel if channel is missing but browser_channel exists
+        if "channel" not in browser_config_data and "browser_channel" in browser_config_data:
+            browser_config_data["channel"] = browser_config_data["browser_channel"]
+
+        # Map frontend browser channel names to bugninja enum values
+        if "channel" in browser_config_data:
+            browser_config_data["channel"] = BugninjaInterface._map_browser_channel_to_enum(
+                browser_config_data["channel"]
+            )
+
         return {
             "test_case": test_case.test_description,
-            "browser_config": browser_config.browser_config,
+            "browser_config": browser_config_data,
             "secrets": secrets,
             "brain_states": brain_states_dict,
             "actions": actions_dict,
         }
+
+    @staticmethod
+    def _map_browser_channel_to_enum(channel: str) -> str:
+        """
+        Map frontend browser channel names to bugninja package enum values.
+
+        Args:
+            channel (str): Frontend browser channel name
+
+        Returns:
+            str: Bugninja package compatible enum value
+        """
+        # Mapping from frontend names to bugninja enum values
+        channel_mapping = {
+            "Chromium": "chromium",
+            "Google Chrome": "chrome",
+            "Microsoft Edge": "msedge",
+            "Firefox": "firefox",  # Note: firefox might not be supported by bugninja
+            "Webkit": "webkit",  # Note: webkit might not be supported by bugninja
+            "Mobile Chrome": "chrome",
+            "Mobile Safari": "webkit",
+        }
+
+        # Return mapped value or default to chromium if unknown
+        return channel_mapping.get(channel, "chromium")
 
     @staticmethod
     def _build_task_data(

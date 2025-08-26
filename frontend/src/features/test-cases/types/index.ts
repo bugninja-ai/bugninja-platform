@@ -1,4 +1,4 @@
-export type TestStatus = 'passed' | 'failed' | 'pending' | 'skipped';
+export type TestStatus = 'finished' | 'failed' | 'pending' | 'skipped';
 export type TestPriority = 'critical' | 'high' | 'medium' | 'low';
 export type TestCategory = 'authentication' | 'banking' | 'payments' | 'security' | 'ui' | 'api';
 
@@ -129,6 +129,7 @@ export interface BackendTestCase {
   total_runs: number;
   passed_runs: number;
   failed_runs: number;
+  pending_runs: number;
   success_rate: number;
   last_run_at: string | null;
 }
@@ -161,6 +162,7 @@ export interface FrontendTestCase {
   totalRuns: number;
   passedRuns: number;
   failedRuns: number;
+  pendingRuns: number;
   startingUrl: string;
   allowedDomains: string[];
   extraRules: ExtraRule[];

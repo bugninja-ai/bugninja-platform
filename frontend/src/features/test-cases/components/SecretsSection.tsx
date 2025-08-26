@@ -126,9 +126,9 @@ export const SecretsSection: React.FC<SecretsSectionProps> = ({
         </div>
       )}
       
-      <div className="space-y-3">
+      <div className="space-y-4">
         {isEditing ? (
-          <div>
+          <>
             {/* Existing Secrets (Non-editable) - Linked from project */}
             {editableTestCase?.existingSecretIds?.map((secretId) => {
               const secret = existingSecrets.find(s => s.id === secretId);
@@ -193,7 +193,7 @@ export const SecretsSection: React.FC<SecretsSectionProps> = ({
               <Plus className="w-4 h-4" />
               <span>Add secret</span>
             </button>
-          </div>
+          </>
         ) : (
           testCase.secrets.map((secret) => (
             <div key={secret.id} className="border border-gray-200 rounded-lg p-4">
