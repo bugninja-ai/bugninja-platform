@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Play, Monitor, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { FrontendTestCase, BrowserConfig } from '../types';
 import { TestCaseService } from '../services/testCaseService';
 
@@ -16,6 +17,7 @@ export const RunTestModal: React.FC<RunTestModalProps> = ({
   testCase,
   onTestStarted,
 }) => {
+  const navigate = useNavigate();
   const [runningConfigs, setRunningConfigs] = useState<Set<string>>(new Set());
   const [executionError, setExecutionError] = useState<string | null>(null);
 
@@ -28,15 +30,18 @@ export const RunTestModal: React.FC<RunTestModalProps> = ({
     try {
       const result = await TestCaseService.executeTestConfiguration(testCase.id, browserConfig.id);
       
-      if (onTestStarted && result?.test_run_id) {
-        onTestStarted(result.test_run_id);
+      if (onTestStarted && result?.id) {
+        onTestStarted(result.id);
       }
       
-      // Show success feedback and close modal after a short delay
-      setTimeout(() => {
-        onClose();
-        setRunningConfigs(new Set());
-      }, 1000);
+      // Close modal and redirect to test run page
+      onClose();
+      setRunningConfigs(new Set());
+      
+      // Navigate to the test run detail page
+      if (result?.id) {
+        navigate(`/runs/${result.id}`);
+      }
     } catch (error: any) {
       console.error('Failed to execute test configuration:', error);
       setExecutionError(error.message || 'Failed to start test execution');

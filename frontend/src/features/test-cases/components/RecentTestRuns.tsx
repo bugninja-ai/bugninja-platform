@@ -20,12 +20,14 @@ interface RecentTestRunsProps {
   testCase: FrontendTestCase;
   recentTestRuns: any[];
   testRunsLoading: boolean;
+  onRunTest?: () => void;
 }
 
 export const RecentTestRuns: React.FC<RecentTestRunsProps> = ({
   testCase,
   recentTestRuns,
-  testRunsLoading
+  testRunsLoading,
+  onRunTest
 }) => {
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200">
@@ -156,13 +158,23 @@ export const RecentTestRuns: React.FC<RecentTestRunsProps> = ({
             </div>
             <h3 className="text-lg font-medium text-gray-800 mb-2">No test runs yet</h3>
             <p className="text-gray-600 mb-4">This test case hasn't been executed yet.</p>
-            <Link
-              to={`/runs/${testCase.id}/run`}
-              className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              <Play className="w-4 h-4 mr-2" />
-              Run test now
-            </Link>
+            {onRunTest ? (
+              <button
+                onClick={onRunTest}
+                className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Run test now
+              </button>
+            ) : (
+              <Link
+                to={`/runs/${testCase.id}/run`}
+                className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Run test now
+              </Link>
+            )}
           </div>
         )}
       </div>

@@ -20,6 +20,7 @@ const TestRunDetailPage: React.FC = () => {
     modalOpen,
     selectedScreenshot,
     selectedActionData,
+    isPolling,
     openScreenshotModal,
     closeModal
   } = useTestRunDetail(runId);
@@ -82,6 +83,18 @@ const TestRunDetailPage: React.FC = () => {
 
       {/* Global Error */}
       {testRun.error && <ErrorSection error={testRun.error} />}
+
+      {/* Polling Indicator at Bottom */}
+      {isPolling && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sticky bottom-4 z-10">
+          <div className="flex items-center justify-center space-x-2">
+            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+            <span className="text-sm text-blue-700 font-medium">
+              Test is running - Auto-refreshing every 3 seconds...
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Screenshot Modal */}
       {selectedActionData && (

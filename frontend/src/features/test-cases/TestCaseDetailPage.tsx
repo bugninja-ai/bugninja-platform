@@ -271,6 +271,7 @@ const TestCaseDetailPage: React.FC = () => {
         testCase={testCase}
         recentTestRuns={recentTestRuns}
         testRunsLoading={testRunsLoading}
+        onRunTest={handleRunTest}
       />
 
       {/* Execution Summary */}

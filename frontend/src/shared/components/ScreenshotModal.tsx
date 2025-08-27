@@ -81,16 +81,23 @@ const ScreenshotModal: React.FC<ScreenshotModalProps> = ({
 
   if (!isOpen) return null;
 
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Only close if clicking directly on the backdrop, not on child elements
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex">
+    <div className="fixed inset-0 z-[9999] flex" onClick={handleBackdropClick}>
       {/* Blurred background */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-md"
-        onClick={onClose}
+        onClick={handleBackdropClick}
       />
       
       {/* Modal content */}
-      <div className="relative w-full h-full flex">
+      <div className="relative w-full h-full flex" onClick={(e) => e.stopPropagation()}>
         {/* Left side - Image */}
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="max-w-4xl max-h-full">
