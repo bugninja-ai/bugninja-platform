@@ -206,6 +206,14 @@ const CreateTestPage: React.FC = () => {
                   setCategoryDropdownOpen={(open: boolean) => open ? dropdowns.open('category') : dropdowns.close('category')}
                 />
 
+                {/* Extra instructions (steps) */}
+                <ExtraRulesSection
+                  extraRules={formData.extraRules}
+                  onRuleChange={handleRuleChange}
+                  onAddRule={addRule}
+                  onRemoveRule={removeRule}
+                />
+
                 {/* Test Configuration */}
                 <TestConfigurationSection
                   formData={{
@@ -251,14 +259,6 @@ const CreateTestPage: React.FC = () => {
                   onAddExistingSecret={addExistingSecret}
                   existingSecretsDropdowns={existingSecretsDropdowns}
                   setExistingSecretsDropdowns={setExistingSecretsDropdowns}
-                />
-
-                {/* Extra Rules */}
-                <ExtraRulesSection
-                  extraRules={formData.extraRules}
-                  onRuleChange={handleRuleChange}
-                  onAddRule={addRule}
-                  onRemoveRule={removeRule}
                 />
               </>
             )}

@@ -186,6 +186,17 @@ const TestCaseDetailPage: React.FC = () => {
         onGoalChange={handleGoalChange}
       />
 
+      {/* Extra instructions (steps) */}
+      <ExtraRulesSection
+        testCase={testCase}
+        editableTestCase={editableTestCase}
+        isEditing={editingRules}
+        onEdit={() => setEditingRules(true)}
+        onSave={saveRules}
+        onCancel={() => cancelEdit('rules')}
+        onRulesChange={handleRulesChange}
+      />
+
       {/* Basic Information */}
       <TestCaseBasicInfo
         testCase={testCase}
@@ -212,17 +223,6 @@ const TestCaseDetailPage: React.FC = () => {
         onCancel={() => cancelEdit('config')}
         onStartingUrlChange={handleStartingUrlChange}
         onAllowedDomainsChange={handleAllowedDomainsChange}
-      />
-
-      {/* Extra Rules */}
-      <ExtraRulesSection
-        testCase={testCase}
-        editableTestCase={editableTestCase}
-        isEditing={editingRules}
-        onEdit={() => setEditingRules(true)}
-        onSave={saveRules}
-        onCancel={() => cancelEdit('rules')}
-        onRulesChange={handleRulesChange}
       />
 
       {/* Browser Configurations */}

@@ -57,12 +57,12 @@ export const ExtraRulesSection: React.FC<ExtraRulesSectionProps> = ({
 
   return (
     <EditableSection
-      title="Extra rules"
+      title="Extra instructions (steps)"
       isEditing={isEditing}
       onEdit={onEdit}
       onSave={onSave}
       onCancel={onCancel}
-      editTitle="Edit extra rules"
+      editTitle="Edit extra instructions (steps)"
     >
       <div className="space-y-3">
         {isEditing ? (
@@ -78,7 +78,7 @@ export const ExtraRulesSection: React.FC<ExtraRulesSectionProps> = ({
                     onChange={(e) => updateRule(index, e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
                     rows={2}
-                    placeholder="Enter rule description"
+                    placeholder="Enter instruction or step description"
                   />
                 </div>
                 <button
@@ -95,7 +95,7 @@ export const ExtraRulesSection: React.FC<ExtraRulesSectionProps> = ({
               className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors flex items-center justify-center space-x-2"
             >
               <Plus className="w-4 h-4" />
-              <span>Add rule</span>
+              <span>Add step</span>
             </button>
           </>
         ) : (

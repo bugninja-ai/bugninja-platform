@@ -17,14 +17,14 @@ export const ExtraRulesSection: React.FC<ExtraRulesSectionProps> = ({
   return (
     <div className="bg-white rounded-lg p-6 border border-gray-200">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-800">Extra Rules</h2>
+        <h2 className="text-lg font-semibold text-gray-800">Extra instructions (steps)</h2>
         <button
           type="button"
           onClick={onAddRule}
           className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
         >
           <Plus className="w-4 h-4 mr-1" />
-          Add Rule
+          Add Step
         </button>
       </div>
 
@@ -38,7 +38,7 @@ export const ExtraRulesSection: React.FC<ExtraRulesSectionProps> = ({
               <textarea
                 value={rule.description}
                 onChange={(e) => onRuleChange(index, e.target.value)}
-                placeholder={`Rule ${rule.ruleNumber}: Describe the rule or constraint...`}
+                placeholder={`Step ${rule.ruleNumber}: Describe the instruction or step...`}
                 rows={2}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
               />
