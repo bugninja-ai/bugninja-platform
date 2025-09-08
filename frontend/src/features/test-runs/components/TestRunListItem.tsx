@@ -78,6 +78,19 @@ const getBrowserInfo = (run: any) => {
   };
 };
 
+const getRunTypeDisplay = (runType: string) => {
+  switch (runType) {
+    case 'AGENTIC':
+      return 'Agentic';
+    case 'REPLAY':
+      return 'Replay';
+    case 'REPLAY_WITH_HEALING':
+      return 'Healing';
+    default:
+      return 'Agentic';
+  }
+};
+
 export const TestRunListItem: React.FC<TestRunListItemProps> = ({ run }) => {
   const browserInfo = getBrowserInfo(run);
   const startedAt = new Date(run.started_at || run.startedAt || run.created_at);
@@ -156,8 +169,8 @@ export const TestRunListItem: React.FC<TestRunListItemProps> = ({ run }) => {
               </div>
             )}
             <div className="flex items-center space-x-1">
-              <span className="text-gray-400">Environment:</span>
-              <span className="text-gray-600 font-medium">{run.origin === 'CI/CD' ? 'Production' : 'Development'}</span>
+              <span className="text-gray-400">Type:</span>
+              <span className="text-gray-600 font-medium">{getRunTypeDisplay(run.run_type)}</span>
             </div>
           </div>
         </div>

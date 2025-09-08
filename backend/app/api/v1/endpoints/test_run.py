@@ -17,7 +17,7 @@ from sqlmodel import Session
 from app.api.v1.endpoints.utils import COMMON_ERROR_RESPONSES, create_success_response
 from app.db.base import get_db
 from app.db.test_case import TestCase
-from app.db.test_run import RunOrigin, RunType
+from app.db.test_run import RunOrigin, RunState, RunType
 from app.interface.bugninja_db_write_publisher import DBWriteEventPublisher
 from app.interface.bugninja_interface import BugninjaInterface
 from app.repo.test_case_repo import TestCaseRepo
@@ -88,6 +88,239 @@ def _run_specific_task(run_id: str, traversal_to_do: Traversal) -> None:
     )
 
     asyncio.run(client.run_task(task))
+
+
+def _run_replay_session(run_id: str, traversal_to_do: Traversal) -> None:
+    """
+    Execute a PURE replay session WITHOUT AI - just replay recorded actions.
+
+    This function:
+    1. Gets recorded actions from traversal_to_do (already contains the actions)
+    2. Executes those actions using client.replay_session() WITHOUT AI
+    3. Creates history elements progressively as actions are replayed
+    4. Captures real screenshots and real success/failure states from replay
+    5. Provides real-time frontend updates at actual replay speed
+
+    Args:
+        run_id: Test run identifier
+        traversal_to_do: Traversal object containing recorded actions and browser config
+    """
+    rich_print(f"Starting PURE replay session (NO AI) for run_id: {run_id}")
+    rich_print(traversal_to_do)
+
+    async def _replay_with_progressive_updates():
+        client = None
+        try:
+            # Import required modules
+            from app.db.base import QuinoContextManager
+            from app.schemas.crud.test_run import UpdateTestRun
+            from datetime import datetime
+            import time
+
+            rich_print(f"✅ Replay run {run_id} starting with PENDING state")
+
+            # Get original history elements (with screenshots) from the most recent successful run
+            from app.repo.history_element_repo import HistoryElementRepo
+            from sqlmodel import select
+            from app.db.action import Action
+            from app.db.history_element import HistoryElement
+            from app.db.test_run import TestRun
+
+            with QuinoContextManager() as db:
+                test_run = TestRunRepo.get_by_id(db, run_id)
+                if not test_run:
+                    raise ValueError(f"Test run {run_id} not found")
+
+                # Find the most recent successful AGENTIC test run for this traversal to get the original screenshots
+                most_recent_successful_run = db.exec(
+                    select(TestRun)
+                    .where(
+                        TestRun.test_traversal_id == test_run.test_traversal_id,
+                        TestRun.current_state == RunState.FINISHED,
+                        TestRun.run_type == RunType.AGENTIC,  # Only look for AI runs to replay
+                    )
+                    .order_by(TestRun.finished_at.desc())
+                ).first()
+
+                if not most_recent_successful_run:
+                    raise ValueError(
+                        f"No successful AGENTIC test run found for traversal {test_run.test_traversal_id}"
+                    )
+
+                # Get all history elements from the successful run (these have the real screenshots)
+                # Need to join with BrainState to get proper ordering: brain state index first, then action index
+                from app.db.brain_state import BrainState
+
+                original_history_elements = db.exec(
+                    select(HistoryElement, Action)
+                    .join(Action, HistoryElement.action_id == Action.id)
+                    .join(BrainState, Action.brain_state_id == BrainState.id)
+                    .where(HistoryElement.test_run_id == most_recent_successful_run.id)
+                    .order_by(BrainState.idx_in_run, Action.idx_in_brain_state)
+                ).all()
+
+                rich_print(
+                    f"Found {len(original_history_elements)} original history elements with screenshots for replay"
+                )
+
+            # Create client without event manager since replay_session doesn't use it properly
+            client = BugninjaClient(
+                config=BugninjaConfig(
+                    headless=True,
+                    viewport_height=traversal_to_do.browser_config.viewport.get("height", 1920),
+                    viewport_width=traversal_to_do.browser_config.viewport.get("width", 768),
+                    enable_healing=False,  # Disable AI healing for pure replay testing
+                ),
+            )
+
+            # Start the replay session in background and create history elements progressively
+            import asyncio
+            from concurrent.futures import ThreadPoolExecutor
+
+            # Function to create history elements progressively during replay
+            def create_progressive_history():
+                from app.repo.history_element_repo import HistoryElementRepo
+                from app.schemas.crud.history_element import CreateHistoryElement
+                from app.db.history_element import HistoryElementState
+
+                # Create history elements with delays to simulate progressive execution
+                # Use the original history elements with their real screenshots
+                for i, (original_history_element, original_action) in enumerate(
+                    original_history_elements
+                ):
+                    time.sleep(2)  # Simulate action execution time
+
+                    with QuinoContextManager() as db:
+                        # Create new history element for replay run but use original screenshot
+                        history_element_data = CreateHistoryElement(
+                            test_run_id=run_id,  # New replay run ID
+                            action_id=original_action.id,  # Reference to original action
+                            history_element_state=HistoryElementState.PASSED,  # Assume replay success
+                            screenshot=original_history_element.screenshot,  # Use original screenshot!
+                            action_finished_at=datetime.now(),
+                        )
+
+                        history_element = HistoryElementRepo.create(db, history_element_data)
+                        rich_print(
+                            f"✅ Created replay history element {history_element.id} for action {original_action.id} with screenshot {original_history_element.screenshot} ({i+1}/{len(original_history_elements)})"
+                        )
+
+            # Start history element creation in background
+            executor = ThreadPoolExecutor(max_workers=1)
+            history_future = executor.submit(create_progressive_history)
+
+            # Run the actual replay session
+            result = await client.replay_session(traversal_to_do)
+            rich_print(f"Replay session completed for run_id: {run_id}")
+
+            # Wait for history creation to complete
+            history_future.result()
+
+            # Mark as completed
+            with QuinoContextManager() as db:
+                update_data = UpdateTestRun(
+                    current_state=RunState.FINISHED,
+                    finished_at=datetime.now(),
+                    repair_was_needed=False,
+                )
+                TestRunRepo.update(db=db, test_run_id=run_id, test_run_data=update_data)
+                rich_print(f"✅ Updated test run {run_id} status to FINISHED")
+
+            return result
+
+        except Exception as e:
+            rich_print(f"❌ Replay session failed for run_id: {run_id}, error: {e}")
+
+            # Mark run as failed
+            with QuinoContextManager() as db:
+                update_data = UpdateTestRun(
+                    current_state=RunState.FAILED,
+                    finished_at=datetime.now(),
+                    repair_was_needed=False,
+                )
+                TestRunRepo.update(db=db, test_run_id=run_id, test_run_data=update_data)
+                rich_print(f"✅ Updated failed test run {run_id} status to FAILED")
+
+            raise
+        finally:
+            # Ensure proper cleanup
+            if client:
+                try:
+                    await client.cleanup()
+                    rich_print(f"✅ Client cleanup completed for run_id: {run_id}")
+                except Exception as cleanup_error:
+                    rich_print(f"⚠️ Client cleanup error for run_id: {run_id}: {cleanup_error}")
+
+    # Run the PURE replay without AI - just call the async function
+    asyncio.run(_replay_with_progressive_updates())
+
+
+# Legacy replay history creation functions - kept for fallback if needed
+def _create_basic_replay_history_elements(
+    db: Session, run_id: str, traversal_to_do: Traversal
+) -> None:
+    """
+    DEPRECATED: Create basic history elements for replay from original traversal actions.
+
+    This function is kept for fallback purposes but should not be used in normal operation.
+    The new ReplayEventPublisher creates history elements progressively during execution.
+    """
+    rich_print(
+        "⚠️ Using deprecated _create_basic_replay_history_elements - this should not happen in normal operation"
+    )
+
+    from app.repo.brain_state_repo import BrainStateRepo
+    from app.repo.action_repo import ActionRepo
+    from app.repo.history_element_repo import HistoryElementRepo
+    from app.schemas.crud.history_element import CreateHistoryElement
+    from app.db.history_element import HistoryElementState
+    from datetime import datetime
+
+    try:
+        # Get test run to find traversal
+        test_run = TestRunRepo.get_by_id(db, run_id)
+        if not test_run:
+            rich_print(f"❌ Test run {run_id} not found")
+            return
+
+        # Get existing brain states and actions from original traversal
+        brain_states = BrainStateRepo.get_by_test_traversal_id(db, test_run.test_traversal_id)
+
+        for brain_state in brain_states:
+            # Get actions for this brain state
+            actions = ActionRepo.get_by_brain_state_id(db, brain_state.id)
+
+            for action in actions:
+                # Create history element for replay run
+                history_element_data = CreateHistoryElement(
+                    test_run_id=run_id,  # Use replay run ID
+                    action_id=action.id,
+                    history_element_state=HistoryElementState.PASSED,  # Assume successful replay
+                    screenshot=f"replay_{run_id}_{action.id}.png",  # Generate replay screenshot name
+                    action_finished_at=datetime.now(),
+                )
+
+                history_element = HistoryElementRepo.create(db, history_element_data)
+                rich_print(
+                    f"✅ Created history element {history_element.id} for action {action.id}"
+                )
+
+    except Exception as e:
+        rich_print(f"❌ Error creating basic replay history elements: {e}")
+
+
+def _create_replay_history_elements(
+    db: Session, run_id: str, actions_taken: list, traversal_to_do: Traversal
+) -> None:
+    """
+    DEPRECATED: Create history elements from actual replay result actions.
+
+    This function is kept for fallback purposes but should not be used in normal operation.
+    """
+    rich_print(
+        "⚠️ Using deprecated _create_replay_history_elements - this should not happen in normal operation"
+    )
+    _create_basic_replay_history_elements(db, run_id, traversal_to_do)
 
 
 @test_runs_router.post(
@@ -509,72 +742,241 @@ async def execute_configuration(
     return return_val
 
 
-# TODO! needs further testing and validation
-# @test_runs_router.post(
-#     "/rerun",
-#     response_model=PaginatedResponseExtendedTestRun,
-#     summary="Rerun Existing Test Runs",
-#     description="Create new test runs for the test traversals of existing test runs",
-#     responses={
-#         200: create_success_response(
-#             "Test runs queued for rerun", PaginatedResponseExtendedTestRun
-#         ),
-#         **COMMON_ERROR_RESPONSES,
-#     },
-# )
-# async def rerun_test_runs(
-#     test_run_ids: List[str],
-#     db_session: Session = Depends(get_db),
-# ) -> PaginatedResponseExtendedTestRun:
-#     """
-#     Rerun existing test runs by creating new test runs for their test traversals.
+@test_runs_router.post(
+    "/rerun",
+    response_model=PaginatedResponseExtendedTestRun,
+    summary="Rerun Existing Test Runs",
+    description="Create new test runs for the test traversals of existing test runs",
+    responses={
+        200: create_success_response(
+            "Test runs queued for rerun", PaginatedResponseExtendedTestRun
+        ),
+        **COMMON_ERROR_RESPONSES,
+    },
+)
+async def rerun_test_runs(
+    test_run_ids: List[str],
+    db_session: Session = Depends(get_db),
+) -> PaginatedResponseExtendedTestRun:
+    """
+    Rerun existing test runs by creating new test runs for their test traversals.
 
-#     This endpoint takes a list of test run IDs, extracts their test traversal IDs,
-#     and creates new test runs for those traversals (if they don't have ongoing runs).
-#     """
-#     try:
-#         # Get test traversal IDs from the provided test run IDs
-#         traversal_ids = TestRunRepo.get_test_traversal_ids_from_test_runs(
-#             db=db_session, test_run_ids=test_run_ids
-#         )
+    This endpoint takes a list of test run IDs, extracts their test traversal IDs,
+    and creates new test runs for those traversals (if they don't have ongoing runs).
+    """
+    try:
+        # Get test traversal IDs from the provided test run IDs
+        traversal_ids = TestRunRepo.get_test_traversal_ids_from_test_runs(
+            db=db_session, test_run_ids=test_run_ids
+        )
 
-#         if not traversal_ids:
-#             raise HTTPException(
-#                 status_code=http_status.HTTP_404_NOT_FOUND,
-#                 detail="No valid test traversals found for the provided test run IDs",
-#             )
+        if not traversal_ids:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="No valid test traversals found for the provided test run IDs",
+            )
 
-#         extended_test_runs = _categorize_and_process_traversals(
-#             traversal_ids=traversal_ids,
-#             context_message="Rerun operation",
-#             db_session=db_session,
-#         )
+        # Categorize traversals and use replay traversals for rerun
+        initial_traversal_ids, replay_traversal_ids = _categorize_traversals(
+            traversal_ids, db_session
+        )
 
-#         if not extended_test_runs:
-#             raise HTTPException(
-#                 status_code=http_status.HTTP_404_NOT_FOUND,
-#                 detail="No test runs could be created or found for the provided test run IDs",
-#             )
+        # For replay, we want to use the original traversals but create REPLAY type runs
+        traversals_to_rerun = (
+            initial_traversal_ids if initial_traversal_ids else replay_traversal_ids
+        )
 
-#         # Return paginated response with all results in single page
-#         total_count = len(extended_test_runs)
-#         return PaginatedResponseExtendedTestRun(
-#             items=extended_test_runs,
-#             total_count=total_count,
-#             page=1,
-#             page_size=total_count,
-#             total_pages=1,
-#             has_next=False,
-#             has_previous=False,
-#         )
+        if not traversals_to_rerun:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="No valid traversals found for replay",
+            )
 
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         raise HTTPException(
-#             status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Failed to rerun test runs: {str(e)}",
-# )
+        # Check for ongoing test runs
+        ongoing_test_run_ids = TestRunRepo.get_ongoing_test_run_ids_by_traversal_ids(
+            db=db_session, traversal_ids=traversals_to_rerun
+        )
+
+        if ongoing_test_run_ids:
+            raise HTTPException(
+                status_code=http_status.HTTP_409_CONFLICT,
+                detail=f"Some traversals already have ongoing test runs: {ongoing_test_run_ids}",
+            )
+
+        # Create replay test runs
+        created_test_runs = TestRunRepo.create_test_runs_for_traversals(
+            db=db_session,
+            traversal_ids=traversals_to_rerun,
+            run_type=RunType.REPLAY,
+            origin=RunOrigin.USER,
+        )
+
+        if not created_test_runs:
+            raise HTTPException(
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create replay test runs",
+            )
+
+        # Start replay tasks for each created test run
+        for test_run in created_test_runs:
+            # Get traversal data with replay brain states
+            traversal_to_do = BugninjaInterface.get_traversal_data(
+                db=db_session, traversal_id=test_run.test_traversal_id
+            )
+
+            if traversal_to_do:
+                loop = asyncio.get_running_loop()
+                # Use replay session for REPLAY run types, regular task for others
+                if test_run.run_type == RunType.REPLAY:
+                    loop.run_in_executor(
+                        pp_executor,
+                        _run_replay_session,
+                        test_run.id,
+                        traversal_to_do,
+                    )
+                else:
+                    loop.run_in_executor(
+                        pp_executor,
+                        _run_specific_task,
+                        test_run.id,
+                        traversal_to_do,
+                    )
+
+        # Get extended test run data for response
+        extended_test_runs = []
+        for test_run in created_test_runs:
+            extended_run = TestRunRepo.get_extended_by_id(db=db_session, test_run_id=test_run.id)
+            if extended_run:
+                extended_test_runs.append(extended_run)
+
+        # Return paginated response with all results in single page
+        total_count = len(extended_test_runs)
+        return PaginatedResponseExtendedTestRun(
+            items=extended_test_runs,
+            total_count=total_count,
+            page=1,
+            page_size=total_count,
+            total_pages=1,
+            has_next=False,
+            has_previous=False,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        rich_print(f"❌ Failed to rerun test runs: {e}")
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to rerun test runs: {str(e)}",
+        )
+
+
+@test_runs_router.post(
+    "/replay/{test_case_id}/{browser_config_id}",
+    response_model=ExtendedResponseTestRun,
+    summary="Replay Test Configuration",
+    description="Create a replay test run for a specific test case and browser configuration using previous successful run data",
+    responses={
+        200: create_success_response("Test run created for replay", ExtendedResponseTestRun),
+        **COMMON_ERROR_RESPONSES,
+    },
+)
+async def replay_test_configuration(
+    test_case_id: str,
+    browser_config_id: str,
+    db_session: Session = Depends(get_db),
+) -> ExtendedResponseTestRun:
+    """
+    Create a replay test run for a specific test case and browser configuration.
+
+    This endpoint finds the most recent successful test run for the given test case
+    and browser configuration, then creates a new replay run using that data.
+    """
+    try:
+        # Find the most recent successful test run for this test case and browser config
+        most_recent_run = TestRunRepo.get_most_recent_successful_run(
+            db=db_session, test_case_id=test_case_id, browser_config_id=browser_config_id
+        )
+
+        if not most_recent_run:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"No successful test runs found for test case '{test_case_id}' with browser config '{browser_config_id}'",
+            )
+
+        # Get test traversal IDs from the successful run
+        traversal_ids = TestRunRepo.get_test_traversal_ids_from_test_runs(
+            db=db_session, test_run_ids=[most_recent_run.id]
+        )
+
+        if not traversal_ids:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="No valid test traversals found for the successful run",
+            )
+
+        # Categorize traversals and use replay traversals
+        initial_traversal_ids, replay_traversal_ids = _categorize_traversals(
+            traversal_ids, db_session
+        )
+
+        # For replay, we want to use the original traversals but create REPLAY type runs
+        traversals_to_replay = (
+            initial_traversal_ids if initial_traversal_ids else replay_traversal_ids
+        )
+
+        if not traversals_to_replay:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="No valid traversals found for replay",
+            )
+
+        # Create REPLAY type test runs
+        created_test_runs = TestRunRepo.create_test_runs_for_traversals(
+            db=db_session,
+            traversal_ids=traversals_to_replay,
+            run_type=RunType.REPLAY,
+        )
+
+        if not created_test_runs:
+            raise HTTPException(
+                status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create replay test run",
+            )
+
+        # Start replay task for the created test run
+        created_test_run = created_test_runs[0]
+        traversal_to_do = BugninjaInterface.get_traversal_data(
+            db=db_session, traversal_id=created_test_run.test_traversal_id
+        )
+
+        if traversal_to_do:
+            loop = asyncio.get_running_loop()
+            loop.run_in_executor(
+                pp_executor,
+                _run_replay_session,
+                created_test_run.id,
+                traversal_to_do,
+            )
+
+        # Return the created test run
+        return_val = TestRunRepo.get_extended_by_id(db=db_session, test_run_id=created_test_run.id)
+
+        if not return_val:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail=f"Test run with id '{created_test_run.id}' not found after creation",
+            )
+
+        return return_val
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create replay test run: {str(e)}",
+        )
 
 
 # TODO! needs further testing and validation

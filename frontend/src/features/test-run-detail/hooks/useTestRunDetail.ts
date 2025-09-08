@@ -34,7 +34,7 @@ export const useTestRunDetail = (runId?: string): UseTestRunDetailResult => {
       'PASSED': 'passed',
       'FAILED': 'failed',
       'PENDING': 'pending',
-      'RUNNING': 'pending',
+      'RUNNING': 'pending', // Keep RUNNING as pending to continue polling
       'FINISHED': 'passed', // Assuming FINISHED means successful completion
       'ERROR': 'failed'
     };
@@ -57,6 +57,8 @@ export const useTestRunDetail = (runId?: string): UseTestRunDetailResult => {
     }
 
     // Transform brain states to steps
+    // For replay runs, we should show simplified steps without AI brain state details
+    const isReplayRun = backendData.run_type === 'REPLAY';
     const steps = backendData.brain_states?.map((brainState: any, index: number) => {
       // Get the first history element for basic step info
 
@@ -122,7 +124,7 @@ export const useTestRunDetail = (runId?: string): UseTestRunDetailResult => {
         description: brainState.next_goal || `Step ${index + 1}`,
         status: stepStatus,
         duration: 0, // Not provided in backend data
-        brainState: {
+        brainState: { // Always include brain state, but ActionStep will handle display logic
           id: brainState.id,
           evaluatePreviousGoal: brainState.evaluation_previous_goal,
           nextGoal: brainState.next_goal,
@@ -175,7 +177,8 @@ export const useTestRunDetail = (runId?: string): UseTestRunDetailResult => {
       passedSteps,
       failedSteps,
       steps,
-      gif: backendData.run_gif || null
+      gif: backendData.run_gif || null,
+      runType: backendData.run_type || 'AGENTIC' // Add run type to frontend model
     };
   }, []);
 

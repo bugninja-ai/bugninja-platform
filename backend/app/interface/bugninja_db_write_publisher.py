@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from browser_use.agent.views import AgentBrain  # type: ignore
 from bugninja.events import EventPublisher  # type: ignore
@@ -203,3 +203,94 @@ class DBWriteEventPublisher(EventPublisher):
         )
 
         return HistoryElementRepo.create(db, history_element_data)
+
+
+class ReplayEventPublisher(EventPublisher):
+    """
+    Specialized event publisher for replay sessions that creates history elements
+    progressively during replay execution to enable real-time frontend updates.
+    """
+
+    def __init__(self, run_id: str, original_actions: List[Action]) -> None:
+        """
+        Initialize replay event publisher.
+
+        Args:
+            run_id: Test run identifier for the replay session
+            original_actions: List of original actions from the successful run being replayed
+        """
+        self.run_id = run_id
+        self.original_actions = original_actions
+        self.action_index = 0
+
+    def is_available(self) -> bool:
+        return True
+
+    async def initialize_run(
+        self, run_type: str, metadata: Dict[str, Any], existing_run_id: Optional[str] = None
+    ) -> str:
+        """Initialize the replay run by setting status to RUNNING."""
+        with QuinoContextManager() as db:
+            update_data = UpdateTestRun(current_state=RunState.RUNNING)
+            TestRunRepo.update(db=db, test_run_id=self.run_id, test_run_data=update_data)
+            rich_print(f"✅ Replay run {self.run_id} initialized as RUNNING")
+        return self.run_id
+
+    async def update_run_state(self, run_id: str, state: RunState) -> None:
+        """Update run state during replay execution."""
+        with QuinoContextManager() as db:
+            update_data = UpdateTestRun(current_state=state)
+            TestRunRepo.update(db=db, test_run_id=self.run_id, test_run_data=update_data)
+            rich_print(f"✅ Replay run {self.run_id} state updated to {state}")
+
+    async def complete_run(self, run_id: str, success: bool, error: Optional[str] = None) -> None:
+        """Complete the replay run."""
+        final_state = RunState.FINISHED if success and not error else RunState.FAILED
+
+        with QuinoContextManager() as db:
+            update_data = UpdateTestRun(
+                current_state=final_state,
+                finished_at=datetime.now(),
+                repair_was_needed=False,
+            )
+            TestRunRepo.update(db=db, test_run_id=self.run_id, test_run_data=update_data)
+            rich_print(f"✅ Replay run {self.run_id} completed with state {final_state}")
+
+    async def publish_action_event(
+        self,
+        run_id: str,
+        brain_state_id: str,
+        actual_brain_state: AgentBrain,
+        action_result_data: BugninjaExtendedAction,
+    ) -> None:
+        """
+        Publish action event during replay by creating history element for the corresponding original action.
+
+        For replay sessions, we don't create new brain states or actions - we just create history elements
+        that reference the original actions from the successful run.
+        """
+        if self.action_index >= len(self.original_actions):
+            rich_print(
+                f"⚠️ Replay action index {self.action_index} exceeds original actions count {len(self.original_actions)}"
+            )
+            return
+
+        original_action = self.original_actions[self.action_index]
+
+        with QuinoContextManager() as db:
+            # Create history element referencing the original action
+            history_element_data = CreateHistoryElement(
+                test_run_id=self.run_id,
+                action_id=original_action.id,
+                history_element_state=HistoryElementState.PASSED,  # Assume replay success
+                screenshot=action_result_data.screenshot_filename
+                or f"replay_{self.run_id}_{original_action.id}.png",
+                action_finished_at=datetime.now(),
+            )
+
+            history_element = HistoryElementRepo.create(db, history_element_data)
+            rich_print(
+                f"✅ Created replay history element {history_element.id} for original action {original_action.id}"
+            )
+
+        self.action_index += 1

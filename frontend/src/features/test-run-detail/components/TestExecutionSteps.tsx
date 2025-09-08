@@ -22,6 +22,7 @@ export const TestExecutionSteps: React.FC<TestExecutionStepsProps> = ({
             key={step.id}
             step={step}
             onScreenshotClick={onScreenshotClick}
+            runType={testRun.runType}
           />
         ))}
       </div>

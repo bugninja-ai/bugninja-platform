@@ -6,9 +6,11 @@ import { BASE_DOMAIN } from '../../../shared/services/api';
 interface ActionStepProps {
   step: any;
   onScreenshotClick: (screenshot: string, actionData: any) => void;
+  runType?: string;
 }
 
-export const ActionStep: React.FC<ActionStepProps> = ({ step, onScreenshotClick }) => {
+export const ActionStep: React.FC<ActionStepProps> = ({ step, onScreenshotClick, runType }) => {
+  const isReplayRun = runType === 'REPLAY';
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden">
       <div className="flex items-center justify-between p-4 bg-gray-50">
@@ -32,42 +34,46 @@ export const ActionStep: React.FC<ActionStepProps> = ({ step, onScreenshotClick 
         {/* Brain State with Multiple Actions */}
         {step.brainState && (
           <>
-            {/* Brain State Section (Purple) */}
-            <div className="bg-purple-50 border border-purple-200 rounded-lg overflow-hidden mb-4">
-              <div className="flex items-center justify-between p-3 bg-purple-100/50">
-                <div className="flex items-center space-x-2">
-                  <Brain className="h-4 w-4 text-purple-600" />
-                  <span className="text-sm font-semibold text-gray-800">AI brain state</span>
-                </div>
-              </div>
-              
-              <div className="p-4 space-y-3">
-                <div>
-                  <p className="text-xs font-medium text-purple-700 mb-1">Evaluate previous goal:</p>
-                  <div className="text-sm text-purple-800 bg-white/70 border border-purple-200 rounded p-2">
-                    {step.brainState.actions[0]?.evaluatePreviousGoal || 'No evaluation available'}
+            {/* Brain State Section (Purple) - Only show AI reasoning for non-replay runs */}
+            {!isReplayRun && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg overflow-hidden mb-4">
+                <div className="flex items-center justify-between p-3 bg-purple-100/50">
+                  <div className="flex items-center space-x-2">
+                    <Brain className="h-4 w-4 text-purple-600" />
+                    <span className="text-sm font-semibold text-gray-800">AI brain state</span>
                   </div>
                 </div>
                 
-                <div>
-                  <p className="text-xs font-medium text-purple-700 mb-1">Next goal:</p>
-                  <div className="text-sm text-purple-800 bg-white/70 border border-purple-200 rounded p-2">
-                    {step.brainState.actions[0]?.nextGoal || 'No next goal available'}
+                <div className="p-4 space-y-3">
+                  <div>
+                    <p className="text-xs font-medium text-purple-700 mb-1">Evaluate previous goal:</p>
+                    <div className="text-sm text-purple-800 bg-white/70 border border-purple-200 rounded p-2">
+                      {step.brainState.actions[0]?.evaluatePreviousGoal || 'No evaluation available'}
+                    </div>
                   </div>
-                </div>
-                
-                <div>
-                  <p className="text-xs font-medium text-purple-700 mb-1">Memory:</p>
-                  <div className="text-sm text-purple-800 bg-white/70 border border-purple-200 rounded p-2">
-                    {step.brainState.actions[0]?.memory || 'No memory available'}
+                  
+                  <div>
+                    <p className="text-xs font-medium text-purple-700 mb-1">Next goal:</p>
+                    <div className="text-sm text-purple-800 bg-white/70 border border-purple-200 rounded p-2">
+                      {step.brainState.actions[0]?.nextGoal || 'No next goal available'}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs font-medium text-purple-700 mb-1">Memory:</p>
+                    <div className="text-sm text-purple-800 bg-white/70 border border-purple-200 rounded p-2">
+                      {step.brainState.actions[0]?.memory || 'No memory available'}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Actions Section (Light Blue) */}
+            {/* Actions Section (Light Blue) - Show actions for all run types */}
             <div className="space-y-3 mb-4">
-              <div className="text-sm font-medium text-gray-700 mb-2">Actions taken:</div>
+              <div className="text-sm font-medium text-gray-700 mb-2">
+                {isReplayRun ? 'Replay actions taken:' : 'Actions taken:'}
+              </div>
               {step.brainState.actions.map((action: any) => (
                 <div key={action.id} className="bg-indigo-50 border border-indigo-200 rounded-lg overflow-hidden">
                   <div className="flex items-center justify-between p-3 bg-indigo-100/50">

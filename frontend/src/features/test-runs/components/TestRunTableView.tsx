@@ -78,6 +78,24 @@ const getBrowserInfo = (run: any) => {
   };
 };
 
+const getRunTypeDisplay = (runType: string) => {
+  switch (runType) {
+    case 'AGENTIC':
+      return 'Agentic';
+    case 'REPLAY':
+      return 'Replay';
+    case 'REPLAY_WITH_HEALING':
+      return 'Healing';
+    default:
+      return 'Agentic';
+  }
+};
+
+const getRunTypeColor = (runType: string) => {
+  // Use consistent grey styling for all run types
+  return 'bg-gray-100 text-gray-800 border-gray-200';
+};
+
 export const TestRunTableView: React.FC<TestRunTableViewProps> = ({ runs }) => {
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -87,10 +105,10 @@ export const TestRunTableView: React.FC<TestRunTableViewProps> = ({ runs }) => {
             <tr className="bg-gray-50 border-b border-gray-200">
               <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm">Test name</th>
               <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm">Status</th>
+              <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm">Type</th>
               <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm">Started at</th>
               <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm">Duration</th>
               <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm">Browser</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm">Environment</th>
               <th className="text-left py-3 px-4 font-medium text-gray-900 text-sm">Steps</th>
               <th className="text-right py-3 px-4 font-medium text-gray-900 text-sm">Actions</th>
             </tr>
@@ -144,6 +162,13 @@ export const TestRunTableView: React.FC<TestRunTableViewProps> = ({ runs }) => {
                     </span>
                   </td>
 
+                  {/* Type */}
+                  <td className="py-4 px-4">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold ${getRunTypeColor(run.run_type)}`}>
+                      {getRunTypeDisplay(run.run_type)}
+                    </span>
+                  </td>
+
                   {/* Started At */}
                   <td className="py-4 px-4">
                     <div className="flex items-center text-sm text-gray-500">
@@ -169,13 +194,6 @@ export const TestRunTableView: React.FC<TestRunTableViewProps> = ({ runs }) => {
                       </div>
                       <span className="text-xs text-gray-500 mt-1">{browserInfo.resolution}</span>
                     </div>
-                  </td>
-
-                  {/* Environment */}
-                  <td className="py-4 px-4">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold bg-gray-100 text-gray-800 border-gray-200">
-                      {run.origin === 'CI/CD' ? 'Production' : 'Development'}
-                    </span>
                   </td>
 
                   {/* Steps */}

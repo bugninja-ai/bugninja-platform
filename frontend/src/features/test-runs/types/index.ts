@@ -54,6 +54,7 @@ export interface TestRun {
   userAgent: string;
   error?: string;
   gif?: string;
+  runType?: string; // Type of run: 'AGENTIC', 'REPLAY', 'REPLAY_WITH_HEALING'
 }
 
 export interface TestStatistics {

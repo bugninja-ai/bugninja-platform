@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Play, Monitor, Loader2 } from 'lucide-react';
+import { X, Play, Monitor, Loader2, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { FrontendTestCase, BrowserConfig } from '../types';
 import { TestCaseService } from '../services/testCaseService';
@@ -19,7 +19,9 @@ export const RunTestModal: React.FC<RunTestModalProps> = ({
 }) => {
   const navigate = useNavigate();
   const [runningConfigs, setRunningConfigs] = useState<Set<string>>(new Set());
+  const [replayingConfigs, setReplayingConfigs] = useState<Set<string>>(new Set());
   const [executionError, setExecutionError] = useState<string | null>(null);
+  const [replayAvailability, setReplayAvailability] = useState<Record<string, boolean>>({});
 
   const handleRunConfiguration = async (browserConfig: BrowserConfig) => {
     if (!testCase) return;
@@ -37,6 +39,7 @@ export const RunTestModal: React.FC<RunTestModalProps> = ({
       // Close modal and redirect to test run page
       onClose();
       setRunningConfigs(new Set());
+      setReplayingConfigs(new Set());
       
       // Navigate to the test run detail page
       if (result?.id) {
@@ -54,6 +57,40 @@ export const RunTestModal: React.FC<RunTestModalProps> = ({
     }
   };
 
+  const handleReplayConfiguration = async (browserConfig: BrowserConfig) => {
+    if (!testCase) return;
+    
+    setExecutionError(null);
+    setReplayingConfigs(prev => new Set(prev).add(browserConfig.id));
+
+    try {
+      const result = await TestCaseService.replayTestConfiguration(testCase.id, browserConfig.id);
+      
+      if (onTestStarted && result?.id) {
+        onTestStarted(result.id);
+      }
+      
+      // Close modal and redirect to test run page
+      onClose();
+      setRunningConfigs(new Set());
+      setReplayingConfigs(new Set());
+      
+      // Navigate to the test run detail page
+      if (result?.id) {
+        navigate(`/runs/${result.id}`);
+      }
+    } catch (error: any) {
+      console.error('Failed to replay test configuration:', error);
+      setExecutionError(error.message || 'Failed to start test replay');
+    } finally {
+      setReplayingConfigs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(browserConfig.id);
+        return newSet;
+      });
+    }
+  };
+
   const getBrowserDisplayInfo = (config: BrowserConfig) => {
     const channel = config.browserChannel || 'Default';
     const viewport = `${config.viewport.width}x${config.viewport.height}`;
@@ -61,6 +98,20 @@ export const RunTestModal: React.FC<RunTestModalProps> = ({
     
     return { channel, viewport, userAgent };
   };
+
+  // Check replay availability for each config when modal opens
+  React.useEffect(() => {
+    if (isOpen && testCase) {
+      const checkReplayAvailability = async () => {
+        const availability: Record<string, boolean> = {};
+        for (const config of testCase.browserConfigs || []) {
+          availability[config.id] = await TestCaseService.hasSuccessfulRuns(testCase.id, config.id);
+        }
+        setReplayAvailability(availability);
+      };
+      checkReplayAvailability();
+    }
+  }, [isOpen, testCase]);
 
   if (!isOpen) return null;
 
@@ -99,11 +150,11 @@ export const RunTestModal: React.FC<RunTestModalProps> = ({
                 <p className="text-sm text-gray-500">Select a browser configuration to execute</p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              disabled={runningConfigs.size > 0}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+                          <button
+                onClick={onClose}
+                disabled={runningConfigs.size > 0 || replayingConfigs.size > 0}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
               <X className="w-4 h-4 text-gray-500" />
             </button>
           </div>
@@ -133,6 +184,9 @@ export const RunTestModal: React.FC<RunTestModalProps> = ({
                 {availableConfigs.map((config) => {
                   const { channel, viewport, userAgent } = getBrowserDisplayInfo(config);
                   const isRunning = runningConfigs.has(config.id);
+                  const isReplaying = replayingConfigs.has(config.id);
+                  const canReplay = replayAvailability[config.id] === true;
+                  const isAnyRunning = runningConfigs.size > 0 || replayingConfigs.size > 0;
                   
                   return (
                     <div
@@ -160,27 +214,56 @@ export const RunTestModal: React.FC<RunTestModalProps> = ({
                         </div>
                       </div>
                       
-                      <button
-                        onClick={() => handleRunConfiguration(config)}
-                        disabled={isRunning || runningConfigs.size > 0}
-                        className={`inline-flex items-center px-6 py-2 text-sm font-medium border border-transparent rounded-lg focus:ring-2 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ${
-                          isRunning 
-                            ? 'bg-gray-100 text-gray-500' 
-                            : 'bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-indigo-500'
-                        }`}
-                      >
-                        {isRunning ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Starting...
-                          </>
-                        ) : (
-                          <>
-                            <Play className="w-4 h-4 mr-2" />
-                            Run configuration
-                          </>
-                        )}
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        {/* Run with AI Button */}
+                        <button
+                          onClick={() => handleRunConfiguration(config)}
+                          disabled={isAnyRunning}
+                          className={`inline-flex items-center px-4 py-2 text-sm font-medium border border-transparent rounded-lg focus:ring-2 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ${
+                            isRunning 
+                              ? 'bg-gray-100 text-gray-500' 
+                              : 'bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-indigo-500'
+                          }`}
+                        >
+                          {isRunning ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Starting...
+                            </>
+                          ) : (
+                            <>
+                              <Play className="w-4 h-4 mr-2" />
+                              Run with AI
+                            </>
+                          )}
+                        </button>
+
+                        {/* Replay Button */}
+                        <button
+                          onClick={() => handleReplayConfiguration(config)}
+                          disabled={!canReplay || isAnyRunning}
+                          className={`inline-flex items-center px-4 py-2 text-sm font-medium border rounded-lg focus:ring-2 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ${
+                            isReplaying
+                              ? 'bg-gray-100 text-gray-500 border-gray-200'
+                              : canReplay
+                              ? 'bg-green-600 hover:bg-green-700 text-white border-transparent focus:ring-green-500'
+                              : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                          }`}
+                          title={!canReplay ? 'No successful runs available for replay' : 'Replay previous successful run'}
+                        >
+                          {isReplaying ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Replaying...
+                            </>
+                          ) : (
+                            <>
+                              <RotateCcw className="w-4 h-4 mr-2" />
+                              Replay
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -192,8 +275,11 @@ export const RunTestModal: React.FC<RunTestModalProps> = ({
           {availableConfigs.length > 0 && (
             <div className="flex items-center justify-between p-6 pt-0">
               <div className="text-sm text-gray-500">
-                {runningConfigs.size > 0 && (
-                  <span>Starting test execution...</span>
+                {(runningConfigs.size > 0 || replayingConfigs.size > 0) && (
+                  <span>
+                    {runningConfigs.size > 0 && 'Starting AI test execution...'}
+                    {replayingConfigs.size > 0 && 'Starting replay...'}
+                  </span>
                 )}
               </div>
               <button

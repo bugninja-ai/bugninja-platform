@@ -460,6 +460,42 @@ export class TestCaseService {
       throw apiError;
     }
   }
+
+  /**
+   * Replay a test configuration using previous successful run data
+   */
+  static async replayTestConfiguration(testCaseId: string, browserConfigId: string): Promise<any> {
+    try {
+      const url = `/test-runs/replay/${testCaseId}/${browserConfigId}`;
+      const response = await apiClient.post(url);
+      return response.data;
+    } catch (error: any) {
+      const apiError: ApiError = {
+        message: error.response?.data?.detail || error.message || 'Failed to replay test configuration',
+        status: error.response?.status,
+        code: error.code,
+      };
+      throw apiError;
+    }
+  }
+
+  /**
+   * Check if a test case has successful runs for a specific browser configuration
+   */
+  static async hasSuccessfulRuns(testCaseId: string, browserConfigId: string): Promise<boolean> {
+    try {
+      // Check recent test runs for this test case to see if any are successful with this browser config
+      const recentRuns = await this.getRecentTestRuns(testCaseId, 50);
+      return recentRuns.some(run => 
+        run.browser_config_id === browserConfigId && 
+        run.current_state === 'FINISHED' &&
+        run.run_type === 'AGENTIC'
+      );
+    } catch (error: any) {
+      console.error('Error checking successful runs:', error);
+      return false;
+    }
+  }
 }
 
 export default TestCaseService; 

@@ -392,9 +392,17 @@ class TestRunRepo:
 
         # Get extended brain states for this test run
         repo_instance = TestRunRepo()
-        extended_brain_states = repo_instance.get_extended_brain_states_by_test_traversal_id(
-            db, test_run.test_traversal_id
-        )
+
+        # For replay runs, get brain states filtered by test run ID to show only replay execution data
+        # For other runs, get brain states by traversal ID to show original execution data
+        if test_run.run_type == RunType.REPLAY:
+            extended_brain_states = repo_instance.get_extended_brain_states_by_test_run_id(
+                db, test_run.id
+            )
+        else:
+            extended_brain_states = repo_instance.get_extended_brain_states_by_test_traversal_id(
+                db, test_run.test_traversal_id
+            )
 
         # Calculate step counts from history elements
         from app.repo.history_element_repo import HistoryElementRepo
@@ -1102,3 +1110,130 @@ class TestRunRepo:
             replay_brain_states.append(replay_brain_state)
 
         return replay_brain_states
+
+    def get_extended_brain_states_by_test_run_id(
+        self, db: Session, test_run_id: str
+    ) -> List[ExtendedResponseBrainState]:
+        """
+        Get extended brain states for a specific test run with its own history elements.
+
+        This method is used for replay runs to show only the execution data
+        from the specific replay run, not the original AI run data.
+
+        Args:
+            db: Database session
+            test_run_id: Test run ID to get brain states for
+
+        Returns:
+            List of extended brain states with history elements from this specific test run
+        """
+        from sqlmodel import col, select
+
+        from app.db.action import Action
+        from app.db.brain_state import BrainState
+        from app.db.history_element import HistoryElement
+        from app.schemas.communication.test_run import (
+            ExtendedResponseBrainState,
+            ExtendedResponseHistoryElement,
+        )
+
+        # Get brain states with their history elements and action data for this specific test run
+        statement = (
+            select(BrainState, HistoryElement, Action)
+            .join(Action, col(BrainState.id) == col(Action.brain_state_id))
+            .join(HistoryElement, col(Action.id) == col(HistoryElement.action_id))
+            .where(HistoryElement.test_run_id == test_run_id)  # Filter by test run ID
+            .order_by(col(BrainState.idx_in_run).asc(), col(HistoryElement.action_started_at).asc())
+        )
+
+        results = db.exec(statement).all()
+
+        # Group history elements by brain state
+        brain_state_history_map = {}
+        brain_state: BrainState
+
+        for brain_state, history_element, action in results:
+            if brain_state.id not in brain_state_history_map:
+                brain_state_history_map[brain_state.id] = {
+                    "brain_state": brain_state,
+                    "history_elements": [],
+                }
+
+            # Create extended history element
+            extended_history_element = ExtendedResponseHistoryElement(
+                id=history_element.id,
+                test_run_id=history_element.test_run_id,
+                action_id=history_element.action_id,
+                action_started_at=history_element.action_started_at,
+                action_finished_at=history_element.action_finished_at,
+                history_element_state=history_element.history_element_state,
+                screenshot=history_element.screenshot,
+                action=action.action,  # Use the action field from the Action model
+                dom_element_data=action.dom_element_data,  # Add dom_element_data
+                valid=action.valid,  # Add valid field
+                idx_in_brain_state=action.idx_in_brain_state,
+            )
+
+            brain_state_history_map[brain_state.id]["history_elements"].append(
+                extended_history_element
+            )
+
+        # Convert to extended response brain states
+        extended_brain_states = []
+        for brain_state_data in brain_state_history_map.values():
+            brain_state = brain_state_data["brain_state"]
+            history_elements = brain_state_data["history_elements"]
+
+            extended_brain_state = ExtendedResponseBrainState(
+                id=brain_state.id,
+                test_traversal_id=brain_state.test_traversal_id,
+                idx_in_run=brain_state.idx_in_run,
+                valid=brain_state.valid,
+                evaluation_previous_goal=brain_state.evaluation_previous_goal,
+                memory=brain_state.memory,
+                next_goal=brain_state.next_goal,
+                history_elements=history_elements,
+            )
+
+            extended_brain_states.append(extended_brain_state)
+
+        # Sort by idx_in_run
+        extended_brain_states.sort(key=lambda bs: bs.idx_in_run)
+
+        return extended_brain_states
+
+    @staticmethod
+    def get_most_recent_successful_run(
+        db: Session, test_case_id: str, browser_config_id: str
+    ) -> Optional[TestRun]:
+        """
+        Get the most recent successful test run for a specific test case and browser configuration.
+
+        Args:
+            db: Database session
+            test_case_id: Test case ID to search for
+            browser_config_id: Browser configuration ID to match
+
+        Returns:
+            Optional[TestRun]: Most recent successful test run or None if not found
+        """
+        try:
+            # Query for the most recent successful test run
+            result = (
+                db.query(TestRun)
+                .join(TestTraversal, TestRun.test_traversal_id == TestTraversal.id)
+                .filter(
+                    TestTraversal.test_case_id == test_case_id,
+                    TestRun.browser_config_id == browser_config_id,
+                    TestRun.current_state == RunState.FINISHED,
+                    TestRun.run_type == RunType.AGENTIC,  # Only look for AI runs to replay
+                )
+                .order_by(TestRun.finished_at.desc())
+                .first()
+            )
+
+            return result
+
+        except Exception as e:
+            print(f"❌ Error getting most recent successful run: {e}")
+            return None

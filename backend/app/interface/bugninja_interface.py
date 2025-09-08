@@ -322,6 +322,7 @@ class BugninjaInterface:
                 action_key = f"action_{action_counter}"
                 actions_dict[action_key] = {
                     "brain_state_id": brain_state_id,
+                    "idx_in_brainstate": history_element.idx_in_brain_state,
                     "action": history_element.action,
                     "dom_element_data": history_element.dom_element_data,
                     "screenshot_filename": history_element.screenshot,
