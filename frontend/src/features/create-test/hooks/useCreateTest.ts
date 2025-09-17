@@ -6,6 +6,7 @@ import { SecretValue, BrowserConfigData, BrowserConfigOptions } from '../../sett
 import { TestCaseService } from '../../test-cases/services/testCaseService';
 import { useDropdowns } from '../../../shared/hooks/useDropdowns';
 import { useAsyncOperation } from '../../../shared/hooks/useAsyncOperation';
+import { FileUploadService, ParsedTestCaseData } from '../services/fileUploadService';
 
 export interface CreateTestFormData {
   title: string;
@@ -36,6 +37,8 @@ export interface UseCreateTestResult {
   setFormData: React.Dispatch<React.SetStateAction<CreateTestFormData>>;
   file: File | null;
   setFile: (file: File | null) => void;
+  fileProcessing: boolean;
+  fileProcessed: boolean;
   
   // API data
   browserConfigOptions: BrowserConfigOptions | null;
@@ -71,6 +74,7 @@ export interface UseCreateTestResult {
   removeExistingSecret: (secretId: string) => void;
   addExistingSecret: (secretId: string) => void;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  processUploadedFile: () => Promise<void>;
   
   // Submit
   loading: boolean;
@@ -90,6 +94,8 @@ export const useCreateTest = (): UseCreateTestResult => {
   // Form state
   const [method, setMethod] = useState<'upload' | 'manual'>('manual');
   const [file, setFile] = useState<File | null>(null);
+  const [fileProcessing, setFileProcessing] = useState(false);
+  const [fileProcessed, setFileProcessed] = useState(false);
   
   // API Data states
   const [browserConfigOptions, setBrowserConfigOptions] = useState<BrowserConfigOptions | null>(null);
@@ -125,6 +131,19 @@ export const useCreateTest = (): UseCreateTestResult => {
     existingSecretIds: []
   });
 
+  // Load browser config data function
+  const loadBrowserConfigData = useCallback(async () => {
+    if (!selectedProject?.id) return;
+
+    try {
+      const browserConfigsData = await BrowserService.getBrowserConfigsByProject(selectedProject.id);
+      setExistingBrowserConfigs(browserConfigsData);
+    } catch (error) {
+      console.error('Failed to load browser configs:', error);
+      setExistingBrowserConfigs([]);
+    }
+  }, [selectedProject?.id]);
+
   // Load data on component mount
   useEffect(() => {
     const loadData = async () => {
@@ -145,13 +164,7 @@ export const useCreateTest = (): UseCreateTestResult => {
           setBrowserConfigOptions(null);
         }
 
-        try {
-          const browserConfigsData = await BrowserService.getBrowserConfigsByProject(selectedProject.id);
-          setExistingBrowserConfigs(browserConfigsData);
-        } catch (error) {
-          console.error('Failed to load browser configs:', error);
-          setExistingBrowserConfigs([]);
-        }
+        await loadBrowserConfigData();
 
         try {
           const secretsData = await BrowserService.getSecretsByProject(selectedProject.id);
@@ -169,7 +182,7 @@ export const useCreateTest = (): UseCreateTestResult => {
     };
 
     loadData();
-  }, [selectedProject?.id]);
+  }, [selectedProject?.id, loadBrowserConfigData]);
 
   // Form handlers
   const handleInputChange = useCallback((field: string, value: string) => {
@@ -349,8 +362,70 @@ export const useCreateTest = (): UseCreateTestResult => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
+      setFileProcessed(false);
     }
   }, []);
+
+  const processUploadedFile = useCallback(async () => {
+    if (!file || !selectedProject?.id) return;
+
+    try {
+      setFileProcessing(true);
+      
+      const response = await FileUploadService.parseTestCaseFile(file, selectedProject.id);
+      
+      if (response.success && response.parsed_data) {
+        const data = response.parsed_data;
+        
+        // Populate form data with parsed information
+        setFormData(prev => ({
+          ...prev,
+          title: data.test_name,
+          description: data.test_description,
+          goal: data.test_goal,
+          priority: data.priority,
+          category: data.category || prev.category,
+          startingUrl: data.url_route,
+          allowedDomains: data.allowed_domains.length > 0 ? data.allowed_domains : [''],
+          extraRules: data.extra_rules.length > 0 
+            ? data.extra_rules.map((rule, index) => ({
+                id: `rule-${index + 1}`,
+                ruleNumber: index + 1,
+                description: rule
+              }))
+            : prev.extraRules
+        }));
+        
+        // Store parsed browser config
+        if (response.browser_config) {
+          // Create a new browser config entry in the form
+          const newBrowserConfig = {
+            id: `parsed-config-${Date.now()}`,
+            browserChannel: response.browser_config.channel || 'Chromium', // Default to Chromium if not specified
+            userAgent: response.browser_config.user_agent,
+            viewportSize: data.viewport || response.browser_config.viewport,  // Use viewport from parsed data
+            geolocation: response.browser_config.geolocation,
+          };
+          
+          setFormData(prev => ({
+            ...prev,
+            newBrowserConfigs: [newBrowserConfig] // Replace existing configs, don't add to them
+          }));
+        }
+        
+        setFileProcessed(true);
+        setMethod('manual'); // Switch to manual mode to show the populated form
+        
+      } else {
+        throw new Error(response.error || 'Failed to process file');
+      }
+    } catch (error) {
+      console.error('File processing failed:', error);
+      alert(`Failed to process file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setFileProcessing(false);
+    }
+  }, [file, selectedProject?.id]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -379,7 +454,7 @@ export const useCreateTest = (): UseCreateTestResult => {
         // Build the payload
         const payload = {
           project_id: selectedProject?.id || '',
-          document_id: file ? 'uploaded-document' : null,
+          document_id: null, // File upload doesn't create documents, just parses content
           test_name: formData.title,
           test_description: formData.description,
           test_goal: formData.goal,
@@ -388,22 +463,63 @@ export const useCreateTest = (): UseCreateTestResult => {
           allowed_domains: formData.allowedDomains.filter(domain => domain.trim() !== ''),
           priority: formData.priority as 'low' | 'medium' | 'high' | 'critical',
           category: formData.category,
-          new_browser_configs: [], // Skip for now due to backend bug
+          new_browser_configs: formData.newBrowserConfigs
+            .filter(config => config.browserChannel && config.userAgent) // Only include filled configs
+            .map(config => ({
+              test_case_id: 'will-be-set-by-backend', // Backend will set this to the created test case ID
+              browser_config: {
+                browser_channel: config.browserChannel,
+                user_agent: config.userAgent,
+                viewport: config.viewportSize,
+                device_scale_factor: 1.0,
+                color_scheme: 'light',
+                accept_downloads: true,
+                proxy: null,
+                client_certificates: [],
+                extra_http_headers: {},
+                http_credentials: null,
+                java_script_enabled: true,
+                geolocation: config.geolocation || null,
+                timeout: 30000.0,
+                headers: null,
+                allowed_domains: formData.allowedDomains.filter(domain => domain.trim() !== ''),
+              }
+            })),
           existing_browser_config_ids: formData.existingBrowserConfigIds,
-          new_secret_values: [], // Skip for now due to backend bug  
+          new_secret_values: formData.newSecrets
+            .filter(secret => secret.secretName && secret.value) // Only include filled secrets
+            .map(secret => ({
+              test_case_id: 'will-be-set-by-backend', // Backend will set this to the created test case ID
+              secret_name: secret.secretName,
+              secret_value: secret.value
+            })),
           existing_secret_value_ids: formData.existingSecretIds
         };
 
         console.log('Creating test case with payload:', payload);
         
-        const createdTestCase = await TestCaseService.createTestCase(payload);
-        console.log('Test case created successfully:', createdTestCase);
+        const result = await TestCaseService.createTestCase(payload);
+        console.log('Test case created successfully:', result);
+        
+        // If browser configs were created, refresh the existing configs list and auto-select them
+        if (result.createdBrowserConfigIds.length > 0) {
+          console.log('Auto-selecting created browser configs:', result.createdBrowserConfigIds);
+          
+          // Refresh the browser configs list to include the newly created ones
+          await loadBrowserConfigData();
+          
+          // Auto-select the newly created browser configs
+          setFormData(prev => ({
+            ...prev,
+            existingBrowserConfigIds: [...prev.existingBrowserConfigIds, ...result.createdBrowserConfigIds]
+          }));
+        }
         
         setTimeout(() => {
           navigate('/');
         }, 1500);
         
-        return createdTestCase;
+        return result.testCase;
       });
     } catch (error) {
       console.error('Failed to create test case:', error);
@@ -439,6 +555,8 @@ export const useCreateTest = (): UseCreateTestResult => {
     setFormData,
     file,
     setFile,
+    fileProcessing,
+    fileProcessed,
     
     // API data
     browserConfigOptions,
@@ -468,6 +586,7 @@ export const useCreateTest = (): UseCreateTestResult => {
     removeExistingSecret,
     addExistingSecret,
     handleFileChange,
+    processUploadedFile,
     
     // Submit
     loading,

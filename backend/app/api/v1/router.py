@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints.browser_config import browser_configs_router
 from app.api.v1.endpoints.browser_type import browser_types_router
 from app.api.v1.endpoints.document import documents_router
+from app.api.v1.endpoints.file_upload import file_upload_router
 from app.api.v1.endpoints.health import health_check_router
 from app.api.v1.endpoints.project import projects_router
 from app.api.v1.endpoints.secret_value import secret_values_router
@@ -22,3 +23,4 @@ api_router.include_router(browser_types_router)
 api_router.include_router(test_cases_router)
 api_router.include_router(test_runs_router)
 api_router.include_router(test_traversals_router)
+api_router.include_router(file_upload_router)

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Plus, AlertCircle } from 'lucide-react';
+import { Loader2, Plus, AlertCircle, FileText } from 'lucide-react';
 import { useCreateTest } from './hooks/useCreateTest';
 import { MethodSelection } from './components/MethodSelection';
 import { FileUploadSection } from './components/FileUploadSection';
@@ -23,6 +23,8 @@ const CreateTestPage: React.FC = () => {
     formData,
     file,
     setFile,
+    fileProcessing,
+    fileProcessed,
     browserConfigOptions,
     existingBrowserConfigs,
     existingSecrets,
@@ -46,6 +48,7 @@ const CreateTestPage: React.FC = () => {
     removeExistingSecret,
     addExistingSecret,
     handleFileChange,
+    processUploadedFile,
     loading,
     success,
     error,
@@ -171,14 +174,34 @@ const CreateTestPage: React.FC = () => {
 
       {/* Form Content */}
       <form onSubmit={handleSubmit} className="space-y-6">
-        {method === 'upload' ? (
+        {method === 'upload' && !fileProcessed ? (
           <FileUploadSection
             file={file}
             onFileChange={handleFileChange}
             onFileRemove={() => setFile(null)}
+            onProcessFile={processUploadedFile}
+            fileProcessing={fileProcessing}
+            fileProcessed={fileProcessed}
           />
         ) : (
           <div className="space-y-8">
+            {/* Show file info if processed from upload */}
+            {method === 'upload' && fileProcessed && file && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <FileText className="w-5 h-5 text-green-600" />
+                  <span className="font-medium text-green-800">File processed: {file.name}</span>
+                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                    AI Processed
+                  </span>
+                </div>
+                <p className="text-sm text-green-700">
+                  The form below has been automatically populated with data extracted from your file. 
+                  You can review and modify any fields before creating the test case.
+                </p>
+              </div>
+            )}
+            
             {loadingData ? (
               <div className="bg-white/80 backdrop-blur-sm rounded-lg p-6 border border-gray-200 relative z-0">
                 <div className="flex items-center justify-center">
@@ -303,7 +326,7 @@ const CreateTestPage: React.FC = () => {
             <h3 className="text-sm font-semibold text-blue-900 mb-1">Need Help?</h3>
             <p className="text-sm text-blue-800">
               Test cases should be clear, specific, and include all necessary steps to validate the expected behavior. 
-              For file uploads, we support CSV, JSON, TXT, DOC, DOCX, PDF, XLSX, XLS, RTF, and ODT formats with predefined structures.
+              For file uploads, we support CSV, JSON, TXT, DOC, DOCX, PDF, XLSX, XLS, Python (.py), JavaScript (.js), TypeScript (.ts), TOML, and Markdown (.md) formats. Our AI will intelligently parse the content and generate appropriate test cases.
             </p>
           </div>
         </div>

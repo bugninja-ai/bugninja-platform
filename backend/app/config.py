@@ -30,6 +30,10 @@ class Settings(BaseSettings):
         default=30, alias="JWT_ACCESS_TOKEN_EXPIRE_MINUTES"
     )
 
+    # Azure OpenAI Configuration
+    AZURE_OPENAI_ENDPOINT: str = Field(default="", alias="AZURE_OPENAI_ENDPOINT")
+    AZURE_OPENAI_KEY: str = Field(default="", alias="AZURE_OPENAI_KEY")
+
     model_config = SettingsConfigDict(extra="allow", case_sensitive=True, env_file=".env")
 
 

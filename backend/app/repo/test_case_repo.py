@@ -929,6 +929,8 @@ class TestCaseRepo:
             created_browser_configs: List[BrowserConfig] = []
             if test_case_data.new_browser_configs:
                 for browser_config_data in test_case_data.new_browser_configs:
+                    # Set the test_case_id to the newly created test case
+                    browser_config_data.test_case_id = test_case.id
                     # Ensure project_id matches
                     browser_config = BrowserConfigRepo.create(db, browser_config_data)
                     created_browser_configs.append(browser_config)
@@ -939,10 +941,18 @@ class TestCaseRepo:
                     db, test_case.id, [bc.id for bc in existing_browser_configs]
                 )
 
+            # Associate newly created browser configs with test case
+            if created_browser_configs:
+                TestCaseRepo._associate_browser_configs_with_test_case(
+                    db, test_case.id, [bc.id for bc in created_browser_configs]
+                )
+
             # Create new secret values
             created_secret_values: List[SecretValue] = []
             if test_case_data.new_secret_values:
                 for secret_value_data in test_case_data.new_secret_values:
+                    # Set the test_case_id to the newly created test case
+                    secret_value_data.test_case_id = test_case.id
                     # Ensure project_id matches
                     secret_value = SecretValueRepo.create(db, secret_value_data)
                     created_secret_values.append(secret_value)

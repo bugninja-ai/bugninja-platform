@@ -306,7 +306,7 @@ const CreateTest: React.FC = () => {
       // Build the payload for irie backend, rastaman
       const payload = {
         project_id: selectedProject?.id || '',
-        document_id: file ? 'uploaded-document' : null, // Always include, null if no file
+        document_id: null, // File upload doesn't create documents, just parses content
         test_name: formData.title,
         test_description: formData.description,
         test_goal: formData.goal,

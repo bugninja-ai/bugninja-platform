@@ -231,13 +231,27 @@ export class TestCaseService {
       secret_value: string;
     }>;
     existing_secret_value_ids?: string[];
-  }): Promise<FrontendTestCase> {
+  }): Promise<{
+    testCase: FrontendTestCase;
+    createdBrowserConfigIds: string[];
+    createdSecretValueIds: string[];
+  }> {
     try {
       // Send the payload directly as the backend expects it
       const response = await apiClient.post<any>(this.ENDPOINTS.TEST_CASES, testCase);
       // Handle the CreateTestCaseResponse format that includes test_case field
-      const testCaseData = response.data.test_case || response.data;
-      return this.transformTestCase(testCaseData);
+      const fullResponse = response.data;
+      const testCaseData = fullResponse.test_case || fullResponse;
+      
+      // Extract created browser config and secret value IDs
+      const createdBrowserConfigIds = (fullResponse.created_browser_configs || []).map((config: any) => config.id);
+      const createdSecretValueIds = (fullResponse.created_secret_values || []).map((secret: any) => secret.id);
+      
+      return {
+        testCase: this.transformTestCase(testCaseData),
+        createdBrowserConfigIds,
+        createdSecretValueIds,
+      };
     } catch (error: any) {
       const apiError: ApiError = {
         message: error.response?.data?.detail || error.message || 'Failed to create test case',
