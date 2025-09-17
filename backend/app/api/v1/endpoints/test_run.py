@@ -70,24 +70,68 @@ def _run_specific_task(run_id: str, traversal_to_do: Traversal) -> None:
 
     rich_print(traversal_to_do)
 
-    client = BugninjaClient(
-        config=BugninjaConfig(
-            headless=True,
-            viewport_height=traversal_to_do.browser_config.viewport.get("height", 1920),
-            viewport_width=traversal_to_do.browser_config.viewport.get("width", 768),
-        ),
-        event_manager=EventPublisherManager([DBWriteEventPublisher()]),
-    )
+    client = None
+    try:
+        client = BugninjaClient(
+            config=BugninjaConfig(
+                headless=True,
+                viewport_height=traversal_to_do.browser_config.viewport.get("height", 1920),
+                viewport_width=traversal_to_do.browser_config.viewport.get("width", 768),
+            ),
+            event_manager=EventPublisherManager([DBWriteEventPublisher()]),
+        )
 
-    task = BugninjaTask(
-        run_id=run_id,
-        description=traversal_to_do.test_case,
-        max_steps=150,
-        allowed_domains=traversal_to_do.browser_config.allowed_domains,
-        secrets=traversal_to_do.secrets,
-    )
+        task = BugninjaTask(
+            run_id=run_id,
+            description=traversal_to_do.test_case,
+            max_steps=150,
+            allowed_domains=traversal_to_do.browser_config.allowed_domains,
+            secrets=traversal_to_do.secrets,
+        )
 
-    asyncio.run(client.run_task(task))
+        # Execute the task
+        result = asyncio.run(client.run_task(task))
+
+        # Manual completion handling - mark as successful
+        from app.db.base import QuinoContextManager
+        from app.schemas.crud.test_run import UpdateTestRun
+        from datetime import datetime
+
+        with QuinoContextManager() as db:
+            update_data = UpdateTestRun(
+                current_state=RunState.FINISHED,
+                finished_at=datetime.now(),
+                repair_was_needed=False,
+            )
+            TestRunRepo.update(db=db, test_run_id=run_id, test_run_data=update_data)
+            rich_print(f"✅ Updated test run {run_id} status to FINISHED")
+
+    except Exception as e:
+        rich_print(f"❌ Test run failed for run_id: {run_id}, error: {e}")
+
+        # Manual completion handling - mark as failed
+        from app.db.base import QuinoContextManager
+        from app.schemas.crud.test_run import UpdateTestRun
+        from datetime import datetime
+
+        with QuinoContextManager() as db:
+            update_data = UpdateTestRun(
+                current_state=RunState.FAILED,
+                finished_at=datetime.now(),
+                repair_was_needed=False,
+            )
+            TestRunRepo.update(db=db, test_run_id=run_id, test_run_data=update_data)
+            rich_print(f"✅ Updated failed test run {run_id} status to FAILED")
+
+        raise
+    finally:
+        # Ensure proper cleanup
+        if client:
+            try:
+                asyncio.run(client.cleanup())
+                rich_print(f"✅ Client cleanup completed for run_id: {run_id}")
+            except Exception as cleanup_error:
+                rich_print(f"⚠️ Client cleanup error for run_id: {run_id}: {cleanup_error}")
 
 
 def _run_replay_session(run_id: str, traversal_to_do: Traversal) -> None:
