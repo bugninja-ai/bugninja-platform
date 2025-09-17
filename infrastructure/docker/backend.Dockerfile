@@ -33,7 +33,7 @@ COPY backend/uv.lock ./
 RUN uv sync
 
 RUN git config --global url."https://${GIT_TOKEN}@github.com/".insteadOf "https://github.com/" && \
-    uv add git+https://github.com/bugninja-ai/bugninja
+    uv add git+https://github.com/bugninja-ai/bugninja@platform
 
 RUN uv run playwright install
 RUN uv run playwright install-deps
