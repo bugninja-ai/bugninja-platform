@@ -165,20 +165,35 @@ You are an expert test case analyst for BugNinja automation platform. I have upl
 
 Please analyze this content and extract or generate a comprehensive test case in the BugNinja format. Return your response as a JSON object with the following structure:
 
+FOR NON-TOML FILES:
 {{
     "test_name": "Clear, descriptive name for the test case",
     "test_description": "User-facing description explaining what this test validates (for manual testers)",
     "test_goal": "Specific completion condition that determines when the test passes",
-    "extra_rules": ["Navigation steps and user actions", "Click login button", "Fill email field", "Verify success message"],
+    "extra_rules": ["Navigate to [url_route]", "Click login button", "Fill email field", "Verify success message"],
     "url_route": "Starting URL or route for the test (if not provided, suggest a reasonable default)",
-    "allowed_domains": ["List of domains that should be allowed during testing"],
+    "allowed_domains": ["https://example.com", "https://subdomain.example.com"],
     "priority": "low|medium|high|critical",
     "category": "authentication|banking|payments|security|ui|api",
     "viewport": {{"width": 1920, "height": 1080}}
 }}
 
+FOR TOML FILES - EXTRACT EXACTLY AS-IS:
+{{
+    "test_name": "Use existing 'name' field from TOML",
+    "test_description": "Use existing 'description' field from TOML",
+    "test_goal": "Generate appropriate goal based on description",
+    "extra_rules": "Use existing 'extra_instructions' array from TOML (empty array if empty)",
+    "url_route": "Extract from description or suggest based on content",
+    "allowed_domains": "Use existing 'allowed_domains' from TOML or extract from description",
+    "priority": "medium",
+    "category": "ui",
+    "viewport": "Extract from run_config.viewport_width/height"
+}}
+
 CRITICAL Guidelines for extra_rules:
 - ALWAYS start with navigation to the starting URL: "Navigate to [url_route]"
+- Use DIRECT navigation to websites - NEVER use search engines or "site:" parameters
 - Include ONLY navigation steps and user interactions like:
   • "Navigate to https://example.com/login"
   • "Click on the login button"
@@ -187,8 +202,11 @@ CRITICAL Guidelines for extra_rules:
   • "Verify the success message appears"
   • "Select 'Premium' from the subscription dropdown"
 
-- Do NOT include browser configuration like:
-  • Viewport sizes, user agents, or browser settings
+- FORBIDDEN actions in extra_rules:
+  • Using Google search or any search engine
+  • Using "site:" search parameters
+  • Searching instead of direct navigation
+  • Browser configuration like viewport sizes, user agents, or browser settings
   • Environment setup or technical configuration
   • Implementation details or code snippets
 
@@ -198,10 +216,20 @@ Other Guidelines:
 3. If content is code: Extract user actions and convert to navigation steps
 4. If content is data: Create test scenarios based on data variations
 5. If content is documentation: Extract user journeys and interactions
-6. Choose appropriate priority based on business impact
-7. Include main domain and expected redirects in allowed_domains
-8. url_route should be the starting page URL
-9. IMPORTANT: The first step in extra_rules must ALWAYS be "Navigate to [url_route]" to ensure the test starts at the correct page
+6. CRITICAL: If content is TOML file - FOLLOW THESE INSTRUCTIONS. Extract existing values exactly as they are:
+   - Take the description field and add it to the Test Goal field as it is, do not modify it!
+   - Generate a new Description field which is shorter for TOML files
+   - Use existing extra_instructions array as extra_rules (do not add navigation steps)
+   - Use existing name as test_name
+   - Extract viewport from run_config section
+   - Extract user_agent from run_config section
+   - DO NOT add your own navigation steps or modify the original instructions
+   - ALWAYS add allowed domains in the proper format!
+7. Choose appropriate priority based on business impact
+8. Include main domain and expected redirects in allowed_domains using full HTTPS URLs (e.g., "https://ebay.com", "https://www.ebay.com")
+9. url_route should be the starting page URL
+10. IMPORTANT: The first step in extra_rules must ALWAYS be "Navigate to [url_route]" to ensure the test starts at the correct page (EXCEPT for TOML files - use their existing extra_instructions as-is)
+11. This is UI AUTOMATION testing - interact directly with the target website, never use search engines as intermediaries, unless the test case that you are parsing instructs you to do so. Include a rule like this: navigate directly to this website and no intermediaries.
 
 Respond ONLY with the JSON object, no additional text or explanation.
 """
